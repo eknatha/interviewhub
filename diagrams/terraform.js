@@ -1,0 +1,27 @@
+window.DIAGRAMS = window.DIAGRAMS || {};
+window.DIAGRAMS.terraform = {
+ 1:{t:'flow',title:'Terraform workflow',n:['Config (.tf)','State','Plan (diff)','Apply','Real infrastructure'],e:['','compare','approve','']},
+ 3:{t:'tiers',title:'Shared state',rows:[['Engineer A','Engineer B','CI'],['Remote backend + lock'],['Single state file']]},
+ 5:{t:'flow',title:'Drift check',n:['Real infra','terraform plan -refresh-only','Diff vs state','Import or reconcile'],e:['','','']},
+ 23:{t:'flow',title:'State recovery',n:['Versioned backend','Restore last good version','plan to verify','Resume'],e:['','','']},
+ 31:{t:'cmp',title:'State commands',a:['state mv / rm','Change addresses in state','No real infra change'],b:['import','Adopt existing resource','Then write config']},
+ 33:{t:'cmp',title:'State backends',a:['S3 + lock','Cheap, you manage','Native locking in new versions'],b:['Terraform Cloud','Managed state, runs, policy','Built-in access control']},
+ 37:{t:'flow',title:'State locking',n:['plan / apply starts','Acquire lock','Run','Release lock'],e:['','','']},
+ 39:{t:'flow',title:'Backend migration',n:['Update backend block','terraform init -migrate-state','Verify with plan','Remove old state'],e:['','','']},
+ 41:{t:'tiers',title:'Multi-account state',rows:[['Org: networking state'],['Account: prod state','Account: dev state'],['Per-region stacks']]},
+ 47:{t:'flow',title:'Safe CI/CD',n:['PR: fmt + validate','plan, post as comment','Review + approve','apply saved plan'],e:['','','']},
+ 49:{t:'tiers',title:'Module design',rows:[['Root module'],['Child module: inputs, outputs'],['Resources']]},
+ 67:{t:'flow',title:'Plan / apply pipeline',n:['Pull request','Plan','Policy check','Manual approval','Apply'],e:['','','','']},
+ 69:{t:'fan',title:'Multi-environment',src:'Shared module',mid:['dev vars','staging vars','prod vars'],dst:'Separate state each',l1:'',l2:''},
+ 77:{t:'flow',title:'Policy as code',n:['terraform plan JSON','OPA / Sentinel','Pass or block','Apply'],e:['','','']},
+ 79:{t:'loop',title:'Drift detection',n:['Scheduled plan','Detect diff','Alert','Fix or revert'],c:'daily'},
+ 85:{t:'flow',title:'Safe replace of a database',n:['plan shows replace','prevent_destroy','Rename / moved block','No data loss'],e:['','','']},
+ 87:{t:'flow',title:'moved block',n:['Old address','moved { from, to }','plan: move only','State updated'],e:['','','']},
+ 97:{t:'flow',title:'Rolling back',n:['Revert commit','plan','apply previous config','Check data impact'],e:['','','']},
+ 119:{t:'flow',title:'Provider integrity',n:['Pin versions','.terraform.lock.hcl','Checksum verify','Trusted registry'],e:['','','']},
+ 127:{t:'cmp',title:'Lock mechanisms',a:['DynamoDB lock','Separate table','Legacy approach'],b:['S3 use_lockfile','Lock object in bucket','No extra table']},
+ 133:{t:'cmp',title:'Secrets in state',a:['Normal attribute','Stored in state','Visible to state readers'],b:['Ephemeral / write-only','Never persisted','Safer for secrets']},
+ 149:{t:'flow',title:'create_before_destroy',n:['Create new','Switch dependents','Destroy old'],e:['','']},
+ 153:{t:'flow',title:'Atlantis',n:['Open PR','atlantis plan','Comment output','atlantis apply','Merge'],e:['','','','']},
+ 173:{t:'flow',title:'Splitting state',n:['Plan the new stacks','state mv or import','plan shows no diff','Remove from old state'],e:['','','']}
+};

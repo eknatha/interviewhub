@@ -1,0 +1,130 @@
+{
+ "generated": "2026-10-21",
+ "guides": {
+  "architecture_tradeoffs": {
+   "questions": 170,
+   "specific": 96,
+   "fallback": 74,
+   "pct": 56
+  },
+  "aws": {
+   "questions": 170,
+   "specific": 164,
+   "fallback": 6,
+   "pct": 96
+  },
+  "azure": {
+   "questions": 170,
+   "specific": 159,
+   "fallback": 11,
+   "pct": 94
+  },
+  "behavioral_star": {
+   "questions": 177,
+   "specific": 36,
+   "fallback": 141,
+   "pct": 20
+  },
+  "cicd": {
+   "questions": 86,
+   "specific": 69,
+   "fallback": 17,
+   "pct": 80
+  },
+  "coding_scripting": {
+   "questions": 200,
+   "specific": 113,
+   "fallback": 87,
+   "pct": 57
+  },
+  "container_lifecycle": {
+   "questions": 103,
+   "specific": 88,
+   "fallback": 15,
+   "pct": 85
+  },
+  "database_performance": {
+   "questions": 97,
+   "specific": 77,
+   "fallback": 20,
+   "pct": 79
+  },
+  "devsecops_security": {
+   "questions": 155,
+   "specific": 145,
+   "fallback": 10,
+   "pct": 94
+  },
+  "gcp": {
+   "questions": 90,
+   "specific": 79,
+   "fallback": 11,
+   "pct": 88
+  },
+  "git_production": {
+   "questions": 177,
+   "specific": 162,
+   "fallback": 15,
+   "pct": 92
+  },
+  "kubernetes": {
+   "questions": 170,
+   "specific": 154,
+   "fallback": 16,
+   "pct": 91
+  },
+  "linux": {
+   "questions": 175,
+   "specific": 142,
+   "fallback": 33,
+   "pct": 81
+  },
+  "networking": {
+   "questions": 170,
+   "specific": 137,
+   "fallback": 33,
+   "pct": 81
+  },
+  "observability": {
+   "questions": 80,
+   "specific": 67,
+   "fallback": 13,
+   "pct": 84
+  },
+  "product_management": {
+   "questions": 113,
+   "specific": 40,
+   "fallback": 73,
+   "pct": 35
+  },
+  "sre_devops_scenarios": {
+   "questions": 171,
+   "specific": 141,
+   "fallback": 30,
+   "pct": 82
+  },
+  "sre_reliability": {
+   "questions": 173,
+   "specific": 161,
+   "fallback": 12,
+   "pct": 93
+  },
+  "system_design": {
+   "questions": 141,
+   "specific": 105,
+   "fallback": 36,
+   "pct": 74
+  },
+  "terraform": {
+   "questions": 173,
+   "specific": 159,
+   "fallback": 14,
+   "pct": 92
+  }
+ },
+ "total": 2961,
+ "specific": 2294,
+ "fallback": 667,
+ "pct": 77,
+ "uniqueUrls": 671
+}
