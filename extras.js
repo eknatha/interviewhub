@@ -30,7 +30,7 @@
       var pill = document.querySelector('header span'), cnt = (document.title.match(/\((\d+)\s*Q/) || [])[1] || (pill && (pill.textContent.match(/\d+/) || [])[0]) || '';
       var spoken = document.querySelectorAll('.sp-block').length;
       var c = document.createElement('section'); c.className = 'print-cover';
-      c.innerHTML = '<div class="pc-brand">EknathaLabs · Interview Prep</div><h1></h1><div class="pc-sub">Platform, SRE &amp; DevOps interview guide</div>' +
+      c.innerHTML = '<div class="pc-brand">InterviewHub · Interview Prep</div><h1></h1><div class="pc-sub">Platform, SRE &amp; DevOps interview guide</div>' +
         '<dl><dt>Questions</dt><dd class="pc-n"></dd><dt>Online (always latest)</dt><dd class="pc-u"></dd><dt>Printed</dt><dd class="pc-d"></dd></dl>' +
         '<p class="pc-note">Free to use and share for personal study. Answers are written for interview practice, so check command flags and versions against the official documentation before running anything in production.</p>';
       c.querySelector('h1').textContent = title;
