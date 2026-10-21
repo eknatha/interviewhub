@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Troubleshooting Decision Trees — EknathaLabs</title>
+<meta name="description" content="Click-through troubleshooting decision trees (pod won't start, service unreachable, high latency, disk full, DNS, Terraform, database) linked to the matching interview questions. Works offline.">
+<link rel="canonical" href="https://interviewhub.eknathalabs.com/decision_trees.html">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f5f0;--surface:#fff;--border:#e4e4dc;--text:#1a1a1a;--muted:#666;--accent:#1D9E75;--accent-bg:#E1F5EE;--accent-dk:#0F6E56;--info:#185FA5}
+body.dark{--bg:#111314;--surface:#1a1d1f;--border:#2e3235;--text:#e8eaec;--muted:#8a9099;--accent-bg:#0d2a20;--accent-dk:#4dd4a8;--info:#7ab0ec}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:.8rem 1.25rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:10}
+header a.back{font-size:12px;font-weight:600;color:var(--info);text-decoration:none;border:1px solid var(--border);border-radius:7px;padding:4px 10px}
+header h1{font-size:16px;font-weight:700;flex:1;min-width:200px}
+.btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+.btn:hover{border-color:var(--accent)}.btn:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{max-width:860px;margin:0 auto;padding:1.25rem}
+.lede{color:var(--muted);font-size:14px;margin-bottom:1rem}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:1.2rem}
+.pick{font:inherit;text-align:left;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);cursor:pointer}
+.pick:hover,.pick.on{border-color:var(--accent);background:var(--accent-bg)}
+.pick .ic{font-size:20px;display:block}.pick b{font-size:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem}
+.trail{font-size:12px;color:var(--muted);margin-bottom:.8rem;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.trail button{font:inherit;font-size:12px;border:0;background:none;color:var(--info);cursor:pointer;text-decoration:underline;padding:0}
+.q{font-size:17px;font-weight:700;margin-bottom:.8rem}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{font:inherit;font-size:14px;text-align:left;padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);cursor:pointer}
+.opt:hover{border-color:var(--accent);background:var(--accent-bg)}
+.leaf h2{font-size:17px;color:var(--accent-dk);margin-bottom:.5rem}
+.leaf ol{margin:0 0 .9rem 20px;font-size:14px}.leaf li{margin-bottom:4px}
+.leaf h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:.4rem}
+.leaf ul{list-style:none}.leaf li.l{margin-bottom:6px;font-size:14px}
+.leaf a{color:var(--info)}.leaf small{color:var(--muted)}
+code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:12.5px}
+.row{display:flex;gap:8px;margin-top:1rem}
+</style>
+<link rel="stylesheet" href="responsive.css">
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">&larr; All guides</a>
+  <h1>Troubleshooting decision trees</h1>
+  <button class="btn" id="theme" aria-label="Toggle dark mode">Theme</button>
+</header>
+<main>
+  <p class="lede">Pick a symptom, answer what you see, and land on the checks to run plus the interview questions that cover it. Say the path out loud in an interview: symptom, hypothesis, evidence, action.</p>
+  <div class="picker" id="picker"></div>
+  <div class="card" id="view" aria-live="polite"></div>
+</main>
+<script src="trees_data.js"></script>
+<script src="trees_titles.js"></script>
+<script>
+(function(){
+  var T=window.TREES, files=window.TREE_FILES, titles=window.TREE_TITLES, tree=null, path=[];
+  var picker=document.getElementById('picker'), view=document.getElementById('view');
+  function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+  function code(parent,text){ // render `backticks` as <code>
+    text.split('`').forEach(function(p,i){parent.appendChild(i%2?el('code','',p):document.createTextNode(p));});
+  }
+  function pickers(){
+    picker.innerHTML='';
+    T.forEach(function(t){var b=el('button','pick'+(tree&&tree.id===t.id?' on':''));b.appendChild(el('span','ic',t.icon));b.appendChild(el('b','',t.title));
+      b.onclick=function(){open(t.id);};picker.appendChild(b);});
+  }
+  function open(id,p){
+    tree=T.filter(function(t){return t.id===id;})[0]; path=p||[tree.start];
+    try{history.replaceState(null,'','#'+id+(path.length>1?'/'+path.slice(1).join('.'):''));}catch(e){}
+    pickers(); render();
+  }
+  function render(){
+    view.innerHTML=''; var cur=tree.n[path[path.length-1]];
+    var trail=el('div','trail'); var s=el('button','',tree.title); s.onclick=function(){path=[tree.start];render();}; trail.appendChild(s);
+    path.slice(0,-1).forEach(function(id,i){trail.appendChild(document.createTextNode(' › '));var b=el('button','',tree.n[id].q.replace(/`/g,'').slice(0,34)+'…');
+      b.onclick=function(){path=path.slice(0,i+1);render();};trail.appendChild(b);});
+    view.appendChild(trail);
+    if(cur.o){
+      var q=el('div','q'); code(q,cur.q); view.appendChild(q);
+      var o=el('div','opts'); cur.o.forEach(function(x){var b=el('button','opt',x[0]);b.onclick=function(){path.push(x[1]);open(tree.id,path);};o.appendChild(b);});
+      view.appendChild(o);
+    } else {
+      var l=el('div','leaf'); l.appendChild(el('h2','',cur.t));
+      var ol=el('ol'); cur.s.forEach(function(x){var li=el('li');code(li,x);ol.appendChild(li);}); l.appendChild(ol);
+      if(cur.l&&cur.l.length){
+        l.appendChild(el('h3','','Practise these questions'));
+        var ul=el('ul'); cur.l.forEach(function(x){
+          var key=x[0]+'#'+x[1], li=el('li','l'), a=el('a','',titles[key]||key);
+          a.href=files[x[0]]+'#card-'+x[1]; li.appendChild(a); li.appendChild(document.createTextNode(' ')); li.appendChild(el('small','','('+x[0].replace(/_/g,' ')+' #'+x[1]+')')); ul.appendChild(li);});
+        l.appendChild(ul);
+      }
+      var r=el('div','row'); var b1=el('button','btn','↺ Start over'); b1.onclick=function(){open(tree.id);}; r.appendChild(b1);
+      var b2=el('button','btn','Back'); b2.onclick=function(){path.pop();open(tree.id,path);}; r.appendChild(b2);
+      l.appendChild(r); view.appendChild(l);
+    }
+  }
+  var dark=false; try{dark=localStorage.getItem('dt-dark')==='1'||(localStorage.getItem('dt-dark')===null&&matchMedia('(prefers-color-scheme: dark)').matches);}catch(e){}
+  document.body.classList.toggle('dark',dark);
+  document.getElementById('theme').onclick=function(){dark=!dark;document.body.classList.toggle('dark',dark);try{localStorage.setItem('dt-dark',dark?'1':'0');}catch(e){}};
+  var h=location.hash.slice(1).split('/'), id=h[0]||T[0].id;
+  if(!T.some(function(t){return t.id===id;}))id=T[0].id;
+  var p=[T.filter(function(t){return t.id===id;})[0].start]; if(h[1])p=p.concat(h[1].split('.'));
+  tree=T.filter(function(t){return t.id===id;})[0];
+  p=p.filter(function(x){return tree.n[x];}); if(!p.length)p=[tree.start];
+  open(id,p);
+})();
+</script>
+<script src="i18n.js"></script>
+</body>
+</html>
