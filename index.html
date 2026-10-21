@@ -4,7 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EknathaLabs — Platform , SRE & DevOps Engineering Interview Portal</title>
-<meta name="description" content="1000+ production-grade interview Q&A across Terraform, Kubernetes, GCP, AWS, Azure, Networking, Linux, Databases, Containers, Git, Observability, CI/CD, Security, Coding, and Behavioral. Free, offline-ready.">
+<meta name="description" content="2,900+ production-grade interview Q&A across Terraform, Kubernetes, GCP, AWS, Azure, Networking, Linux, Databases, Containers, Git, Observability, CI/CD, Security, Coding, and Behavioral. Free, offline-ready.">
+<link rel="canonical" href="https://interviewhub.eknathalabs.com/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="EknathaLabs — Platform, SRE &amp; DevOps Interview Portal">
+<meta property="og:description" content="2,900+ production-grade interview Q&amp;A with 60–90 second spoken answers. Free, offline-ready, no login.">
+<meta property="og:url" content="https://interviewhub.eknathalabs.com/">
+<meta name="twitter:card" content="summary">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -32,6 +38,14 @@ nav a { font-size: 12px; font-weight: 500; padding: 5px 11px; border-radius: 7px
 nav a:hover { background: var(--accent-bg); color: var(--accent); }
 nav a.cta { background: var(--accent); color: #fff; border-color: var(--accent); }
 nav a.cta:hover { background: var(--accent-dk); border-color: var(--accent-dk); }
+.hvisitor { display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--muted); border:1px solid var(--border); border-radius:8px; padding:4px 10px; white-space:nowrap; }
+.hvisitor b { color:var(--accent-dk); font-variant-numeric:tabular-nums; }
+.hvisitor[hidden]{display:none}
+.pdfs{max-width:1100px;margin:2.2rem auto 0;padding:0 1.25rem}
+.pdfs h2{font-size:18px;margin-bottom:4px}.pdfs p{font-size:13px;color:var(--muted);margin-bottom:12px}
+.pdfgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.pdfl{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--border);background:var(--surface);border-radius:9px;color:var(--text);text-decoration:none;font-size:13px;font-weight:600}
+.pdfl:hover{border-color:var(--accent);color:var(--accent-dk)}.pdfl small{color:var(--muted);font-weight:500}
 .dm-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; font-size: 13px; cursor: pointer; color: var(--muted); transition: all .14s; white-space: nowrap; }
 .dm-btn:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -135,8 +149,6 @@ footer { border-top: 1px solid var(--border); background: var(--surface); text-a
 footer a { color: var(--accent); text-decoration: none; }
 footer a:hover { text-decoration: underline; }
 
-.hvisitor { display: inline-flex; align-items: center; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); transition: border-color .14s; flex-shrink: 0; }
-.hvisitor img { height: 22px; display: block; }
 
 @media (max-width: 640px) {
   header { padding: 0 1rem; }
@@ -147,6 +159,7 @@ footer a:hover { text-decoration: underline; }
   nav .hs { display: none; }
 }
 </style>
+<link rel="stylesheet" href="responsive.css">
 </head>
 <body>
 
@@ -159,12 +172,9 @@ footer a:hover { text-decoration: underline; }
       <span class="logo-name">Eknatha<em>Labs</em></span>
     </a>
     <nav>
-      <a href="https://github.com/eknatha" target="_blank" class="hs">GitHub</a>
-      <a href="https://eknatha.github.io" target="_blank" class="hs">Portfolio</a>
-      <a href="https://linkedin.com/in/eknathareddyp" target="_blank" class="cta hs">LinkedIn</a>
-      <span class="hvisitor hs">
-        <img src="https://hitscounter.dev/api/hit?url=https%3A%2F%2Feknatha.github.io%2Finterview-prep%2F&label=Visitors&icon=person-fill&color=%231D9E75" alt="visitor count" referrerpolicy="no-referrer-when-downgrade">
-      </span>
+      <a href="resume_mapper.html" class="hs">Resume mapper</a>
+      <a href="decision_trees.html" class="hs">Decision trees</a>
+      <span class="hvisitor hs" id="visitor-count" hidden title="Anonymous visit counter (no cookies)">&#128065; <b data-n>0</b> visitors</span>
       <button class="dm-btn" id="dm-btn" onclick="toggleDark()">&#9790; Dark</button>
     </nav>
   </div>
@@ -173,9 +183,9 @@ footer a:hover { text-decoration: underline; }
 <div class="hero">
   <div class="pill"><span class="pill-dot"></span>Platform & DevOps Engineer Interview Prep</div>
   <h1>Crack your next<br><mark>Platform or DevOps Engineer</mark> interview</h1>
-  <p class="sub">1000+ production-grade questions with real commands, architecture patterns, and Principal-level answers.</p>
+  <p class="sub">2,900+ production-grade questions with real commands, architecture patterns, and Principal-level answers.</p>
   <div class="counters">
-    <div class="ctr"><div class="ctr-n">1000+</div><div class="ctr-l">Total questions</div></div>
+    <div class="ctr"><div class="ctr-n">2,900+</div><div class="ctr-l">Total questions</div></div>
     <div class="ctr"><div class="ctr-n">20</div><div class="ctr-l">Topic guides</div></div>
     <div class="ctr"><div class="ctr-n">100%</div><div class="ctr-l">Free &amp; offline</div></div>
     <div class="ctr"><div class="ctr-n">0</div><div class="ctr-l">Login required</div></div>
@@ -198,14 +208,14 @@ footer a:hover { text-decoration: underline; }
 </div>
 
 <div class="section">
-  <div class="section-meta" id="meta">Showing 20 guides · 1000+ questions</div>
+  <div class="section-meta" id="meta">Showing 20 guides · 2,900+ questions</div>
   <div class="grid" id="grid">
 
     <!-- Terraform -->
     <a class="card t-coral" href="terraform_interview_guide.html" data-tags="infra dev">
       <div class="card-header">
         <div class="card-icon">&#127759;</div>
-        <span class="cbadge">120 questions</span>
+        <span class="cbadge">173 questions</span>
       </div>
       <div class="card-title">Terraform Production</div>
       <div class="card-desc">State management, remote backends, drift detection, modules, workspace isolation, and CI/CD integration for IaC at scale.</div>
@@ -220,7 +230,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-blue" href="kubernetes_interview_guide.html" data-tags="containers infra">
       <div class="card-header">
         <div class="card-icon">&#9783;</div>
-        <span class="cbadge">120 questions</span>
+        <span class="cbadge">170 questions</span>
       </div>
       <div class="card-title">Kubernetes Production</div>
       <div class="card-desc">Pod lifecycle, networking, storage, scheduling, security posture, HPA/VPA, cluster upgrades, and real incident diagnosis patterns.</div>
@@ -235,7 +245,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-teal" href="gcp_interview_guide.html" data-tags="cloud infra">
       <div class="card-header">
         <div class="card-icon">&#9729;</div>
-        <span class="cbadge">40 questions</span>
+        <span class="cbadge">90 questions</span>
       </div>
       <div class="card-title">GCP Production</div>
       <div class="card-desc">IAM &amp; Workload Identity, GKE, VPC networking, Cloud SQL, BigQuery, Binary Authorization, SCC, Cloud Build, and FinOps patterns.</div>
@@ -250,7 +260,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-ambr" href="aws_interview_guide.html" data-tags="cloud infra">
       <div class="card-header">
         <div class="card-icon">&#9728;</div>
-        <span class="cbadge">120 questions</span>
+        <span class="cbadge">170 questions</span>
       </div>
       <div class="card-title">AWS Production</div>
       <div class="card-desc">IAM, VPC, EKS, RDS, Lambda, S3, CloudWatch, Cost Explorer, and multi-region high-availability architecture patterns.</div>
@@ -265,7 +275,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-sky" href="azure_interview_guide.html" data-tags="cloud infra">
       <div class="card-header">
         <div class="card-icon">&#9636;</div>
-        <span class="cbadge">120 questions</span>
+        <span class="cbadge">170 questions</span>
       </div>
       <div class="card-title">Azure Production</div>
       <div class="card-desc">Entra ID, AKS, VNet peering, Azure Storage, Cost Management, Defender for Cloud, Policy, and enterprise landing zone patterns.</div>
@@ -280,7 +290,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-purp" href="networking_interview_guide.html" data-tags="infra ops">
       <div class="card-header">
         <div class="card-icon">&#128246;</div>
-        <span class="cbadge">120 questions</span>
+        <span class="cbadge">170 questions</span>
       </div>
       <div class="card-title">Networking Fundamentals</div>
       <div class="card-desc">OSI model, TCP/UDP internals, DNS deep dive, TLS handshake, load balancing, eBPF, mTLS, cloud VPC, and network troubleshooting.</div>
@@ -295,7 +305,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-ambr" href="linux_interview_guide.html" data-tags="ops infra">
       <div class="card-header">
         <div class="card-icon">&#128039;</div>
-        <span class="cbadge">125 questions</span>
+        <span class="cbadge">175 questions</span>
       </div>
       <div class="card-title">Linux Systems Admin</div>
       <div class="card-desc">Process management, filesystem internals, kernel tuning, performance analysis, security hardening, systemd, LVM, cgroups, and namespaces.</div>
@@ -310,7 +320,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-grn" href="database_performance_interview_guide.html" data-tags="ops infra">
       <div class="card-header">
         <div class="card-icon">&#128202;</div>
-        <span class="cbadge">45 questions</span>
+        <span class="cbadge">97 questions</span>
       </div>
       <div class="card-title">Database Performance</div>
       <div class="card-desc">Index internals, query plan analysis, PostgreSQL VACUUM &amp; WAL, MySQL buffer pool, connection pooling, replication, and Cloud SQL tuning.</div>
@@ -325,7 +335,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-red" href="container_lifecycle_interview_guide.html" data-tags="containers infra">
       <div class="card-header">
         <div class="card-icon">&#128230;</div>
-        <span class="cbadge">50 questions</span>
+        <span class="cbadge">103 questions</span>
       </div>
       <div class="card-title">Container Lifecycle &amp; Deployments</div>
       <div class="card-desc">Docker internals, image optimisation, OCI runtime, deployment strategies (rolling, blue-green, canary), security, Helm, ArgoCD, and GitOps.</div>
@@ -340,7 +350,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-gray" href="git_production_interview_guide.html" data-tags="dev ops">
       <div class="card-header">
         <div class="card-icon">&#127959;</div>
-        <span class="cbadge">120 questions</span>
+        <span class="cbadge">177 questions</span>
       </div>
       <div class="card-title">Git in Production</div>
       <div class="card-desc">Object model internals, branching strategies, merge vs rebase, interactive rebase, disaster recovery, GitOps workflows, signing, and repo governance.</div>
@@ -355,7 +365,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-teal" href="observability_interview_guide.html" data-tags="ops infra">
       <div class="card-header">
         <div class="card-icon">&#128270;</div>
-        <span class="cbadge">30 questions</span>
+        <span class="cbadge">80 questions</span>
       </div>
       <div class="card-title">Observability &amp; Monitoring</div>
       <div class="card-desc">Metrics / logs / traces pillars, Prometheus, PromQL, Grafana, Loki, OpenTelemetry, SLOs, error budgets, burn-rate alerting, and incident response.</div>
@@ -370,7 +380,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-blue" href="cicd_interview_guide.html" data-tags="dev infra">
       <div class="card-header">
         <div class="card-icon">&#9881;</div>
-        <span class="cbadge">30 questions</span>
+        <span class="cbadge">86 questions</span>
       </div>
       <div class="card-title">CI/CD Pipelines</div>
       <div class="card-desc">GitHub Actions, Cloud Build, ArgoCD, Tekton, pipeline design patterns, test strategies, security scanning, and GitOps promotion flows.</div>
@@ -385,7 +395,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-teal" href="sre_reliability_interview_guide.html" data-tags="ops infra">
       <div class="card-header">
         <div class="card-icon">&#9851;</div>
-        <span class="cbadge">120 questions</span>
+        <span class="cbadge">173 questions</span>
       </div>
       <div class="card-title">SRE Reliability &amp; Incident Management <span class="new-badge">NEW</span></div>
       <div class="card-desc">SLIs/SLOs, error budgets, burn-rate alerting, on-call rotations, incident command, blameless postmortems, toil, resilience patterns, chaos engineering, and capacity planning.</div>
@@ -400,7 +410,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-purp" href="product_management_interview_guide.html" data-tags="dev ops">
       <div class="card-header">
         <div class="card-icon">&#128202;</div>
-        <span class="cbadge">60 questions</span>
+        <span class="cbadge">113 questions</span>
       </div>
       <div class="card-title">Technical / Platform PM <span class="new-badge">NEW</span></div>
       <div class="card-desc">Platform product sense, internal-platform metrics, build-vs-buy, API design, golden paths, prioritization (RICE), influence without authority, GTM/adoption, and PM behavioral.</div>
@@ -415,7 +425,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-blue" href="coding_scripting_interview_guide.html" data-tags="dev ops">
       <div class="card-header">
         <div class="card-icon">&#128187;</div>
-        <span class="cbadge">150 questions</span>
+        <span class="cbadge">200 questions</span>
       </div>
       <div class="card-title">Coding &amp; Scripting for SRE / Platform <span class="new-badge">NEW</span></div>
       <div class="card-desc">Bash strict-mode &amp; awk, Python automation, algorithms for log-scale data, API pagination, K8s/cloud scripting, Go basics, and a live-coding walkthrough.</div>
@@ -430,7 +440,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-purp" href="devsecops_security_interview_guide.html" data-tags="ops cloud containers">
       <div class="card-header">
         <div class="card-icon">&#128272;</div>
-        <span class="cbadge">100 questions</span>
+        <span class="cbadge">155 questions</span>
       </div>
       <div class="card-title">DevSecOps / Cloud &amp; Supply-Chain Security <span class="new-badge">NEW</span></div>
       <div class="card-desc">Secrets &amp; Vault, SBOM/Sigstore/SLSA supply-chain, Kubernetes &amp; container hardening (CKS-aligned), policy-as-code, cloud security, AppSec, and incident response.</div>
@@ -445,7 +455,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-teal" href="behavioral_star_interview_guide.html" data-tags="ops dev">
       <div class="card-header">
         <div class="card-icon">&#129309;</div>
-        <span class="cbadge">125 questions</span>
+        <span class="cbadge">177 questions</span>
       </div>
       <div class="card-title">Behavioral Interview (STAR) <span class="new-badge">NEW</span></div>
       <div class="card-desc">STAR-framework prep across incident management, leadership, communication, prioritization, and ownership &mdash; with coaching notes and worked example answers.</div>
@@ -460,7 +470,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-red" href="sre_devops_scenarios_guide.html" data-tags="ops infra containers cloud">
       <div class="card-header">
         <div class="card-icon">&#128680;</div>
-        <span class="cbadge">120 scenarios</span>
+        <span class="cbadge">171 scenarios</span>
       </div>
       <div class="card-title">Production Scenarios <span class="new-badge">NEW</span></div>
       <div class="card-desc">120 real "it's broken &mdash; walk me through it" incidents across SRE, DevOps &amp; Platform. Each is a full STAR diagnostic path: symptom &rarr; investigation &rarr; root cause &rarr; fix &rarr; prevention, with an interview tip.</div>
@@ -476,7 +486,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-ambr" href="architecture_tradeoffs_interview_guide.html" data-tags="infra dev ops">
       <div class="card-header">
         <div class="card-icon">&#9878;</div>
-        <span class="cbadge">120 decisions</span>
+        <span class="cbadge">170 decisions</span>
       </div>
       <div class="card-title">Staff+ Architecture &amp; Trade-offs <span class="new-badge">NEW</span></div>
       <div class="card-desc">120 open-ended decision walkthroughs: build vs buy, multi-region, monolith vs microservices, data store choice, platform/IDP timing, tech-debt, and big bets — clarify, trade-offs, recommendation, reversibility, de-risk.</div>
@@ -491,7 +501,7 @@ footer a:hover { text-decoration: underline; }
     <a class="card t-purp" href="system_design_interview_guide.html" data-tags="infra dev">
       <div class="card-header">
         <div class="card-icon">&#9956;</div>
-        <span class="cbadge">90 questions</span>
+        <span class="cbadge">141 questions</span>
       </div>
       <div class="card-title">System Design <span class="new-badge">NEW</span></div>
       <div class="card-desc">URL shorteners, rate limiters, multi-region Kubernetes platforms, distributed caches, notification systems, CI/CD platforms, and trade-off deep dives at Principal level.</div>
@@ -515,26 +525,37 @@ footer a:hover { text-decoration: underline; }
   </div>
 </div>
 
-<!-- ABOUT -->
-<div class="about">
-  <div class="about-box">
-    <div class="av">ER</div>
-    <div class="about-info">
-      <strong>Eknatha Reddy Puli </strong>
-      <p> &nbsp; Linux &middot; Kubernetes &middot; Terraform &middot; GCP &middot; AWS &middot; Azure &middot; System Design &middot; Database </p>
-    </div>
-    <div class="about-links">
-      <a class="alink" href="https://github.com/eknatha" target="_blank">GitHub</a>
-      <a class="alink" href="https://eknatha.github.io" target="_blank">Portfolio</a>
-      <a class="alink pri" href="https://linkedin.com/in/eknathareddyp" target="_blank">LinkedIn</a>
-    </div>
+
+<section id="pdfs" class="pdfs">
+  <h2>Printable PDF guides</h2>
+  <p>Every answer expanded, spoken answers and official-doc links included. Free to download and share.</p>
+  <div class="pdfgrid">
+    <a class="pdfl" href="pdf/architecture_tradeoffs_interview_guide.pdf" download>Architecture & Trade-offs <small>120 Q</small></a>
+    <a class="pdfl" href="pdf/aws_interview_guide.pdf" download>AWS <small>120 Q</small></a>
+    <a class="pdfl" href="pdf/azure_interview_guide.pdf" download>Azure <small>120 Q</small></a>
+    <a class="pdfl" href="pdf/behavioral_star_interview_guide.pdf" download>Behavioral (STAR) <small>125 Q</small></a>
+    <a class="pdfl" href="pdf/cicd_interview_guide.pdf" download>CI/CD <small>30 Q</small></a>
+    <a class="pdfl" href="pdf/coding_scripting_interview_guide.pdf" download>Coding & Scripting <small>150 Q</small></a>
+    <a class="pdfl" href="pdf/container_lifecycle_interview_guide.pdf" download>Containers & Deployments <small>50 Q</small></a>
+    <a class="pdfl" href="pdf/database_performance_interview_guide.pdf" download>Database Performance <small>45 Q</small></a>
+    <a class="pdfl" href="pdf/devsecops_security_interview_guide.pdf" download>DevSecOps <small>100 Q</small></a>
+    <a class="pdfl" href="pdf/gcp_interview_guide.pdf" download>GCP <small>40 Q</small></a>
+    <a class="pdfl" href="pdf/git_production_interview_guide.pdf" download>Git in Production <small>120 Q</small></a>
+    <a class="pdfl" href="pdf/kubernetes_interview_guide.pdf" download>Kubernetes <small>120 Q</small></a>
+    <a class="pdfl" href="pdf/linux_interview_guide.pdf" download>Linux <small>125 Q</small></a>
+    <a class="pdfl" href="pdf/networking_interview_guide.pdf" download>Networking <small>120 Q</small></a>
+    <a class="pdfl" href="pdf/observability_interview_guide.pdf" download>Observability <small>30 Q</small></a>
+    <a class="pdfl" href="pdf/product_management_interview_guide.pdf" download>Platform PM <small>60 Q</small></a>
+    <a class="pdfl" href="pdf/sre_devops_scenarios_guide.pdf" download>Production Scenarios <small>120 Q</small></a>
+    <a class="pdfl" href="pdf/sre_reliability_interview_guide.pdf" download>SRE & Incident Mgmt <small>120 Q</small></a>
+    <a class="pdfl" href="pdf/system_design_interview_guide.pdf" download>System Design <small>90 Q</small></a>
+    <a class="pdfl" href="pdf/terraform_interview_guide.pdf" download>Terraform <small>120 Q</small></a>
   </div>
-</div>
+</section>
 
 <footer>
   Built with &#10084; by <a href="https://eknathalabs.com/" target="_blank">EknathaLabs</a>
-  &nbsp;&middot;&nbsp; <a href="https://github.com/eknatha/interview-prep" target="_blank">&#11088; Star on GitHub</a>
-  &nbsp;&middot;&nbsp; Free forever &middot; No login &middot; No tracking
+  &nbsp;&middot;&nbsp; Free forever &middot; No login &middot; No ads &middot; No cookies &middot; Anonymous visit counter only
 </footer>
 
 <script>
@@ -581,5 +602,7 @@ function setTag(tag, el) {
   filterCards();
 }
 </script>
+<script src="counter.js"></script>
+<script src="i18n.js"></script>
 </body>
 </html>
