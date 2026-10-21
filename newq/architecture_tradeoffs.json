@@ -1,0 +1,1505 @@
+[
+ {
+  "tag": "buildbuy",
+  "q": "Should you build your own authentication system or buy an identity provider like Auth0, Okta or Cognito?",
+  "ctx": "A new product needs sign-up, login, MFA and SSO. A developer says auth is easy and wants to build it.",
+  "clar": [
+   "How many users and what B2B SSO needs (SAML, SCIM)?",
+   "What compliance regimes apply?",
+   "Is identity a differentiator for the product?"
+  ],
+  "trade": [
+   "Build: full control, no per-user fee, but you own security, MFA, recovery, breach risk, SSO protocols",
+   "Buy: fast, maintained, certified, but per-user pricing, vendor dependency, customisation limits",
+   "Open-source self-host (Keycloak): control with lower fee, but you run and patch it"
+  ],
+  "why": "Authentication is a high-risk commodity. Mistakes become breaches, and enterprise features such as SAML and SCIM are expensive to build and keep current.",
+  "rec": "Buy or adopt a managed service for the core, keep a thin abstraction at the boundary, and build only the product-specific authorisation logic yourself.",
+  "rev": "Moderately reversible if you keep user IDs and credentials exportable, use standard protocols (OIDC), and avoid vendor-specific claims in application code.",
+  "risk": [
+   "Negotiate data export and exit terms",
+   "Wrap the provider behind an internal interface",
+   "Model cost at 10x users to avoid pricing shocks",
+   "Document the break-glass login path"
+  ],
+  "tip": "Say that authentication is undifferentiated and risky, so buy it, but own authorisation.",
+  "a": "I would buy, or at least adopt a managed or well-maintained open-source identity service, rather than build. Authentication looks simple until you add password hashing, MFA, account recovery, brute force protection, session management, social login, enterprise SAML and provisioning, auditing and compliance. Each is a place where a subtle mistake becomes a breach, and none differentiates the product. A vendor spreads that cost and keeps pace with standards. I would clarify user volume, enterprise requirements and compliance, and model per-user pricing at much larger scale so there is no surprise. To limit lock-in, I use standard protocols like OpenID Connect, keep my own user identifiers, and put an internal interface around the provider so it can be swapped. I keep authorisation, meaning what each user may do in my product, in my own code, since that is tied to the business domain. I would revisit if cost or customisation becomes prohibitive.",
+  "f": [
+   "What is the difference between authentication and authorisation here?",
+   "How do you limit vendor lock-in?"
+  ]
+ },
+ {
+  "tag": "buildbuy",
+  "q": "Should you run your own CI/CD runners and build infrastructure or use hosted runners?",
+  "ctx": "Build minutes cost is rising and builds are slow. Someone proposes self-hosting runners on spare cloud capacity.",
+  "clar": [
+   "What is the monthly spend and build volume?",
+   "Do builds need private network access or special hardware?",
+   "Who would operate and secure the fleet?"
+  ],
+  "trade": [
+   "Hosted: zero ops, elastic, patched, but per-minute cost, limited machine sizes, network isolation limits",
+   "Self-hosted: cheaper at scale, bigger or GPU machines, private network access, but you manage scaling, security, caching, image upkeep",
+   "Hybrid: hosted for most, self-hosted for heavy or private jobs"
+  ],
+  "why": "The break-even depends on volume and the cost of engineer time to operate runners safely, including ephemeral isolation to prevent credential leaks.",
+  "rec": "Stay hosted until spend or requirements clearly justify it, then move heavy or private workloads to ephemeral self-hosted runners, keeping hosted as overflow.",
+  "rev": "Highly reversible since runners are configuration. The pipeline definition stays mostly the same.",
+  "risk": [
+   "Use ephemeral one-job runners",
+   "Separate runners per trust level",
+   "Track cost per build and queue time",
+   "Keep hosted fallback for outages"
+  ],
+  "tip": "Include engineer time and security hardening in the self-hosted cost. The cloud bill is only part of it.",
+  "a": "I would start by quantifying: current spend, queue time and why builds are slow. Hosted runners cost more per minute but need no operations, scale instantly, and are patched and isolated for me. Self-hosting becomes attractive when volume is high enough that savings exceed the cost of the people who maintain it, or when I need larger machines, GPUs, or network access to private resources. The hidden costs are real: autoscaling logic, image maintenance, cache management, and especially security, since a persistent runner that executes untrusted pull request code can leak credentials, so I must use ephemeral, single-use runners and separate trust levels. My recommendation is staying hosted until the numbers or requirements justify change, then moving only the heavy or private jobs to self-hosted ephemeral runners while keeping hosted capacity as overflow. Because pipeline definitions are portable, this decision is easy to reverse.",
+  "f": [
+   "Why must self-hosted runners be ephemeral?",
+   "When is hybrid best?"
+  ]
+ },
+ {
+  "tag": "buildbuy",
+  "q": "Your team wants to build an internal analytics platform instead of paying for a SaaS product analytics tool. How do you decide?",
+  "ctx": "SaaS analytics bills are growing with event volume. A team claims they can build it cheaper with a warehouse and open-source tools.",
+  "clar": [
+   "What questions must analytics answer and for whom?",
+   "Event volume and growth, retention needs?",
+   "Privacy and data residency constraints?"
+  ],
+  "trade": [
+   "SaaS: fast insights, polished UI, funnels and cohorts out of the box, but cost scales with volume and data lives with the vendor",
+   "Build on warehouse + BI: ownership, flexible modelling, lower marginal cost, but needs data engineering, maintenance and slower time-to-insight",
+   "Hybrid: SaaS for product teams, warehouse for deep analysis"
+  ],
+  "why": "The cheapest per event is rarely the cheapest overall once data engineers, pipelines, quality and self-serve tooling are counted.",
+  "rec": "Keep SaaS for self-serve product analytics, send events through a pipeline that also lands raw data in your warehouse so you keep optionality and can shift volume if the bill becomes unreasonable.",
+  "rev": "Reversible if raw events are captured in an open format with your own schema from the start.",
+  "risk": [
+   "Own the event schema and tracking plan",
+   "Sample or filter low-value events",
+   "Set a price threshold that triggers re-evaluation",
+   "Check privacy and consent handling"
+  ],
+  "tip": "Preserve optionality by owning the raw event stream, then buy or build the layers above it.",
+  "a": "I would not frame it as a binary choice. The SaaS tool gives product managers immediate funnels, retention and cohort analysis without engineering effort. Building the equivalent means data pipelines, modelling, a query and visualisation layer, data quality, access control and ongoing support, usually costing more in people than the savings on the subscription unless volume is very large. But I would take the bill seriously, because event-based pricing can balloon. So I would own the event collection: define a tracking plan, send events through my own pipeline that fans out to the vendor and to my warehouse in an open format. That keeps my data portable, enables deeper analysis with SQL, and allows moving volume off the vendor later if costs warrant. I would set a clear threshold for re-evaluation and also reduce waste by dropping low-value events.",
+  "f": [
+   "Why own the raw event stream?",
+   "What triggers re-evaluation?"
+  ]
+ },
+ {
+  "tag": "buildbuy",
+  "q": "A team wants to adopt a low-code platform for internal tools. When is that a good trade-off and what are the traps?",
+  "ctx": "Internal tools backlog is large. Low-code promises quick dashboards and workflows built by non-engineers.",
+  "clar": [
+   "How critical and complex are these tools?",
+   "Who will maintain them after creation?",
+   "Integration and security requirements?"
+  ],
+  "trade": [
+   "Low-code: fast delivery, empowers business teams, but vendor lock-in, limits at complexity, governance and security gaps, shadow IT",
+   "Custom code: flexible and testable, but slower and consumes scarce engineering time",
+   "Internal component library: speeds engineers without lock-in"
+  ],
+  "why": "Low-code excels at simple CRUD and workflows but becomes painful when logic grows, and the apps become unowned production systems.",
+  "rec": "Adopt for low-risk, simple internal tools with clear ownership, SSO and audit, and keep anything customer-facing or core-logic in code.",
+  "rev": "Hard to reverse for complex apps because logic lives in proprietary form, so contain the scope.",
+  "risk": [
+   "Require owner and SSO per app",
+   "Inventory and review apps quarterly",
+   "Set an exit rule when logic exceeds a threshold",
+   "Control data connectors and permissions"
+  ],
+  "tip": "The question is who maintains it in two years. Unowned low-code apps become unmanaged production risk.",
+  "a": "Low-code can be the right answer when the tools are simple, internal, low-risk and the alternative is that they never get built. It lets business teams solve their own problems and frees engineers for product work. The traps appear over time: logic grows beyond what the platform handles gracefully, the application becomes business critical without testing, version control or review, credentials and data connectors are over-permissioned, and the logic is locked in a proprietary format, making migration costly. I would set guardrails: single sign-on, a named owner for every app, an inventory, approved data connectors with least privilege, and rules for what is in scope, such as internal CRUD and approvals, while customer-facing features and core business logic stay in code. I would define an exit criterion, such as complexity or usage thresholds, at which an app is rebuilt properly.",
+  "f": [
+   "What belongs outside low-code?",
+   "How do you govern shadow IT?"
+  ]
+ },
+ {
+  "tag": "buildbuy",
+  "q": "Do you build a custom internal search or use a managed search service like Algolia or Elastic Cloud?",
+  "ctx": "The product needs fast, typo-tolerant search over a catalogue. Engineers want to build on Postgres full-text search.",
+  "clar": [
+   "Corpus size, query volume and latency target?",
+   "Need for relevance tuning, facets, synonyms, personalisation?",
+   "Search as a core differentiator?"
+  ],
+  "trade": [
+   "Postgres FTS: no new system, transactional consistency, good for modest needs, but weaker relevance and scaling",
+   "Managed search: rich relevance and speed, faces, typo tolerance, but cost, data sync and vendor dependency",
+   "Self-run Elasticsearch/OpenSearch: flexible and cheaper at scale but heavy operations"
+  ],
+  "why": "Search quality directly affects conversion in catalogues, but the operational burden of search clusters is substantial.",
+  "rec": "Start with the database's built-in search if needs are modest; move to a managed service when relevance or scale demands it, designing the indexing pipeline so the engine can change.",
+  "rev": "Moderately reversible if indexing goes through an abstraction and the source of truth stays in the primary database.",
+  "risk": [
+   "Keep database as source of truth",
+   "Reindex pipeline with replay",
+   "Monitor index lag",
+   "Measure search success metrics before switching"
+  ],
+  "tip": "Choose by measured search quality and scale, not by technology preference.",
+  "a": "I would match the solution to the need. If the catalogue is small to medium and queries are simple, Postgres full-text search avoids another system, keeps data transactionally consistent, and is cheap. If search quality drives revenue, I need typo tolerance, ranking control, facets, synonyms and sub-hundred-millisecond responses at scale, and a managed search service delivers that without me running a cluster. Self-hosting Elasticsearch gives flexibility and potentially lower cost at large scale, but demands expertise for sharding, upgrades and capacity. I would design the pipeline so that the source of truth remains the database and a replayable indexing process feeds the search engine, allowing me to change engines later. Before moving, I measure search success, like zero-result rate and click-through, to prove the extra investment is warranted, and monitor index freshness and lag in operation.",
+  "f": [
+   "Why keep the DB as source of truth?",
+   "What metrics justify a search engine?"
+  ]
+ },
+ {
+  "tag": "multiregion",
+  "q": "How do you decide between a CDN-only global strategy and deploying application compute to multiple regions?",
+  "ctx": "Global users report slow page loads. The team is considering a second region for the application.",
+  "clar": [
+   "What fraction of the latency is static content vs dynamic API?",
+   "Where are the users and how latency-sensitive is the product?",
+   "Can data be served from one region?"
+  ],
+  "trade": [
+   "CDN + edge caching: cheap, fast for static and cacheable content, low complexity, but dynamic personalised calls still cross the world",
+   "Second region compute with global DB: lower API latency, resilience, but data replication, consistency and cost",
+   "Edge functions: low latency logic near users but state access remains the challenge"
+  ],
+  "why": "Most perceived slowness is static assets and avoidable round trips. Multi-region compute is only effective if the data it needs is also nearby.",
+  "rec": "Do the CDN, caching, connection reuse and API optimisation first, measure again, and consider regional compute only for latency-critical dynamic paths with a plan for data locality.",
+  "rev": "CDN is easy to adopt and remove; multi-region compute with state is hard to reverse.",
+  "risk": [
+   "Real user monitoring by region before deciding",
+   "Cache-control and cache-key hygiene",
+   "Read replicas before multi-writer",
+   "Test failover across regions"
+  ],
+  "tip": "Measure where the time goes. Moving compute without moving data often yields little.",
+  "a": "I would begin with measurement from real users by region, splitting time into DNS, connection setup, static asset download and API time. Frequently, most of the delay is large uncached assets, many round trips and no connection reuse, all fixed by a CDN, compression, caching headers, HTTP/2 or 3 and fewer calls. Only the dynamic, personalised API calls remain. Deploying compute to another region helps them only if the data they read is also local, otherwise each request still crosses the ocean to the database, and I add replication, conflict and consistency complexity plus roughly double the cost. So my order is: optimise and cache at the edge, add read replicas close to users for read-heavy endpoints, and consider regional compute for the specific latency-critical paths if the data shows a need. A CDN is trivial to reverse; stateful multi-region architecture is not.",
+  "f": [
+   "Why does data locality matter?",
+   "What do you do first?"
+  ]
+ },
+ {
+  "tag": "multiregion",
+  "q": "How would you design for regional failure when you have a single primary database?",
+  "ctx": "The business wants survivability if the primary region fails, but writes must remain strongly consistent and budget is limited.",
+  "clar": [
+   "What RTO and RPO does the business accept?",
+   "Is brief read-only mode acceptable during failover?",
+   "Which data absolutely cannot be lost?"
+  ],
+  "trade": [
+   "Cross-region async replica: cheap, RPO seconds-minutes, manual or automated promotion, risk of losing last writes",
+   "Synchronous cross-region: zero loss but latency penalty on every write",
+   "Backups only: cheapest, RTO hours, RPO depends on frequency"
+  ],
+  "why": "Distance and consistency requirements force a choice between latency, data loss risk and cost. There is no free option.",
+  "rec": "Use an asynchronous replica in a second region with automated health detection but human-approved promotion, a read-only degraded mode, and regular failover drills; reserve synchronous replication for the tiny set of data that cannot be lost.",
+  "rev": "Reversible; replication topology can be changed, though promotion procedures need re-validation.",
+  "risk": [
+   "Quarterly failover drill with measured RTO/RPO",
+   "Fencing of the old primary to avoid split brain",
+   "Application handles read-only mode",
+   "Backups independent of the replication path"
+  ],
+  "tip": "State RPO and RTO explicitly. Many designs fail because nobody agreed on acceptable loss.",
+  "a": "I begin by getting the business to state tolerable downtime and data loss, because that defines the design. For a strongly consistent single-writer database, the common pattern is an asynchronous replica in another region. It costs little and keeps latency of writes unaffected, but if the primary fails suddenly, the most recent writes not yet replicated are lost, so the recovery point objective is measured in seconds or minutes. I automate failure detection but usually require a human to approve promotion, to avoid split brain from a false alarm, and I fence the old primary so it cannot accept writes if it returns. The application supports a degraded read-only mode during the switch. Synchronous replication across regions gives zero data loss but adds cross-region latency to every write, so I reserve it for the narrow set of data that truly cannot be lost. I validate everything with regular failover drills.",
+  "f": [
+   "What is fencing?",
+   "When do you use synchronous replication?"
+  ]
+ },
+ {
+  "tag": "multiregion",
+  "q": "How do you choose between cell-based architecture and regional scaling for blast radius reduction?",
+  "ctx": "A single large deployment serves all customers. A bad release or noisy tenant once took everyone down.",
+  "clar": [
+   "How are customers partitioned (by tenant, region)?",
+   "Can routing be done at the edge?",
+   "What shared components remain?"
+  ],
+  "trade": [
+   "Cells: independent full stacks each serving a subset of customers, limit blast radius and enable gradual rollout, but cost, operational overhead and rebalancing",
+   "One big region deployment: simple and efficient, but failures hit everyone",
+   "Regional only: some isolation but still large shared domains within a region"
+  ],
+  "why": "Failure domain size is a design choice. Smaller independent cells convert total outages into partial ones.",
+  "rec": "Introduce cells when the cost of a full outage is high, with a thin routing layer, automated cell provisioning, and canary releases cell by cell.",
+  "rev": "Hard to introduce later if tenants and data aren't partitionable, easy to start with one cell and add more.",
+  "risk": [
+   "Keep the router simple and highly available",
+   "Automate cell creation",
+   "Plan tenant migration between cells",
+   "Limit cross-cell dependencies"
+  ],
+  "tip": "Design the partition key early. Cells are only as good as how cleanly customers map to them.",
+  "a": "A cell is a complete, independent copy of the service stack serving a subset of customers. If one cell has a bad deployment, a noisy tenant or an infrastructure fault, only its customers are affected, and I can roll out new versions to one cell at a time, using it as a natural canary. The cost is more infrastructure, more operational complexity, a routing layer to map customers to cells, and the work of rebalancing or migrating tenants. It becomes worthwhile when the business impact of a total outage is high. The prerequisite is a clean partition key, typically the tenant, with minimal cross-cell data sharing. I keep the routing layer extremely simple and highly available since it is the shared component, automate provisioning of new cells, and limit shared dependencies. A reasonable path is starting with a single cell designed for partitioning and adding cells as scale or risk demands.",
+  "f": [
+   "What is a cell?",
+   "What is the shared component risk?"
+  ]
+ },
+ {
+  "tag": "multiregion",
+  "q": "Should you use a globally distributed database like Spanner or CockroachDB instead of managing regional replication yourself?",
+  "ctx": "A growing product needs strongly consistent data in multiple regions. The team is wary of hand-built replication.",
+  "clar": [
+   "Write patterns and latency tolerance for cross-region commits?",
+   "Data residency constraints per region?",
+   "Budget and team familiarity?"
+  ],
+  "trade": [
+   "Distributed SQL: consistency across regions, built-in failover, horizontal scale, but higher write latency, cost, operational learning and vendor specifics",
+   "Single-region primary with replicas: simpler, faster writes, cheaper, but failover is manual and cross-region writes are slow",
+   "Application-level sharding by region: control and low latency, but complexity in your code"
+  ],
+  "why": "Global consistency has a physical cost in cross-region round trips. The product must tolerate commit latency or place data by locality.",
+  "rec": "Choose distributed SQL when you truly need multi-region strong consistency or high write availability; otherwise keep a primary plus replicas, and use geo-partitioning when users naturally map to regions.",
+  "rev": "Costly to reverse due to data migration and SQL dialect differences.",
+  "risk": [
+   "Prototype with realistic cross-region latency",
+   "Use locality/partitioning features",
+   "Test failure scenarios",
+   "Plan data migration tooling"
+  ],
+  "tip": "Distributed databases don't remove the speed of light. They move complexity from your code to the database and the bill.",
+  "a": "These databases are attractive because they provide consistent transactions across regions, automatic failover and horizontal scale, which removes the need to engineer replication and conflict handling myself. But physics remains: a strongly consistent commit across continents needs round trips between regions, so write latency is higher than in a single-region database, and the licence or managed cost is significant. I would decide based on real requirements. If the product needs strong consistency with high availability across regions, or has global writers, the managed distributed database is justified. If most users are in one region, a primary with replicas and tested failover is simpler and cheaper. If users and data naturally partition by geography, geo-partitioned tables or regional sharding gives low latency with residency compliance. I would prototype with realistic latencies, since the migration out later is expensive.",
+  "f": [
+   "Why is write latency higher?",
+   "What is geo-partitioning?"
+  ]
+ },
+ {
+  "tag": "multiregion",
+  "q": "How do you handle data consistency for a shopping cart or session across regions?",
+  "ctx": "Users may be routed to different regions during failover or by geo-routing. Losing the cart annoys users and loses sales.",
+  "clar": [
+   "How costly is a lost or stale cart?",
+   "Is a user sticky to a region normally?",
+   "Can the cart be reconstructed client-side?"
+  ],
+  "trade": [
+   "Sticky sessions to home region: simple, but failover loses state unless replicated",
+   "Replicated store with eventual consistency: survives failover, possible conflicts, last-writer or merge semantics",
+   "Client-side state with server sync: resilient, but needs reconciliation and security care"
+  ],
+  "why": "Not all data needs strong consistency. Carts tolerate merge semantics, while payments do not.",
+  "rec": "Use a replicated key-value store with merge-friendly data (add/remove sets), keep users sticky to a home region, and make payment steps strongly consistent in a single authoritative service.",
+  "rev": "Easily reversible per data type since carts are small and separate from transactional data.",
+  "risk": [
+   "Define conflict resolution explicitly",
+   "Idempotent checkout",
+   "Test failover with in-flight carts",
+   "Expire stale carts"
+  ],
+  "tip": "Classify data by consistency need. Spend strong consistency only where it protects money or correctness.",
+  "a": "I treat the cart and the order differently. A cart is a collaborative, low-stakes set of items, so eventual consistency is acceptable if conflicts resolve sensibly. I would store it in a replicated key-value store across regions, represent changes in a mergeable form, such as adds and removes with timestamps, so concurrent edits from two regions combine instead of overwriting, and keep users sticky to a home region normally so conflicts are rare. During failover, the replica has recent state, so users keep their carts. The checkout and payment steps need stronger guarantees: they run through a single authoritative service with idempotency keys, so a retry in another region cannot double charge. I test failover with in-flight carts and expire abandoned carts. The overall principle is to apply strong consistency only where errors cost money.",
+  "f": [
+   "How do merge semantics help?",
+   "Why use idempotency keys at checkout?"
+  ]
+ },
+ {
+  "tag": "monovsmicro",
+  "q": "A modular monolith versus microservices: what are the real differences and when does each win?",
+  "ctx": "A 40-engineer company is debating how to structure a growing codebase.",
+  "clar": [
+   "Where does coordination pain actually come from?",
+   "Do teams need independent deployment and scaling?",
+   "How mature is the platform and observability?"
+  ],
+  "trade": [
+   "Modular monolith: one deployable with enforced module boundaries, simple operations, transactions, fast refactoring, but shared release cycle and scaling unit",
+   "Microservices: independent deploy and scale, team autonomy, fault isolation, but network failure modes, distributed data, ops overhead",
+   "Hybrid: monolith core plus a few services for distinct scaling or risk profiles"
+  ],
+  "why": "Most of the benefit people attribute to microservices is actually clear module boundaries, which a monolith can enforce at far less cost.",
+  "rec": "Build a modular monolith with strict boundaries and extract services only for clear reasons: independent scaling, different tech needs, security isolation or team autonomy at real scale.",
+  "rev": "A well-modularised monolith is easy to split later; a tangle of micro-services is hard to merge back.",
+  "risk": [
+   "Enforce module boundaries with tooling",
+   "Own data per module",
+   "Define explicit internal APIs",
+   "Extract the most independent module first"
+  ],
+  "tip": "Boundaries are the valuable part, deployment topology is the optional part.",
+  "a": "The real difference is where the boundaries are enforced and what it costs to cross them. In a modular monolith, modules have clear interfaces and own their data, but calls are in-process, transactions are simple, refactoring is cheap and operations are straightforward. Microservices make those boundaries physical, allowing independent deployment, scaling and fault isolation, and letting many teams work without coordinating releases, but every call becomes a network call with failures, latency, versioning issues, distributed transactions and a heavy operational and observability burden. For a forty-engineer company, I would favour a modular monolith with enforced boundaries, using tools to prevent cross-module access, and extract a service only for a concrete reason like different scaling behaviour, a security boundary, or a team that needs an independent release cadence. A good monolith can be split later; badly drawn services are painful to merge back.",
+  "f": [
+   "What do boundaries give you?",
+   "What is a valid reason to extract a service?"
+  ]
+ },
+ {
+  "tag": "monovsmicro",
+  "q": "How do you decide whether to use a shared database between services during a migration?",
+  "ctx": "Two services need the same customer data. A shared schema is quick, but purists object.",
+  "clar": [
+   "Is this a temporary migration step or permanent?",
+   "How much do schema changes ripple?",
+   "Who owns the data?"
+  ],
+  "trade": [
+   "Shared database: fast, consistent, joins possible, but tight coupling, schema changes break others, hidden dependencies",
+   "API ownership: clear contracts, independent evolution, but added latency and work",
+   "Replicated read model via events: decoupled reads, eventual consistency, extra pipeline"
+  ],
+  "why": "The shared database is often the real monolith inside a distributed system, because schema becomes an unversioned API.",
+  "rec": "Allow a shared database only as a time-boxed migration step with documented ownership and a plan to move to APIs or event-based replicas; otherwise one service owns the data.",
+  "rev": "Easy to start, expensive to unwind the longer it persists.",
+  "risk": [
+   "Schema ownership and change process",
+   "Read-only access for non-owners",
+   "Deadline and tracking ticket",
+   "Contract tests on shared tables"
+  ],
+  "tip": "A schema shared by many services is an API with no versioning.",
+  "a": "I would treat a shared database as a temporary scaffold, not a destination. In the short term it can make a migration practical: the new service reads the same tables while the data is gradually moved. The danger is coupling. Any schema change might break unknown consumers, performance interference occurs, and teams cannot evolve independently, so the system behaves like a monolith with network hops. If I allow it, I name one service the owner, give others read-only access to specific views, set a deadline and track it, and add contract tests. The target state is clear ownership: the owner exposes the data through an API, or publishes events that other services use to maintain their own read models, accepting eventual consistency. I decide based on the consumers' consistency needs and how often the data changes, but I do not leave a shared schema indefinitely.",
+  "f": [
+   "Why is a shared schema like an unversioned API?",
+   "How do event-driven read models help?"
+  ]
+ },
+ {
+  "tag": "monovsmicro",
+  "q": "When does a saga or distributed transaction make sense, and how do you avoid needing one?",
+  "ctx": "An order flow spans inventory, payment and shipping services. Partial failures leave inconsistent state.",
+  "clar": [
+   "Which steps can be compensated?",
+   "What consistency window is acceptable?",
+   "Can service boundaries be redrawn?"
+  ],
+  "trade": [
+   "Saga with compensations: eventual consistency, no global locks, but complex failure handling and observability",
+   "Two-phase commit: strong atomicity, but blocking, availability risk and poor support across services",
+   "Redraw boundaries so the transaction is local: simplest, but may couple domains"
+  ],
+  "why": "The best distributed transaction is the one you avoid by keeping data that must change together in one service.",
+  "rec": "First check whether boundaries are wrong. Where truly separate, use sagas with idempotent steps, explicit states, compensation and timeouts, orchestrated for visibility.",
+  "rev": "Moderately reversible; boundaries are costly to move once data is split.",
+  "risk": [
+   "Idempotent handlers",
+   "Persistent saga state",
+   "Dead-letter and manual intervention path",
+   "End-to-end tracing of sagas"
+  ],
+  "tip": "If you need distributed transactions everywhere, your service boundaries are probably wrong.",
+  "a": "Frequent need for cross-service atomicity is a signal that the boundaries are wrong, because data that must change together should usually live together. So I first revisit the design. Where the steps are genuinely separate, like reserving inventory, charging payment and creating shipment, I use a saga: a sequence of local transactions where each step has a compensating action to undo it if a later step fails, such as releasing the inventory reservation or refunding. Two-phase commit across services is rarely used because it blocks, couples availability and is poorly supported. For sagas I make each step idempotent, persist the saga state so recovery works after crashes, use timeouts, and provide a dead-letter and manual intervention path for stuck cases. I prefer orchestration for complex flows because the state is visible, and I add tracing so operators can see where an order is.",
+  "f": [
+   "What is a compensating action?",
+   "Why avoid two-phase commit?"
+  ]
+ },
+ {
+  "tag": "monovsmicro",
+  "q": "How do you version and evolve APIs between services without breaking consumers?",
+  "ctx": "Dozens of internal consumers call a service. Breaking changes cause incidents each quarter.",
+  "clar": [
+   "Are consumers internal or external?",
+   "Can you track who calls what?",
+   "What deprecation window is realistic?"
+  ],
+  "trade": [
+   "Additive-only changes with tolerant readers: fewer versions, but needs discipline",
+   "Explicit versions (v1, v2): clear, but multiple versions to maintain",
+   "Consumer-driven contract tests: catches breakage early, but upfront investment"
+  ],
+  "why": "The cost of API change is borne by consumers, so the producer must make evolution safe and visible.",
+  "rec": "Make additive changes the norm, use contract tests, track consumers via telemetry, publish deprecation policy with dates, and introduce a new major version only when unavoidable.",
+  "rev": "Versioning policy is easy to adjust; breaking changes already shipped are not reversible.",
+  "risk": [
+   "Consumer registry and usage metrics",
+   "Contract tests in CI",
+   "Deprecation headers and warnings",
+   "Staged removal after usage reaches zero"
+  ],
+  "tip": "You cannot remove an API until you know who uses it. Instrument first.",
+  "a": "The principle is that producers should evolve APIs in ways consumers don't have to notice. I prefer additive changes: new optional fields, new endpoints, and clients that ignore unknown fields. When a breaking change is truly required, I introduce a new version alongside the old, rather than modifying it in place. To avoid surprises, I use consumer-driven contract tests where each consumer's expectations run in the producer's pipeline, so a breaking change fails before release. I instrument the API to know exactly which consumers call which endpoints and versions, publish a deprecation policy with dates, add deprecation warnings in responses, and contact owners directly. Removal happens only after usage reaches zero or the agreed date, with a staged approach such as brownouts. This transforms API changes into a managed process with data, not a guessing game.",
+  "f": [
+   "What is a contract test?",
+   "How do you know who uses an endpoint?"
+  ]
+ },
+ {
+  "tag": "monovsmicro",
+  "q": "A team wants to use gRPC internally while the rest of the company uses REST. How do you weigh consistency against technical benefit?",
+  "ctx": "A latency-critical internal service wants gRPC for performance and strong typing.",
+  "clar": [
+   "Is the performance benefit measured?",
+   "Who consumes the service, including browsers?",
+   "Tooling and debugging support in the org?"
+  ],
+  "trade": [
+   "gRPC: efficient binary, streaming, generated clients, strong contracts, but browser limitations, tooling/learning curve, harder ad-hoc debugging",
+   "REST/JSON: universal, easy debugging, ubiquitous tooling, but larger payloads and weaker typing",
+   "Both via gateway: flexibility, but extra component"
+  ],
+  "why": "Standardisation reduces cognitive load, but forcing a poor fit hurts. Benefits must be measured and the support cost acknowledged.",
+  "rec": "Allow gRPC for service-to-service paths where measured latency or streaming needs justify it, provide platform support (tooling, gateways, observability), and keep REST for external and browser-facing APIs.",
+  "rev": "Reasonably reversible with a gateway or dual-protocol endpoints.",
+  "risk": [
+   "Benchmark before deciding",
+   "Platform support for tracing, auth and load balancing",
+   "Schema registry and linting",
+   "Gateway for external access"
+  ],
+  "tip": "Pick protocols per boundary, not per religion. Internal hot paths and public APIs have different needs.",
+  "a": "I would ask for evidence that the performance gain matters, since many services are bound by databases, not serialisation. If a benchmark shows meaningful latency or throughput benefit, or the service needs streaming, gRPC is a legitimate choice: compact encoding, generated typed clients and clear contracts. The costs are limited browser support without a proxy, a steeper learning curve, and more difficult ad-hoc debugging with standard tools. Consistency matters for operations, so I would only accept it if the platform supports it: load balancing that understands HTTP/2, tracing, authentication, metrics, schema linting and a way to expose it to REST clients through a gateway. I would keep public and browser-facing APIs on REST, and allow gRPC for internal hot paths. The decision is per boundary, documented, and reviewed in an architecture decision record so future teams know why.",
+  "f": [
+   "What does gRPC cost operationally?",
+   "Where does REST remain preferable?"
+  ]
+ },
+ {
+  "tag": "datastore",
+  "q": "How do you choose between PostgreSQL, MongoDB and DynamoDB for a new service?",
+  "ctx": "A team is choosing a primary datastore for a customer-facing service with moderate scale and evolving requirements.",
+  "clar": [
+   "Access patterns: joins, ad-hoc queries, key lookups?",
+   "Consistency and transaction needs?",
+   "Scale ceiling and operational preference?"
+  ],
+  "trade": [
+   "PostgreSQL: relational integrity, rich queries, transactions, JSON support, but vertical scaling limits and ops for scale",
+   "MongoDB: flexible documents, easy iteration, horizontal scale, but weaker joins and consistency pitfalls if misused",
+   "DynamoDB: predictable performance at massive scale, serverless ops, but access patterns must be known upfront, limited queries, vendor lock-in"
+  ],
+  "why": "Choose from access patterns and consistency needs, not hype. Relational is the safest default when requirements are uncertain.",
+  "rec": "Default to PostgreSQL for most services, use DynamoDB for known key-based access at extreme scale, and use a document store when data is truly document-shaped with limited relations.",
+  "rev": "Expensive to reverse because migrating data models is hard.",
+  "risk": [
+   "Model access patterns before choosing",
+   "Load test at 10x",
+   "Plan migration or dual-write path",
+   "Avoid exotic features that block moving"
+  ],
+  "tip": "Say the default and the reason: relational flexibility is valuable when requirements are still changing.",
+  "a": "I would let access patterns and guarantees decide. PostgreSQL is my default because it handles relational data, transactions, rich ad-hoc queries and even semi-structured JSON, which keeps options open while requirements change, and it scales further than people assume with replicas and partitioning. DynamoDB shines when access patterns are known and key-based, and when I need virtually unlimited scale with predictable latency and little operations work, but it requires designing the table around queries up front, offers limited ad-hoc querying and ties me to AWS. MongoDB suits data that is naturally document-shaped with few cross-document relationships and a need for flexible schemas, but is easy to misuse for relational data. I would test the leading candidate with realistic load, model the main queries explicitly, and recognise that data store choices are costly to reverse, so I favour the flexible default unless constraints are clear.",
+  "f": [
+   "Why default to relational?",
+   "When is DynamoDB the right fit?"
+  ]
+ },
+ {
+  "tag": "datastore",
+  "q": "When should you use a message queue versus a log-based streaming platform such as Kafka?",
+  "ctx": "A team needs asynchronous processing. Some want RabbitMQ or SQS; others want Kafka.",
+  "clar": [
+   "Do consumers need replay or multiple independent readers?",
+   "Throughput and ordering needs?",
+   "Operational capacity for running Kafka?"
+  ],
+  "trade": [
+   "Queue (SQS/RabbitMQ): simple work distribution, per-message acknowledgement, easy operations, but no replay or multiple subscribers without fan-out",
+   "Kafka/log: durable ordered log, replay, many consumers, high throughput, but partitions, operational complexity",
+   "Managed streaming: less ops, but cost and lock-in"
+  ],
+  "why": "A queue is a to-do list; a log is a history. Choose based on whether you need to re-read events.",
+  "rec": "Use a simple queue for task distribution and decoupling; use a log when multiple consumers, replay, event sourcing or stream processing are needed, preferably managed.",
+  "rev": "Moderate; consumers and producers must be changed, but patterns are portable with an abstraction.",
+  "risk": [
+   "Idempotent consumers either way",
+   "Dead-letter handling",
+   "Partition key design for Kafka",
+   "Capacity and retention planning"
+  ],
+  "tip": "If you will never replay or fan out, you probably don't need Kafka.",
+  "a": "The deciding question is whether messages are tasks to be done once or events that form a record others may read. A queue such as SQS or RabbitMQ distributes work among consumers, tracks acknowledgements and removes the message after processing. It is simple to operate and ideal for background jobs. A log-based platform like Kafka stores events durably in order, lets many independent consumers read at their own pace, and allows replay, which is valuable for event sourcing, building new read models, auditing and stream processing, and handles very high throughput. The cost is more concepts, partition and ordering design, and heavy operations unless managed. If I only need to offload work, I choose a queue. If several systems need the same events or I need to reprocess history, I choose a log, and I prefer a managed offering. In both, consumers must be idempotent.",
+  "f": [
+   "What does replay enable?",
+   "Why must consumers be idempotent?"
+  ]
+ },
+ {
+  "tag": "datastore",
+  "q": "How do you approach caching strategy: cache-aside, write-through, or CDN, and how do you keep it correct?",
+  "ctx": "Read load is high and database costs are growing. The team wants to add caching at several layers.",
+  "clar": [
+   "Which data is read-heavy and tolerant of staleness?",
+   "How is invalidation triggered?",
+   "What is the failure behaviour if the cache is down?"
+  ],
+  "trade": [
+   "Cache-aside: simple, app controls, risk of stale data and stampedes",
+   "Write-through: fresher cache, more write latency and coupling",
+   "CDN/edge: best for public content, limited for personalised data"
+  ],
+  "why": "Caching trades correctness and complexity for speed. Invalidation and failure modes are the hard parts, not the cache itself.",
+  "rec": "Start with cache-aside plus TTLs on hot read paths, add stampede protection, define invalidation per data type, and ensure the system survives a cold or failed cache.",
+  "rev": "Easily reversible if caching is isolated behind a repository layer and feature flags.",
+  "risk": [
+   "Measure hit ratio and DB load without cache",
+   "Request coalescing for hot keys",
+   "TTL jitter",
+   "Load test with cold cache"
+  ],
+  "tip": "A cache you can't lose is a database. Design so a cache failure is slow, not fatal.",
+  "a": "I introduce caching in response to measured read pressure, starting with the simplest approach: cache-aside with a time-to-live, where the application checks the cache, falls back to the database and populates the cache. For public, cacheable content I use a CDN. The hard problems are invalidation and failure modes. For each data type, I decide how stale is acceptable and how invalidation happens, by TTL, on write events, or versioned keys. I protect against stampedes when a hot key expires, with request coalescing and jittered expiry. Crucially I test the system with a cold or unavailable cache, because if the database cannot sustain the load without it, the cache has become a critical dependency and an outage amplifier. Write-through gives fresher data at the cost of write latency and tighter coupling. I keep caching behind a clear abstraction so it can be removed or tuned.",
+  "f": [
+   "What is a cache stampede?",
+   "How do you design for cache failure?"
+  ]
+ },
+ {
+  "tag": "datastore",
+  "q": "Do you choose event sourcing for a new domain, and what are the costs?",
+  "ctx": "A team wants full audit history and temporal queries. They propose storing events as the source of truth.",
+  "clar": [
+   "Is history a core business requirement or a nice-to-have?",
+   "Team experience with event sourcing and CQRS?",
+   "Query patterns and read models needed?"
+  ],
+  "trade": [
+   "Event sourcing: complete audit trail, replayable, temporal queries, natural for event-driven systems, but complexity, schema evolution, eventual consistency in read models, steep learning curve",
+   "State storage with audit table/CDC: simpler, familiar, gives history for most needs",
+   "Hybrid: event sourcing only for the aggregate that needs it"
+  ],
+  "why": "Event sourcing is powerful for domains where history is the product, but it taxes every future change.",
+  "rec": "Use it selectively for domains with strong audit or temporal needs and a capable team; otherwise use conventional state with change data capture or audit logs.",
+  "rev": "Hard to reverse because the event log becomes the truth and read models derive from it.",
+  "risk": [
+   "Plan event schema versioning",
+   "Snapshots for long streams",
+   "Prototype read-model rebuilds",
+   "Limit to bounded contexts"
+  ],
+  "tip": "Be sceptical when event sourcing is chosen for the wrong reason, such as simply getting an audit log.",
+  "a": "Event sourcing stores every state change as an immutable event and derives current state by replaying them. It provides a perfect audit trail, the ability to reconstruct past states, and a natural base for event-driven integration. The costs are significant: designing events and evolving their schema over years, building and rebuilding read models with eventual consistency, handling long streams with snapshots, a different mental model for the team and harder ad-hoc querying. I would adopt it only where history is central to the business, such as financial ledgers or complex workflows, and the team has the experience. For many needs, like auditing, a conventional database with an audit table or change data capture delivers most of the value with far less complexity. If I use it, I restrict it to the bounded context that needs it and prototype read-model rebuilds early.",
+  "f": [
+   "What are read models?",
+   "What simpler alternative gives an audit trail?"
+  ]
+ },
+ {
+  "tag": "datastore",
+  "q": "How do you decide on data retention, archival and tiering to control storage costs?",
+  "ctx": "Storage costs grow monthly. Data is kept forever in expensive hot storage with no policy.",
+  "clar": [
+   "Legal retention and deletion requirements?",
+   "Access frequency by age?",
+   "Latency expectations for old data?"
+  ],
+  "trade": [
+   "Keep everything hot: simple and fast, but cost grows unbounded",
+   "Tiering to cheaper storage and archive: large savings, but retrieval delay/fees and complexity",
+   "Delete or aggregate old data: cheapest, but irreversible and may violate needs"
+  ],
+  "why": "Most data is rarely read after a short period, but regulations may force retention while privacy law may force deletion.",
+  "rec": "Classify data by value and legal need, define lifecycle policies (hot, warm, archive, delete), aggregate detail into summaries where acceptable, and automate with storage lifecycle rules.",
+  "rev": "Tiering is reversible with retrieval costs; deletion is not, so be careful and get sign-off.",
+  "risk": [
+   "Legal and privacy review",
+   "Test restore from archive",
+   "Metadata catalogue for archived data",
+   "Monitor access patterns before moving"
+  ],
+  "tip": "Retention is a legal and product decision, not only an engineering one.",
+  "a": "I start by classifying data: what is it, how often is it accessed by age, what must be kept for legal or business reasons, and what privacy rules require deletion by a certain time. Then I define lifecycle tiers. Recent data stays on fast storage; older data moves automatically to cheaper tiers with slower access; very old data goes to archive where retrieval may take hours, and data past its retention period is deleted or anonymised. Where detailed records are not needed, I aggregate them into summaries and drop the raw detail. I use the storage platform's lifecycle rules to automate this, keep a catalogue so archived data can be found, and test restores so the archive is genuinely usable. Deletion is irreversible, so legal, security and product stakeholders must agree on the policy, and I verify patterns of access before moving anything to avoid surprise retrieval costs.",
+  "f": [
+   "How do you decide the tiers?",
+   "Why test archive restores?"
+  ]
+ },
+ {
+  "tag": "tensions",
+  "q": "Security wants a mandatory review of every change, but product says it will halve release speed. How do you resolve the tension?",
+  "ctx": "A recent incident led to a proposal that all changes get manual security review before release.",
+  "clar": [
+   "What risks does review actually mitigate?",
+   "Which changes are high-risk vs routine?",
+   "Can controls be automated?"
+  ],
+  "trade": [
+   "Manual review of everything: thorough, but bottleneck and reviewer fatigue",
+   "Risk-based review: effort focused where risk is, but needs a classification",
+   "Automated guardrails + review for sensitive areas: fast and safe, but upfront tooling"
+  ],
+  "why": "Blanket manual gates create queues and encourage bypass, while targeted controls reduce actual risk faster.",
+  "rec": "Adopt risk-based gating: automated scanning and policy for everything, manual review only for sensitive changes (auth, crypto, data access, infra), with clear SLAs for reviewers.",
+  "rev": "Highly reversible; policy tiers can be tuned as data on escapes and delays accumulates.",
+  "risk": [
+   "Define sensitive-change criteria",
+   "SLA for security reviewers",
+   "Track escaped defects and review latency",
+   "Embed security champions"
+  ],
+  "tip": "Frame it as shared goals: safe and fast. Show data on where defects really come from.",
+  "a": "I would avoid framing it as security versus speed and instead ask what risk the review mitigates. Reviewing every change by hand creates a queue, reviewers get fatigued and rubber-stamp, and teams find ways around the process. A better design is layered. Automate what machines do well for all changes: dependency and secret scanning, static analysis, infrastructure policy checks. Reserve manual security review for changes that touch sensitive areas such as authentication, cryptography, data access, network exposure and infrastructure, defined by clear criteria, with a service-level target for the reviewers so it does not stall delivery. Security champions in teams help with early advice. I would track both sides: review latency and escaped vulnerabilities, so the policy can be tuned with evidence. This usually gives better security than blanket gates and keeps the release flow healthy.",
+  "f": [
+   "What changes need manual review?",
+   "How do you measure whether the policy works?"
+  ]
+ },
+ {
+  "tag": "tensions",
+  "q": "The business wants a feature with a hard marketing deadline that needs a risky data migration. How do you respond?",
+  "ctx": "A launch date is fixed externally. The data migration is complex and untested at production scale.",
+  "clar": [
+   "What is the true hard constraint: date, scope or both?",
+   "Can the feature launch without the migration?",
+   "What is the cost of failure vs delay?"
+  ],
+  "trade": [
+   "Do everything by the deadline: meets date but high risk of outage or data corruption",
+   "Launch reduced scope without migration: lower risk, partial value",
+   "Delay: safest, but marketing and credibility cost"
+  ],
+  "why": "Fixed dates force scope or risk trade-offs. The senior move is exposing options with consequences, not quietly absorbing risk.",
+  "rec": "Propose a phased launch: ship the visible feature on the old data model behind a flag, run the migration separately with rehearsals and rollback, then switch when proven.",
+  "rev": "Phasing keeps the decision reversible: the flag and dual-read path allow rollback.",
+  "risk": [
+   "Rehearse migration on production-size copy",
+   "Dual write/read with verification",
+   "Feature flag with kill switch",
+   "Go/no-go checkpoint dates"
+  ],
+  "tip": "Offer two or three concrete options with costs and let the business choose, rather than just saying no.",
+  "a": "I would first understand which part of the deadline is truly immovable and what the business gets from it. Then I would present options with consequences, not a refusal. One option is to deliver everything by the date, with a clear statement of the risk of outage or data corruption if the migration is rushed. Another is to launch with reduced scope on the existing data model, behind a feature flag, so marketing gets its date while the migration proceeds on its own safer schedule. A third is to move the date. My recommendation is usually the phased approach: decouple the visible feature from the risky data change, rehearse the migration on a production-sized copy, use dual writes and verification, include a rollback plan, and set go or no-go checkpoints. This keeps trust with the business, avoids unmanaged risk, and keeps the decision reversible.",
+  "f": [
+   "Why decouple feature from migration?",
+   "How do you present the options?"
+  ]
+ },
+ {
+  "tag": "tensions",
+  "q": "Developers want to adopt a new language for a service while operations wants to keep the stack small. How do you decide?",
+  "ctx": "A team proposes Rust or Go for a performance-sensitive component, in a Java-heavy organisation.",
+  "clar": [
+   "Is the performance need real and measured?",
+   "Who will maintain and be on call?",
+   "Hiring and tooling implications?"
+  ],
+  "trade": [
+   "Adopt new language: best fit for the problem, engineering satisfaction, but fragmented skills, tooling, security scanning, on-call",
+   "Stay on standard stack: consistency, shared libraries and expertise, but possible performance or fit compromise",
+   "Allow with criteria: bounded experiments with platform support"
+  ],
+  "why": "Every new technology has an ongoing tax in hiring, tooling, libraries, security and incident response, which must be paid by someone.",
+  "rec": "Require a written justification with measured benefit, a named long-term owner, platform support plan, and limit to a bounded component; otherwise stay with the standard stack.",
+  "rev": "Reversible if the component is small and has clear interfaces; costly if the language spreads.",
+  "risk": [
+   "Pilot with success criteria",
+   "Ensure CI, scanning and observability support",
+   "Cross-train on-call",
+   "Review after 6-12 months"
+  ],
+  "tip": "Technology choices are team and operations commitments, not only technical ones.",
+  "a": "I would ask for evidence that the existing stack cannot meet the requirement: benchmarks or profiling that show a real need. If the need is real, a new language can be justified for a narrow component, but I count the full cost: hiring and training, shared libraries and tooling, build and deployment support, vulnerability scanning, observability integrations, and above all who will be on call and debug it at night. I ask for a short proposal with measured benefits, a named owner committed to the long term, and a plan for platform support, then limit it to a bounded service with clean interfaces so it can be replaced. I run it as a pilot with success criteria and review it after some months. If those conditions cannot be met, the standard stack wins, because consistency is a real asset that lets people move between teams and respond to incidents.",
+  "f": [
+   "What is the ongoing tax of a new language?",
+   "How do you pilot a technology?"
+  ]
+ },
+ {
+  "tag": "tensions",
+  "q": "Two teams disagree on whether to share a common component or each keep their own copy. How do you decide?",
+  "ctx": "Teams A and B both need similar functionality. Sharing couples their roadmaps; duplicating risks drift.",
+  "clar": [
+   "How similar are the needs really?",
+   "Who would own the shared component?",
+   "How stable is the interface?"
+  ],
+  "trade": [
+   "Shared component: reuse, consistency, one place to fix bugs, but coupling, ownership burden, lowest-common-denominator design",
+   "Duplicate: autonomy and speed, but divergence and repeated fixes",
+   "Inner-source library with clear owner and versioning: shared with governance"
+  ],
+  "why": "Duplication is cheaper than the wrong abstraction. Share when the need is stable and truly common, with an owner who treats it like a product.",
+  "rec": "Wait until at least a third use case shows the stable core, then extract with a dedicated owner, versioning and a contribution process; until then tolerate duplication.",
+  "rev": "Extraction later is feasible; premature sharing is hard to undo once many teams depend on it.",
+  "risk": [
+   "Clear owner and SLA",
+   "Semantic versioning",
+   "Contribution guide",
+   "Deprecation path"
+  ],
+  "tip": "Rule of three: duplicate twice, abstract on the third.",
+  "a": "Sharing is attractive but has real costs: the component couples teams' schedules, someone must own and support it, and designing for multiple users tends to produce a lowest-common-denominator solution. Duplication is cheap early on and allows teams to move quickly, but eventually causes drift and repeated bug fixes. My approach is to wait until the pattern is clear. When a third use case appears and the stable common core is evident, I extract it, assigning an owner who treats it as an internal product with versioning, documentation, a contribution process and a support expectation. Until then, I accept some duplication, perhaps with a note to revisit. I also consider alternatives like sharing a specification or standard instead of code. The test is whether sharing reduces total effort across teams including the cost of coordination, not just whether the code looks similar.",
+  "f": [
+   "What is the rule of three?",
+   "What does an owner of shared code do?"
+  ]
+ },
+ {
+  "tag": "tensions",
+  "q": "Finance asks you to reduce cloud spend, but engineers say any cut risks reliability. How do you find the right balance?",
+  "ctx": "Cloud costs have increased 40% year over year. Reliability targets have been met only narrowly.",
+  "clar": [
+   "Where is spend concentrated and what is waste vs necessary headroom?",
+   "What are SLOs and current error budget?",
+   "Which savings are low-risk?"
+  ],
+  "trade": [
+   "Aggressive cuts: big savings but reliability risk",
+   "Targeted waste removal: moderate savings, low risk",
+   "Architecture changes for efficiency: larger long-term gains but engineering investment"
+  ],
+  "why": "Waste and necessary redundancy look similar on a bill, so data on utilisation and SLOs is needed to tell them apart.",
+  "rec": "Start with visibility and zero-risk waste, then use SLO and error budget data to guide rightsizing, and only then consider architectural changes and purchasing commitments.",
+  "rev": "Most rightsizing is reversible quickly; deleting data or removing redundancy is not.",
+  "risk": [
+   "Tag and attribute spend",
+   "Change gradually with monitoring",
+   "Error budget as the guardrail",
+   "Review with finance monthly"
+  ],
+  "tip": "Use error budget as the shared currency between cost and reliability discussions.",
+  "a": "I would turn the disagreement into data. First, get visibility into spending by team and service and measure utilisation, so we can separate waste, such as idle resources, orphaned storage and non-production environments running overnight, from deliberate headroom for resilience. The waste is nearly risk-free to remove. Next, rightsizing and purchasing commitments for baseline usage give more savings, applied gradually with monitoring and using the error budget as a guardrail: if the service has budget to spare, we can reduce redundancy cautiously, and if it is burning fast, we do not. Larger savings may need architectural changes like better caching or more efficient data transfer, which I plan as investments with expected payback. I report to finance monthly using unit cost metrics, such as cost per transaction, so we can see efficiency even as the business grows.",
+  "f": [
+   "What is waste versus headroom?",
+   "How is the error budget used as a guardrail?"
+  ]
+ },
+ {
+  "tag": "platform",
+  "q": "How do you decide whether to offer a managed Kubernetes platform to product teams or let them use serverless and PaaS options?",
+  "ctx": "Teams want different runtimes. The platform team has limited capacity and wants to avoid supporting everything.",
+  "clar": [
+   "What workload types exist (web, batch, streaming, ML)?",
+   "Team skills and operational maturity?",
+   "Compliance and networking requirements?"
+  ],
+  "trade": [
+   "Kubernetes platform: flexible, portable, rich ecosystem, but complexity, cluster operations, skills required",
+   "Serverless/PaaS: low ops, fast start, but constraints, cost at scale, limited control",
+   "Offer both with paved roads: choice, but double support"
+  ],
+  "why": "The platform's job is to reduce cognitive load. The fewest runtimes that cover real needs is usually best.",
+  "rec": "Offer a primary paved road covering most workloads, often managed Kubernetes behind a simple deployment abstraction or a PaaS, with a documented exception path for serverless where it fits.",
+  "rev": "Reasonably reversible if apps are containerised and 12-factor, which keeps portability.",
+  "risk": [
+   "Standardise on containers",
+   "Abstract deployment config",
+   "Measure adoption and satisfaction",
+   "Review exceptions annually"
+  ],
+  "tip": "Hide the infrastructure complexity behind a simple interface; teams care about shipping, not clusters.",
+  "a": "I would start from workloads and team capabilities. Most product teams want to push code and get a running, observable, secure service without learning cluster internals. Kubernetes is flexible and has a vast ecosystem, but it brings real operational complexity and demands skills most product teams do not have. Serverless and PaaS options minimise operations and speed delivery, with constraints on runtime, networking and cost predictability at scale. Supporting everything is beyond a small platform team, so I would define one main paved road that covers the majority of workloads, for example containers on managed Kubernetes behind a simple deployment interface, and a documented path for exceptions where serverless fits, such as event-driven functions. By standardising on containers and twelve-factor practices, applications remain portable. I would measure adoption, time to first deploy and developer satisfaction to see if the platform is working.",
+  "f": [
+   "Why is a paved road valuable?",
+   "What keeps workloads portable?"
+  ]
+ },
+ {
+  "tag": "platform",
+  "q": "How do you handle multi-tenancy in a shared cluster: namespaces, virtual clusters or separate clusters?",
+  "ctx": "Many teams share infrastructure. A noisy neighbour and a security scare prompted a review.",
+  "clar": [
+   "Trust level between tenants?",
+   "Compliance isolation needs?",
+   "Cost vs isolation appetite?"
+  ],
+  "trade": [
+   "Namespaces with quotas, network policies and RBAC: cheap, efficient, but shared control plane and kernel",
+   "Virtual clusters: stronger API isolation, moderate cost, extra layer",
+   "Cluster per team or environment: strongest isolation, higher cost and operations overhead"
+  ],
+  "why": "Isolation strength rises with cost. Match it to trust and compliance needs rather than defaulting to the extremes.",
+  "rec": "Use namespaces with strong guardrails for trusted internal teams, separate clusters for regulated or untrusted workloads and for production vs non-production, managed through automation.",
+  "rev": "Moving workloads between models is possible with GitOps but effortful.",
+  "risk": [
+   "Policy as code for quotas and network rules",
+   "Node pools per sensitivity",
+   "Cluster provisioning automation",
+   "Regular access reviews"
+  ],
+  "tip": "Namespaces are an organisational boundary, not a hard security boundary.",
+  "a": "I choose the isolation model based on trust and compliance. For internal teams that trust each other reasonably, namespaces with resource quotas, network policies, role-based access control and pod security standards are efficient and cheap, although tenants still share the control plane and node kernels, so a noisy neighbour or an escape is conceivable. Virtual clusters add stronger API-level separation with moderate overhead. For regulated data, untrusted code, or when blast radius must be minimal, separate clusters give the strongest boundary at a higher cost and operations burden, which I offset with automated provisioning and fleet management. At minimum I separate production from non-production. Whichever model, I define the guardrails as policy as code, use dedicated node pools for sensitive workloads, and review access regularly. I treat namespaces as an organisational boundary, not a security perimeter.",
+  "f": [
+   "Why aren't namespaces a hard boundary?",
+   "When do you need a separate cluster?"
+  ]
+ },
+ {
+  "tag": "platform",
+  "q": "How would you approach standardising observability across teams that use different tools?",
+  "ctx": "Teams use a mix of logging, metrics and tracing tools. Incident response is slow because data is scattered.",
+  "clar": [
+   "What do responders struggle to find?",
+   "Existing contracts and costs?",
+   "Are there regulatory data constraints?"
+  ],
+  "trade": [
+   "Mandate one vendor: consistency and correlation, lower total cost possible, but migration effort and lock-in",
+   "Open standards (OpenTelemetry) with pluggable backends: portability, gradual migration, but integration work",
+   "Leave to teams: autonomy, but fragmented incident response"
+  ],
+  "why": "The value is correlation across signals and services. Standard instrumentation matters more than the backend brand.",
+  "rec": "Standardise instrumentation and conventions on OpenTelemetry, with common labels and trace context, and consolidate backends gradually based on cost and capability.",
+  "rev": "Instrumentation standard is reversible at the backend level; that is exactly its benefit.",
+  "risk": [
+   "Naming and tagging conventions",
+   "Collector layer to decouple",
+   "Cost controls and sampling",
+   "Migration plan with incentives"
+  ],
+  "tip": "Standardise the data and context propagation, then the tool. Backends can change; instrumentation is expensive to redo.",
+  "a": "The pain during incidents is correlating signals across services, so I focus on consistency of the data rather than debating vendors first. I would standardise instrumentation on an open standard such as OpenTelemetry, with agreed conventions for service names, environment labels, trace and correlation identifiers in logs, and a baseline set of metrics for every service, such as request rate, errors and duration. A collector layer sits between applications and backends, which lets me route and sample data and change backends without touching application code. Then I consolidate backends gradually, considering capability, cost and migration effort, rather than mandating a big-bang switch. I provide libraries, templates and dashboards by default to make the standard the easy path, and add cost controls such as sampling and retention. The result is faster incident response and freedom to change vendors later.",
+  "f": [
+   "Why a collector layer?",
+   "What should every service emit?"
+  ]
+ },
+ {
+  "tag": "platform",
+  "q": "How do you design the developer onboarding path so a new service can reach production in a day?",
+  "ctx": "Creating a new service takes weeks of tickets across teams. Leadership wants speed without losing control.",
+  "clar": [
+   "What are the slowest steps today?",
+   "Which controls are mandatory?",
+   "Who owns each step?"
+  ],
+  "trade": [
+   "Manual tickets: control but slow",
+   "Template + automation (service catalogue/scaffolder): fast and consistent, but upfront investment",
+   "Free-form: maximum speed, minimum consistency and security"
+  ],
+  "why": "The goal is to bake controls into the template so the secure, observable, compliant path is also the fastest.",
+  "rec": "Build a scaffolding workflow that creates the repo, pipeline, infrastructure, monitoring, alerts, security scans and catalogue entry from a template, with approvals automated by policy.",
+  "rev": "Templates can evolve; services created from them can be updated through automated upgrades.",
+  "risk": [
+   "Template versioning and update mechanism",
+   "Policy checks instead of manual approvals",
+   "Measure lead time to first deploy",
+   "Keep an escape hatch for unusual needs"
+  ],
+  "tip": "Track time-to-first-production-deploy as the platform's headline metric.",
+  "a": "I would map the current path and find the slowest steps, usually waiting for repositories, cloud accounts, pipelines, access, monitoring and security approvals. Then I'd build a self-service scaffolder that takes a few inputs, such as service name, owner and type, and generates everything: a repository from a template, a CI/CD pipeline, infrastructure as code, observability dashboards and alerts, security scanning, an entry in the service catalogue, and default access. Controls are embedded in the template and enforced by policy as code, so approvals that used to require tickets are automatic when the standard is followed, while deviations trigger review. I'd version the templates and provide a mechanism for updating existing services as the template improves. The headline metric is time to first production deployment, with satisfaction surveys. An escape hatch handles unusual cases, so the platform does not become a bottleneck.",
+  "f": [
+   "Why embed controls in templates?",
+   "What metric shows platform success?"
+  ]
+ },
+ {
+  "tag": "platform",
+  "q": "How do you decide when to deprecate an internal platform component and migrate users off it?",
+  "ctx": "An old internal deployment tool is costly to maintain. A replacement exists but 60 teams still use the old one.",
+  "clar": [
+   "Why migrate: cost, risk, capability gap?",
+   "How hard is migration per team?",
+   "What happens if you don't?"
+  ],
+  "trade": [
+   "Mandate and deadline: quick, but friction and disruption",
+   "Incentives and migration help: smoother, but longer and costs platform time",
+   "Run both indefinitely: no disruption but permanent double cost"
+  ],
+  "why": "Every legacy component taxes the platform team. But migration costs fall on users, so the platform must make it easy and justify it.",
+  "rec": "Set a published sunset date, provide automated migration tooling and hands-on support, track progress per team, escalate blockers, and stop new onboarding to the old tool immediately.",
+  "rev": "Deprecation timelines can be adjusted before the cutoff; after shutdown, rollback is hard, so keep a short read-only period.",
+  "risk": [
+   "Stop new adopters first",
+   "Migration scripts and office hours",
+   "Weekly progress dashboard",
+   "Executive sponsor for stragglers"
+  ],
+  "tip": "Stop the bleeding first: no new users on the old system, then migrate the existing ones.",
+  "a": "I begin by confirming that the benefits justify the disruption: reduced cost, risk or capability gaps that the new tool fixes. Then I plan the transition as a product launch. Immediately, new services onboard only to the replacement, so the old user base stops growing. I publish a sunset date with enough runway, and provide migration tooling that automates the common steps, documentation, and hands-on support or office hours for difficult cases. I track migration progress per team on a visible dashboard, talk to blockers to understand real obstacles, and involve leadership to resolve prioritisation conflicts for stragglers. Before shutdown I run a warning period with brownouts to flush out hidden dependencies, then turn off writes and keep it read-only briefly in case of surprises. Running both forever is an option only if the cost of doing so is explicitly accepted.",
+  "f": [
+   "Why stop new adopters first?",
+   "What are brownouts?"
+  ]
+ },
+ {
+  "tag": "techdebt",
+  "q": "How do you prioritise technical debt across many teams when everything seems important?",
+  "ctx": "Each team has a long list of debt. Leadership wants a coherent plan, not 30 separate wish lists.",
+  "clar": [
+   "Which debt causes incidents or slows delivery most?",
+   "What does fixing it unlock?",
+   "What is the cost of delay?"
+  ],
+  "trade": [
+   "Fix by developer annoyance: popular, but may miss the impactful items",
+   "Fix by risk and impact: aligned to business, needs data",
+   "Fixed percentage of capacity: predictable, but can be spent on low value"
+  ],
+  "why": "Debt is only worth paying when interest is high: incidents, slowed delivery, security exposure or blocked strategy.",
+  "rec": "Score items by impact on reliability, delivery speed, security and strategic blockers against effort, fund the top items explicitly with a baseline capacity allowance, and review quarterly.",
+  "rev": "The prioritisation can be revisited every quarter; the key is keeping a visible, ranked list.",
+  "risk": [
+   "Link debt items to incident and cycle-time data",
+   "Make debt visible in planning",
+   "Define done and measure improvement",
+   "Avoid gold-plating"
+  ],
+  "tip": "Translate debt into business terms: incidents, lead time, risk. That is what wins budget.",
+  "a": "I treat debt like a financial one: the question is how much interest we pay. For each item, I estimate the cost it creates today, such as incidents it causes, hours lost on workarounds, slowed feature delivery, security exposure or blocking a strategic initiative, and compare that with the effort to fix. This yields a ranked list across teams, where a few items stand out, instead of everything being important. I use data where possible, linking debt to incident reports, cycle time and support tickets. Funding is explicit: a baseline allowance of capacity for debt in every team, plus dedicated investment for the top cross-team items, planned like features with goals and measures of success. I review the ranking quarterly, since things change, and avoid gold-plating by defining what done means. Presenting it in business terms helps leadership prioritise debt properly.",
+  "f": [
+   "What is the interest on debt?",
+   "How do you make debt visible?"
+  ]
+ },
+ {
+  "tag": "techdebt",
+  "q": "What is the strangler fig pattern and when would you use it to replace a legacy system?",
+  "ctx": "A critical legacy system must be replaced. A big-bang rewrite has failed before.",
+  "clar": [
+   "Can traffic be routed at an interface?",
+   "What functionality is most valuable or painful?",
+   "How are data and state shared?"
+  ],
+  "trade": [
+   "Strangler: incremental replacement behind a facade, continuous delivery of value, lower risk, but temporary complexity running both",
+   "Big-bang rewrite: clean slate, but long time with no value and high cutover risk",
+   "Leave as is: no risk now, but growing cost"
+  ],
+  "why": "Incremental migration delivers value early and limits the blast radius of each step, while a rewrite hides risk until the end.",
+  "rec": "Place a routing facade in front, move one capability at a time to the new implementation, keep data in sync during the transition, and retire legacy pieces as traffic moves.",
+  "rev": "Each step is individually reversible by routing back to the legacy system.",
+  "risk": [
+   "Choose a seam with clear boundary",
+   "Data synchronisation strategy",
+   "Parallel run and comparison",
+   "Track decommissioning milestones"
+  ],
+  "tip": "Start with a slice that is valuable but small, to prove the approach and build confidence.",
+  "a": "The strangler fig pattern replaces a legacy system gradually. I put a facade or routing layer in front of it, so all requests pass through a point that can send each type of request to either the old or the new implementation. Then I rebuild one capability at a time in the new system, shift traffic to it, validate behaviour, perhaps running both in parallel and comparing results, and retire the legacy part. Each step is small, delivers value, and is reversible by routing back. The challenges are data: during the transition both systems may need the same data, so I plan synchronisation or a clear ownership switch per capability, and the temporary complexity of running both. I start with a slice that is valuable and well bounded to prove the approach, and track decommissioning explicitly so the legacy system actually disappears.",
+  "f": [
+   "What is the facade's role?",
+   "How do you handle shared data?"
+  ]
+ },
+ {
+  "tag": "techdebt",
+  "q": "How do you decide whether to upgrade a major dependency now or defer it?",
+  "ctx": "A framework has a new major version. The current version has support for another year but the gap grows.",
+  "clar": [
+   "Support timeline and security patch availability?",
+   "Breaking changes and test coverage?",
+   "Does the new version unlock needed features?"
+  ],
+  "trade": [
+   "Upgrade now: smaller gap, benefits earlier, but disruption and risk while other work waits",
+   "Defer: focus on features, but larger, riskier jump later and growing incompatibilities",
+   "Incremental upgrade path: spread work in small steps"
+  ],
+  "why": "Upgrades get harder with time as intermediate versions are skipped, but doing them with no benefit competes with product work.",
+  "rec": "Plan the upgrade ahead of end of support using incremental steps, invest first in tests, and use automation to apply mechanical changes; do not defer until it becomes an emergency.",
+  "rev": "Upgrades are generally one-way, but can be staged and feature-flagged by service.",
+  "risk": [
+   "Test coverage first",
+   "Automated codemods",
+   "Canary upgrade in a low-risk service",
+   "Track end-of-support dates"
+  ],
+  "tip": "Upgrade debt compounds. The cheapest time is usually sooner than the end-of-support panic.",
+  "a": "I weigh the cost of upgrading now against the growing cost of waiting. Dependencies that are several versions behind are harder to upgrade because breaking changes accumulate, support and security patches end, and the ecosystem moves on. But an upgrade with no immediate benefit competes with product work and carries risk. My approach is to plan it well before the end of support, and to reduce risk through preparation: improve test coverage in the affected areas, read the migration guide, use automated code modification tools for mechanical changes, and upgrade in small increments rather than one jump. I try the upgrade first on a low-risk service to learn the pitfalls, then roll it out with canary deployments. I track end-of-support dates in a central register so upgrades are planned work, not emergencies. If the new version brings a capability the business needs, that raises the priority.",
+  "f": [
+   "Why do upgrades get harder over time?",
+   "How do you de-risk the first upgrade?"
+  ]
+ },
+ {
+  "tag": "techdebt",
+  "q": "How do you deal with undocumented tribal knowledge in a critical legacy system when key people might leave?",
+  "ctx": "Only two engineers understand a core billing system. Both are overloaded and one is considering leaving.",
+  "clar": [
+   "What would break if they left?",
+   "Where is the knowledge gap largest?",
+   "How much time can they spare?"
+  ],
+  "trade": [
+   "Heavy documentation project: durable, but slow and may become stale",
+   "Pairing and rotation: spreads knowledge actively, but takes time from experts",
+   "Add tests and observability: encode knowledge as executable behaviour",
+   "Do nothing: risky"
+  ],
+  "why": "Bus factor is a business risk. The best documentation is executable: tests, runbooks and automation, plus real practice.",
+  "rec": "Reduce the bus factor with deliberate pairing and rotation, record decisions and runbooks, capture behaviour in characterisation tests, and rehearse incident scenarios with the broader team.",
+  "rev": "All actions are additive and low-risk.",
+  "risk": [
+   "Prioritise by criticality",
+   "Time-box expert capacity explicitly",
+   "Run a game day on the system",
+   "Record architecture decision records"
+  ],
+  "tip": "Documentation alone does not transfer skill. Make others do the work with the experts present.",
+  "a": "I treat this as a risk to be reduced deliberately. First I identify what knowledge is truly critical: failure modes, deployment steps, data fixes, and why certain odd behaviours exist. Then I use several methods together. Pairing and rotation have other engineers perform real tasks alongside the experts, which transfers practical understanding. Characterisation tests record current behaviour so changes are safe, and runbooks and architecture decision records capture how to operate it and why choices were made. I add observability so the system explains itself. Game days, where the wider team handles simulated incidents with the experts watching, expose gaps. I secure time from management by explaining the business risk and protecting the experts' capacity for this work, and I recognise it in their goals. Documentation alone goes stale, so the emphasis is on practice and executable knowledge.",
+  "f": [
+   "What is bus factor?",
+   "Why is pairing better than documents alone?"
+  ]
+ },
+ {
+  "tag": "techdebt",
+  "q": "A team wants to introduce a big refactoring of core domain code before adding a new feature. How do you decide?",
+  "ctx": "The new feature touches messy code. Engineers say refactoring first will make it cleaner but delay delivery by weeks.",
+  "clar": [
+   "How tangled is the code and what's the risk of changing it?",
+   "Is there test coverage?",
+   "Will other features hit the same area soon?"
+  ],
+  "trade": [
+   "Refactor first: cleaner foundation, but delays feature and risks scope creep",
+   "Feature first with workaround: faster, but more debt in a hot area",
+   "Refactor as you go (preparatory refactoring): small steps tied to the feature"
+  ],
+  "why": "Refactoring pays when the area is a hotspot of future change. Unbounded refactoring is a classic way to lose months.",
+  "rec": "Do just enough preparatory refactoring to make the feature easy, backed by tests, time-boxed and in small reviewable commits, and schedule larger clean-ups separately only if future work justifies them.",
+  "rev": "Small refactors are reversible; large ones need a flag or branch-by-abstraction.",
+  "risk": [
+   "Characterisation tests first",
+   "Time-box and checkpoint",
+   "Separate refactor commits from behaviour change",
+   "Re-assess after the feature"
+  ],
+  "tip": "Make the change easy, then make the easy change. Keep the first step small.",
+  "a": "I would not accept either extreme. A large refactoring before the feature risks scope creep, delays value and introduces regressions without a clear end. Skipping it entirely makes a hot area even worse. The pragmatic middle is preparatory refactoring: do the minimal restructuring needed to make the feature straightforward, supported by tests that capture existing behaviour, in small commits separated from functional changes so they are easy to review and revert. I time-box this work and set a checkpoint to reassess. If the area is a hotspot where many future features will land, I make a business case for a larger clean-up scheduled as its own piece of work with clear goals. If it is a rarely changed corner, leaving it alone is fine. The principle is to invest where change is frequent.",
+  "f": [
+   "What is preparatory refactoring?",
+   "When is a big refactoring justified?"
+  ]
+ },
+ {
+  "tag": "bigbet",
+  "q": "How do you evaluate adopting a service mesh, eBPF-based networking or other infrastructure bets that promise large benefits?",
+  "ctx": "Vendors and conference talks push new networking tech. Your team is tempted by promised gains.",
+  "clar": [
+   "What concrete problem do we have today?",
+   "What is the maturity and community of the tech?",
+   "What do we lose if we wait?"
+  ],
+  "trade": [
+   "Adopt early: potential advantage, but immature, churn and risk",
+   "Wait for maturity: safer, but possibly slower to capture benefit",
+   "Pilot narrowly: learn at small cost"
+  ],
+  "why": "New infrastructure is a long-term operational commitment. A real problem and a bounded pilot beat enthusiasm.",
+  "rec": "Tie any bet to a measurable problem, run a time-boxed pilot on non-critical workloads with success and exit criteria, and decide with data on operations cost, not demos.",
+  "rev": "Pilots are cheap to reverse, but wide adoption becomes sticky.",
+  "risk": [
+   "Written success and exit criteria",
+   "Pilot on low-risk workload",
+   "Operational readiness review",
+   "Budget the learning curve"
+  ],
+  "tip": "The question is not 'is it good?' but 'do we have the problem it solves, and can we run it?'",
+  "a": "I start by asking what concrete problem we have that this technology solves and how we measure it today: latency, security requirements, cost, operational pain. If there is none, fascination is not a reason. If there is, I check the technology's maturity, community, vendor health and how many organisations like us run it in production. Then I propose a time-boxed pilot on a non-critical workload with defined success and exit criteria, for example measured improvement in a metric and an acceptable operational burden, and I budget for learning and for the operational readiness review: upgrade path, monitoring, debugging tools and on-call knowledge. The decision to expand is based on pilot data and total cost of ownership, not demonstration quality. A narrow pilot makes the bet cheap to reverse, whereas a company-wide rollout becomes sticky.",
+  "f": [
+   "What belongs in exit criteria?",
+   "How do you judge maturity?"
+  ]
+ },
+ {
+  "tag": "bigbet",
+  "q": "How do you decide whether to migrate from on-premises to cloud, or the reverse, for a large estate?",
+  "ctx": "Costs, agility and risk arguments exist in both directions. Leadership wants a data-driven decision.",
+  "clar": [
+   "What are the drivers: agility, cost, capacity, compliance?",
+   "Workload profile: steady vs spiky?",
+   "Skills and contracts in place?"
+  ],
+  "trade": [
+   "Cloud: elasticity, managed services, speed, global reach, but variable cost, skills, potential lock-in",
+   "On-prem: predictable cost for steady loads, control, but capital outlay, slower provisioning",
+   "Hybrid: place by workload, but integration complexity"
+  ],
+  "why": "Neither is universally cheaper. Steady heavy workloads can favour owned hardware, spiky and innovative workloads favour cloud.",
+  "rec": "Decide per workload with TCO modelling including people, migration and egress, migrate in waves starting with low-risk candidates, and keep the option to repatriate by avoiding unnecessary proprietary dependencies for steady-state workloads.",
+  "rev": "Neither direction is cheap to reverse at scale, so phase it and measure.",
+  "risk": [
+   "Workload-by-workload TCO model",
+   "Pilot wave with measured results",
+   "Skills development plan",
+   "Exit strategy and data egress costs"
+  ],
+  "tip": "Model total cost including people and migration. Sticker price comparisons mislead in both directions.",
+  "a": "I would avoid an ideological decision and evaluate by workload. For each, I look at its load profile, scalability needs, compliance constraints, dependencies and the value of speed and managed services. Spiky, fast-changing and globally distributed workloads benefit from cloud elasticity and services. Large, steady, predictable workloads may be cheaper on owned or leased hardware once the investment is made. The comparison must include the full cost: staff and skills, migration effort, running in parallel during the transition, network and egress fees, licences, and the business value of faster delivery. I would migrate in waves, starting with low-risk workloads, measuring real cost and effort in the pilot wave before committing more, and avoid unnecessary proprietary dependencies for steady-state systems to keep the option of moving later. A hybrid outcome is common and fine when driven by workload fit.",
+  "f": [
+   "Which workloads favour on-prem?",
+   "What costs are often forgotten?"
+  ]
+ },
+ {
+  "tag": "bigbet",
+  "q": "How do you decide when to rewrite a product in a new architecture versus evolving the existing one?",
+  "ctx": "The current system is slow to change. The team proposes a ground-up rewrite on a modern stack with a 12-month timeline.",
+  "clar": [
+   "What exactly is blocking change: code, architecture, process, people?",
+   "Can the old system keep running and evolving during the rewrite?",
+   "What is the business case for 12 months of no new value?"
+  ],
+  "trade": [
+   "Rewrite: clean design, modern tooling, but long delivery, feature freeze pressure, second-system risk, losing hidden behaviour",
+   "Evolve incrementally: continuous value and lower risk, but constrained by legacy and requires discipline",
+   "Hybrid: strangler migration of the worst parts"
+  ],
+  "why": "Rewrites often underestimate the hidden business logic embedded in old code and run long. The reasons for slowness may survive the rewrite.",
+  "rec": "Diagnose root causes first; prefer incremental modernisation using the strangler approach, and approve a rewrite only for components with clear boundaries, strong justification and a measured plan.",
+  "rev": "A rewrite is hard to reverse once the old system is neglected, so keep the old running with value delivery.",
+  "risk": [
+   "Inventory hidden behaviour via tests",
+   "Milestones delivering production value",
+   "Parallel run",
+   "Stop-loss decision points"
+  ],
+  "tip": "Ask what problem the rewrite solves that incremental change cannot. If the answer is vague, don't.",
+  "a": "I would first diagnose why change is slow. If it is tangled code with no tests, a rewrite without changing the practices will recreate the same problems. If the cause is a fundamentally unsuitable architecture, a replacement of the affected component may be justified. Full rewrites are risky: they take longer than planned, the old system still needs maintaining, hidden business rules embedded in old code are forgotten, and the business waits a long time for new value, the so-called second-system effect. I prefer incremental modernisation: put tests around the existing behaviour, then strangle components one at a time, delivering production value in each step. A rewrite is acceptable for well-bounded parts with strong justification and milestones that ship to production, plus stop-loss checkpoints where we can decide to abandon it. The old system continues to deliver value in the meantime.",
+  "f": [
+   "Why do rewrites run late?",
+   "What are stop-loss checkpoints?"
+  ]
+ },
+ {
+  "tag": "bigbet",
+  "q": "How do you assess the build-versus-partner decision when entering a new market or capability with regulatory complexity?",
+  "ctx": "The company wants to offer payments or lending. Regulation, licences and integrations are heavy.",
+  "clar": [
+   "Is the capability core to the strategy?",
+   "Regulatory burden and liability?",
+   "Time to market and margin impact?"
+  ],
+  "trade": [
+   "Build in-house: control and margin, but licences, compliance, long time",
+   "Partner/BaaS: speed and shared compliance, but margin share, dependency, less control",
+   "Acquire: instant capability but integration and cost"
+  ],
+  "why": "Regulation makes entry costly and slow. Partnering lets you test the market while deciding if building is worth the investment.",
+  "rec": "Start with a partner to validate demand and learn, design integration behind your own abstraction, and revisit building when volume and strategic importance justify the compliance investment.",
+  "rev": "Partnering is more reversible if contracts allow data portability and you hold the customer relationship.",
+  "risk": [
+   "Contractual SLAs and exit terms",
+   "Own the customer data and experience",
+   "Compliance oversight of the partner",
+   "Defined trigger for insourcing"
+  ],
+  "tip": "Define a trigger metric for when it becomes worth insourcing, so the decision is revisited deliberately.",
+  "a": "I would ask how central the capability is to the long-term strategy and how heavy the regulatory and operational burden is. For something like payments or lending, licences, compliance programmes, risk management and partnerships take a long time and a lot of money. Partnering with a provider lets us launch much faster, test demand and economics, and share compliance responsibility, at the cost of margin and dependence on the partner. I would design the integration behind our own abstraction, keep ownership of the customer relationship and data, and negotiate service levels, exit terms and portability. We would also monitor the partner's compliance since we remain accountable to customers and regulators. As volume grows and the strategic importance becomes clear, I'd evaluate insourcing with a defined trigger, like transaction volume or margin impact, so the move is a deliberate business decision.",
+  "f": [
+   "Why keep the customer relationship?",
+   "What triggers insourcing?"
+  ]
+ },
+ {
+  "tag": "scaling",
+  "q": "How do you scale an engineering organisation's architecture decision-making without a central architecture board becoming a bottleneck?",
+  "ctx": "As the company grows to 15 teams, big decisions queue behind one architect group and teams bypass it.",
+  "clar": [
+   "Which decisions truly need cross-team alignment?",
+   "What's the current decision latency?",
+   "Do teams trust the guidance?"
+  ],
+  "trade": [
+   "Central board approves everything: consistency, but slow and disconnected",
+   "No governance: speed and autonomy, but fragmentation and duplicated effort",
+   "Lightweight: ADRs, guilds, advice process, decision tiers: balance, but needs culture"
+  ],
+  "why": "Most decisions are reversible and local. Only a few are one-way doors needing broad input.",
+  "rec": "Adopt the advice process with architecture decision records, classify decisions as reversible vs one-way, require broad consultation only for one-way or cross-cutting ones, and publish principles and paved roads.",
+  "rev": "The governance model can evolve; the important thing is measuring decision latency and outcomes.",
+  "risk": [
+   "Clear decision classification",
+   "ADR repository searchable",
+   "Time-boxed consultation",
+   "Architecture guild for shared learning"
+  ],
+  "tip": "Distinguish one-way doors from two-way doors. Move fast on the latter.",
+  "a": "A central board approving everything becomes a bottleneck and leads teams to route around it. Conversely, no governance leads to fragmentation. I use a lightweight model. Teams make decisions that affect only them, documenting them in short architecture decision records so reasoning is searchable. For decisions that are hard to reverse or affect multiple teams, such as data platform choices, shared infrastructure or public API standards, the decision maker follows an advice process: consult the affected people and experts within a time limit, then decide and record. Architects act as coaches and stewards of principles and paved roads, not gatekeepers. A guild or forum shares learning across teams. I measure decision latency and the number of regretted decisions, and tune the process. Classifying decisions by reversibility keeps most of them fast.",
+  "f": [
+   "What is an ADR?",
+   "What is a one-way door?"
+  ]
+ },
+ {
+  "tag": "scaling",
+  "q": "How do you avoid the 'shared services team' becoming a dependency bottleneck as teams multiply?",
+  "ctx": "A shared database team, a shared QA team and a shared release team all have long queues.",
+  "clar": [
+   "Where are the longest queues?",
+   "What expertise is truly scarce?",
+   "Can work be self-served?"
+  ],
+  "trade": [
+   "Central shared teams: efficiency and expertise concentration, but queues and handoffs",
+   "Embed capability into product teams: fast, but duplicated skills",
+   "Platform/enablement model: shared tools and coaching so teams self-serve"
+  ],
+  "why": "Handoffs and queues dominate lead time at scale. Expertise should spread through tooling, standards and coaching, not by routing every task through a team.",
+  "rec": "Convert shared service teams into enabling or platform teams that provide self-service tooling, guardrails and consultation, and embed specialists temporarily where needed.",
+  "rev": "Reorganisation is reversible but disruptive; move gradually by capability.",
+  "risk": [
+   "Measure queue time and lead time",
+   "Self-service before reorganisation",
+   "Coaching and documentation",
+   "Clear interaction modes between teams"
+  ],
+  "tip": "Look at flow: a team that everyone must wait for is a design flaw in the organisation, not a people problem.",
+  "a": "When many teams depend on one shared team to deliver, lead time is dominated by waiting. I start by measuring queue time per shared team to find the worst offenders. Then I shift their role from doing the work to enabling it. For instance, instead of the database team handling every schema change, it provides self-service tooling with safe defaults, guardrails and automated checks, documentation, and consultation for complicated cases. QA becomes a quality enablement function that builds test frameworks and coaches teams, while product teams own testing. Release becomes an automated pipeline. Where expertise is scarce, I embed specialists temporarily in teams that need it and rotate them. I use team topologies ideas to define clear interaction modes: collaboration for a time, then self-service. The result is shorter queues and better distribution of skills.",
+  "f": [
+   "Why do queues hurt?",
+   "What is an enabling team?"
+  ]
+ },
+ {
+  "tag": "scaling",
+  "q": "How do you manage the architecture when you acquire a company with a different stack?",
+  "ctx": "An acquired company has a working product on different cloud, language and auth systems. Leadership wants synergy.",
+  "clar": [
+   "What is the integration goal: shared customers, cost, unified product?",
+   "How healthy is the acquired tech?",
+   "Retention of key engineers?"
+  ],
+  "trade": [
+   "Full consolidation: long-term efficiency, but heavy cost and risk to the acquired product",
+   "Keep separate: low disruption, but duplicated cost and inconsistent experience",
+   "Selective integration at seams: identity, billing, data, with gradual convergence"
+  ],
+  "why": "Forced rewrites often destroy the value you bought. Integrate where the customer or cost benefit is clear.",
+  "rec": "Integrate at the customer-facing seams first (SSO, billing, data sharing) via APIs, keep the acquired stack running, then converge infrastructure opportunistically where economics are clear.",
+  "rev": "Selective integration is reversible; full migration is not.",
+  "risk": [
+   "Retain key engineers",
+   "Security assessment early",
+   "Integration roadmap with measurable benefits",
+   "Avoid forcing rewrite for its own sake"
+  ],
+  "tip": "Let business outcomes, not technical neatness, set the integration order.",
+  "a": "I start by understanding the goal of the acquisition and the health of the acquired technology: security posture, reliability, code quality and the people who know it. Forcing a rapid rewrite onto the parent's stack typically destroys value, distracts the team and risks the product that customers pay for. So I integrate selectively at the seams that matter to customers and to the business: single sign-on, unified billing, shared data views, and common security and compliance controls, usually through APIs and adapters. The acquired stack keeps running. Over time I converge infrastructure where economics are clear, such as consolidating cloud contracts, observability or CI tooling, in order of return. I protect retention of the key engineers, perform an early security review, and create a roadmap with measurable benefits. Full consolidation is considered later, only if it is justified by cost and strategy.",
+  "f": [
+   "What seams to integrate first?",
+   "Why not force a rewrite?"
+  ]
+ },
+ {
+  "tag": "scaling",
+  "q": "What architectural practices keep a system evolvable as the team grows from 10 to 100 engineers?",
+  "ctx": "Growth is straining the codebase: merge conflicts, slow builds, unclear ownership, fragile deployments.",
+  "clar": [
+   "Where does coordination hurt most?",
+   "Is ownership clear per component?",
+   "What is the release frequency and failure rate?"
+  ],
+  "trade": [
+   "Strong module boundaries and ownership: scalable, but needs investment",
+   "Everything shared: fast early, painful later",
+   "Service-oriented split: independent flow, but operational overhead"
+  ],
+  "why": "Conway's law: the architecture follows the organisation. Aligning boundaries to teams reduces coordination cost.",
+  "rec": "Establish clear domain boundaries aligned to teams, enforce them with tooling, invest in CI speed and automated testing, make ownership explicit in a catalogue, and adopt progressive delivery to keep releases safe.",
+  "rev": "Practices are incremental and reversible; boundaries evolve with domain understanding.",
+  "risk": [
+   "Ownership catalogue",
+   "Architectural fitness functions in CI",
+   "Build and test speed budget",
+   "Contract tests between domains"
+  ],
+  "tip": "Use automated architecture tests to stop boundaries decaying quietly.",
+  "a": "As an organisation grows, the main cost becomes coordination, so architecture should minimise it. I align domain boundaries with team ownership, so that most changes are made inside one team's area without needing others. I make these boundaries real using tooling, such as module dependency rules and automated architectural tests in CI that fail when someone creates a forbidden dependency. Ownership is explicit in a service or component catalogue so questions and incidents go to the right team. Speed of feedback matters as people increase: I budget build and test time, use caching and change-based testing, and keep the pipeline fast. Contracts between domains are tested, and I adopt progressive delivery with feature flags and canaries so frequent releases remain safe. Finally, I revisit boundaries as the domain understanding improves, because wrong boundaries cause constant cross-team work.",
+  "f": [
+   "What is Conway's law?",
+   "What are fitness functions?"
+  ]
+ },
+ {
+  "tag": "scaling",
+  "q": "How would you reduce the blast radius and coordination cost of a large shared database schema used by many teams?",
+  "ctx": "One database schema is modified by dozens of teams; migrations cause conflicts and outages.",
+  "clar": [
+   "Which tables are shared and who owns them?",
+   "How frequently do schemas change?",
+   "Can ownership be split by domain?"
+  ],
+  "trade": [
+   "Keep shared schema with strict process: low initial change, but slow, risky",
+   "Split into per-domain databases/schemas with APIs: autonomy, but data migration and joins lost",
+   "Introduce read models/data products: decoupled reads, extra pipelines"
+  ],
+  "why": "A shared schema is a shared mutable state across teams. The cost grows quadratically with the number of writers.",
+  "rec": "Assign clear table ownership, forbid cross-domain writes, expose data via APIs or published read models, and migrate gradually, starting with the most contentious tables.",
+  "rev": "Incremental and reversible per table with dual-read periods.",
+  "risk": [
+   "Ownership map",
+   "Expand-contract migrations",
+   "Access controls enforcing ownership",
+   "Dual-read validation during moves"
+  ],
+  "tip": "Start by enforcing who may write to each table. Ownership comes before any physical split.",
+  "a": "The root issue is that many teams modify shared mutable state, so every migration needs coordination and every mistake is felt by all. I start by creating an ownership map: each table belongs to one domain team, and only that team may write to it, enforced with database permissions. Other teams get read-only access through views, or better, consume data through APIs or published events and read models, so they do not depend on physical structure. Schema changes by owners follow safe expand-and-contract migrations. Then I physically split the data by domain gradually, beginning with the most contentious tables, using dual reads and validation to ensure correctness during the move, accepting that cross-domain joins become API calls or data replication. This process reduces coordination cost and limits the blast radius of failures to the owning domain.",
+  "f": [
+   "Why enforce write ownership?",
+   "What is expand and contract?"
+  ]
+ },
+ {
+  "tag": "multiregion",
+  "kind": "scenario",
+  "q": "Your largest enterprise customer demands data residency in their own country, but you have only one region today. How do you respond architecturally?",
+  "ctx": "A large contract depends on in-country data storage within six months.",
+  "clar": [
+   "Which data must stay in-country: all or specific categories?",
+   "Can processing happen elsewhere if data is not stored?",
+   "How many customers will follow with similar demands?"
+  ],
+  "trade": [
+   "New regional stack for that country: full compliance, but cost, operations and duplication",
+   "Region-aware data layer with partitioned tenant data: scalable for future, but design effort",
+   "Cloud provider sovereign options: faster, but constraints"
+  ],
+  "why": "One-off regions are expensive, so the design should anticipate more residency requirements while meeting this one first.",
+  "rec": "Introduce tenant-to-region placement in the data layer and a regional deployment of the necessary stack, using the new customer as the first tenant; automate provisioning so further regions are repeatable.",
+  "rev": "Costly to unwind but additive; placing tenants by region is a long-term capability.",
+  "risk": [
+   "Identify all data flows including logs and backups",
+   "Control-plane vs data-plane split",
+   "Compliance review",
+   "Automate region provisioning"
+  ],
+  "tip": "Think about backups, logs, analytics and support tooling too. Residency leaks often happen there.",
+  "a": "I would clarify exactly what must remain in the country, since the requirements often cover personal or contract data rather than every byte, and whether processing outside is allowed if nothing is stored. Then I'd design a tenant-to-region placement capability: each tenant is assigned a home region, and the data layer routes reads and writes accordingly. For this customer I'd deploy the necessary stack in the required country, keeping a global control plane for things like billing and routing that does not contain regulated data, and a regional data plane. I must trace every data flow, including logs, metrics, backups, analytics, search indexes and support tools, because residency violations often occur in these side channels. I'd automate region provisioning so the next request is a configuration change, not a project. Compliance and legal review should confirm the design before commitment.",
+  "f": [
+   "Why do side channels matter?",
+   "What is a control plane versus data plane?"
+  ]
+ },
+ {
+  "tag": "buildbuy",
+  "kind": "scenario",
+  "q": "A vendor offers a heavily discounted three-year contract with deep integration. How do you evaluate the commitment?",
+  "ctx": "Procurement likes the 40% discount. Engineering worries about lock-in and the vendor's roadmap.",
+  "clar": [
+   "How critical is the product and how replaceable?",
+   "Vendor's financial health and roadmap?",
+   "What exit and portability terms are possible?"
+  ],
+  "trade": [
+   "Sign 3 years: savings, price certainty, but lock-in and stranded cost if needs change",
+   "1 year or monthly: flexibility, but higher price",
+   "Sign with exit clauses and data portability: balanced but negotiation effort"
+  ],
+  "why": "A discount is only valuable if you will actually use the product for the term and could leave if it fails you.",
+  "rec": "Negotiate shorter or ramped commitment, SLA credits, termination rights for chronic failure, data export guarantees, and limit deep integration behind an abstraction.",
+  "rev": "Contracts are hard to unwind; technical coupling is the larger lock-in, so manage it.",
+  "risk": [
+   "Abstraction layer",
+   "Exit plan and data export test",
+   "Vendor viability check",
+   "Usage forecast with margin"
+  ],
+  "tip": "Technical lock-in costs more than contractual lock-in. Check both.",
+  "a": "I treat the discount as one input and evaluate the commitment like an investment. How critical is the product, how easy is it to replace, and what is our confidence that we will use at least the committed volume for three years? I'd look at the vendor's financial stability, product direction and support record. Then I'd negotiate to reduce risk: a ramped commitment that grows with usage, service level credits, a right to terminate for repeated failures, a price cap on renewals and explicit data export and transition assistance. On the technical side, deep integration is the bigger lock-in than the paper contract, so I'd isolate the vendor behind an abstraction layer, avoid proprietary features where an equivalent standard exists, and test the exit path by exporting data. If the vendor will not give flexible terms, a shorter contract at a higher price may be worth paying for.",
+  "f": [
+   "What is the bigger lock-in?",
+   "Which contract terms reduce risk?"
+  ]
+ },
+ {
+  "tag": "techdebt",
+  "kind": "scenario",
+  "q": "A security vulnerability requires an urgent change in a legacy module nobody understands. How do you make the change safely?",
+  "ctx": "A critical CVE affects a library used in an old module with no tests and no owner.",
+  "clar": [
+   "How exploitable and exposed is it?",
+   "Can you mitigate without changing code?",
+   "Who has any knowledge of the module?"
+  ],
+  "trade": [
+   "Quick patch and deploy: fast, but risk of regressions",
+   "Compensating control first (WAF, config, network): buys time, imperfect",
+   "Full understanding and refactor first: safest long-term, too slow for the threat"
+  ],
+  "why": "The urgency demands layered response: reduce exposure immediately, then patch with a safety net.",
+  "rec": "Apply a compensating control now, write characterisation tests around the module's entry points, apply the minimal library upgrade or patch, deploy gradually with monitoring and rollback, then plan longer-term cleanup.",
+  "rev": "Canary and rollback make the change reversible.",
+  "risk": [
+   "Characterisation tests",
+   "Canary deploy",
+   "Monitoring on error rate",
+   "Assign an owner afterwards"
+  ],
+  "tip": "Reduce exposure first, then change code with a safety net. Never skip the follow-up ownership step.",
+  "a": "I would deal with the exposure and the change separately. First assess how exploitable the vulnerability is in our context. If it is serious, apply a compensating control immediately, such as a firewall or WAF rule, disabling the affected feature, or restricting network access, to reduce risk while preparing the fix. For the fix itself, because nobody understands the module, I build a safety net: characterisation tests that call its entry points with representative inputs and record current outputs, and logging so we can see its behaviour in production. Then I make the smallest possible change, usually upgrading the vulnerable dependency, run the tests, and deploy gradually with a canary, watching error rates and ready to roll back. Afterwards I assign ownership of the module, improve its documentation and tests, and schedule a plan to modernise or retire it so this does not repeat.",
+  "f": [
+   "Why compensating controls first?",
+   "What is a characterisation test?"
+  ]
+ },
+ {
+  "tag": "scaling",
+  "kind": "scenario",
+  "q": "A fast-growing startup's monolith is hitting database limits. The CTO asks whether to shard, move to microservices or buy time. What do you advise?",
+  "ctx": "Primary database is at 80% CPU at peak, growth is 15% month over month, the team is 25 engineers.",
+  "clar": [
+   "What queries and tables dominate load?",
+   "Read vs write ratio?",
+   "How soon will the limit be hit?"
+  ],
+  "trade": [
+   "Optimise and scale up: quick, cheap, buys months, but ceiling",
+   "Read replicas, caching, offload analytics: moderate effort, big relief for read-heavy loads",
+   "Shard or split services: long-term scale, high complexity and risk"
+  ],
+  "why": "Most early scaling problems are solved by query tuning, indexing, caching and replicas long before sharding is needed.",
+  "rec": "Buy time with profiling, indexes, caching, replicas and a bigger instance, while designing a data partitioning strategy for the tenant or domain boundary so sharding is ready if growth continues.",
+  "rev": "The first steps are reversible; sharding is a major commitment, so delay until data justifies it.",
+  "risk": [
+   "Capacity forecast with trigger points",
+   "Load testing",
+   "Clear tenant/shard key design",
+   "Avoid premature microservices"
+  ],
+  "tip": "Ask what the top five queries are. Often 80% of the load is a handful of fixable queries.",
+  "a": "I'd advise buying time first with the cheapest effective measures while preparing for the longer term. Profile the database to find the heaviest queries, add missing indexes, fix N-plus-one patterns, and move reporting and analytics to a replica. Introduce caching for hot reads and consider connection pooling. Scaling the instance vertically is often a reasonable short-term step. These measures typically extend runway by many months at low risk. In parallel, I would forecast growth to know when the next limit will hit, define trigger points, and design the partitioning strategy, for example by tenant, so that sharding or splitting out a domain can be done if needed. I would warn against jumping to microservices or sharding prematurely because they add complexity and slow a twenty-five-person team. The decision to shard should come from data showing the simpler options are exhausted.",
+  "f": [
+   "What are the first things to check?",
+   "When is sharding justified?"
+  ]
+ },
+ {
+  "tag": "platform",
+  "q": "How do you decide whether an internal tool should be open-sourced or kept private?",
+  "ctx": "A team built a useful internal tool and wants to publish it. Legal and security have concerns.",
+  "clar": [
+   "What is the actual problem and its cost?",
+   "What are the constraints on time, skills and budget?",
+   "What would make us reverse this?"
+  ],
+  "trade": [
+   "Option A: faster to start, but carries long-term cost",
+   "Option B: more upfront effort, but sustainable",
+   "Option C: a hybrid that limits risk"
+  ],
+  "why": "The right choice depends on reversibility, cost of being wrong and the skills the team has today.",
+  "rec": "Open-source only if it is non-differentiating, free of secrets and internal assumptions, has a committed maintainer and a clear support policy; otherwise keep it internal.",
+  "rev": "Prefer the option that can be undone cheaply and revisit with data after a short trial.",
+  "risk": [
+   "Run a time-boxed pilot",
+   "Define success and exit criteria",
+   "Record the decision in an ADR"
+  ],
+  "tip": "State the decision, the reasons and the conditions under which you would change it.",
+  "a": "I would ask what the company gains and what it risks. Open-sourcing can attract contributors, improve quality through outside scrutiny, help hiring and give the tool a life beyond one company. But it creates obligations: a maintainer must triage issues and security reports, the code needs a licence review, secrets and internal hostnames must be scrubbed from history, and anything that encodes a competitive advantage should stay private. I check whether the tool is generic or tied to our infrastructure, since tightly coupled tools attract little community. I would require a named owner, a support and security policy, documentation, and a decision on governance before publishing. If we are not ready to maintain it, a private repository with good internal documentation is better than an abandoned public project. I review the decision after a year, based on contributions and effort spent.",
+  "f": [
+   "What must be scrubbed before publishing?",
+   "What are the maintenance obligations?"
+  ]
+ },
+ {
+  "tag": "bigbet",
+  "q": "How do you decide whether to adopt a new programming platform such as WebAssembly or a new runtime for a major system?",
+  "ctx": "Engineers are excited about a new runtime promising large performance and portability gains.",
+  "clar": [
+   "What is the actual problem and its cost?",
+   "What are the constraints on time, skills and budget?",
+   "What would make us reverse this?"
+  ],
+  "trade": [
+   "Option A: faster to start, but carries long-term cost",
+   "Option B: more upfront effort, but sustainable",
+   "Option C: a hybrid that limits risk"
+  ],
+  "why": "The right choice depends on reversibility, cost of being wrong and the skills the team has today.",
+  "rec": "Run a bounded pilot against a measured problem, keep the integration behind a stable interface, and adopt widely only if the operational and hiring costs are acceptable.",
+  "rev": "Prefer the option that can be undone cheaply and revisit with data after a short trial.",
+  "risk": [
+   "Run a time-boxed pilot",
+   "Define success and exit criteria",
+   "Record the decision in an ADR"
+  ],
+  "tip": "State the decision, the reasons and the conditions under which you would change it.",
+  "a": "I start by asking which measurable problem the platform solves for us, such as startup time, cost per request or portability, and whether a cheaper change would also solve it. Then I assess maturity: stability of the runtime and standard, tooling for debugging, profiling and observability, security tooling, library availability, and how many production users exist. I would run a time-boxed pilot on one non-critical component with explicit success and exit criteria, benchmarking against the current implementation under realistic load. I also count the hidden costs: training, hiring, on-call knowledge, build and deployment pipeline changes and vulnerability management. The integration sits behind a stable interface so the component can be replaced. If the pilot shows clear benefit and the operational burden is acceptable, I expand gradually, documenting the decision and reviewing it later.",
+  "f": [
+   "What do exit criteria look like?",
+   "Why keep an interface boundary?"
+  ]
+ }
+]
