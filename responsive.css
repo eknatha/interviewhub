@@ -23,3 +23,25 @@ table { max-width: 100%; }
 @media (min-width: 1100px) {
   .q-body { max-width: 980px; }
 }
+
+/* ---- mobile browser friendliness (phones / touch) ---- */
+.mnav{display:none}
+@media (max-width: 640px) {
+  header[style] { position: static !important; }           /* free vertical space; guide header no longer sticks */
+  header[style] button.ekn-btn { display: none; }          /* Print is pointless on phones; PDF stays */
+  header[style] .ekn-btn, header[style] .portal-link, header[style] .dm-btn, header[style] select { min-height: 40px; display: inline-flex; align-items: center; }
+  .q-card { scroll-margin-top: 12px; }
+  body { padding-bottom: 72px; }                            /* room for the floating Voice button */
+  .docs-block a, .dg-block a { display: inline-block; padding: 7px 0; }
+  .mnav { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px; background: var(--bg, #f4f4ee); border-bottom: 1px solid rgba(127,127,127,.2); scrollbar-width: none; }
+  .mnav::-webkit-scrollbar { display: none; }
+  .mnav a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 42px; padding: 0 16px; border-radius: 99px; border: 1px solid #1D9E75; color: #0F6E56; font-weight: 600; font-size: 14px; text-decoration: none; background: #fff; white-space: nowrap; }
+  body.dark .mnav a { background: #16241f; color: #4dd4a8; border-color: #4dd4a8; }
+  .back, .open { display: inline-flex; align-items: center; min-height: 40px; }
+}
+@media (pointer: coarse) {
+  .sp-btn { min-height: 40px; padding: 6px 14px; }
+  .chip { min-height: 40px; display: inline-flex; align-items: center; }
+}
+/* fallback fonts for the older guides that reference these variables without defining them */
+:where(:root) { --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
