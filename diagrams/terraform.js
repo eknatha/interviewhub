@@ -23,5 +23,17 @@ window.DIAGRAMS.terraform = {
  133:{t:'cmp',title:'Secrets in state',a:['Normal attribute','Stored in state','Visible to state readers'],b:['Ephemeral / write-only','Never persisted','Safer for secrets']},
  149:{t:'flow',title:'create_before_destroy',n:['Create new','Switch dependents','Destroy old'],e:['','']},
  153:{t:'flow',title:'Atlantis',n:['Open PR','atlantis plan','Comment output','atlantis apply','Merge'],e:['','','','']},
- 173:{t:'flow',title:'Splitting state',n:['Plan the new stacks','state mv or import','plan shows no diff','Remove from old state'],e:['','','']}
+ 173:{t:'flow',title:'Splitting state',n:['Plan the new stacks','state mv or import','plan shows no diff','Remove from old state'],e:['','','']},
+ 2:{t:'flow',title:'Recover lost state',n:['Check backend versioning','Restore previous state version','Or terraform import resources','terraform plan to verify'],e:['','','']},
+ 8:{t:'flow',title:'State lock',n:['Apply starts','Lock acquired in backend','Concurrent run blocked','Release or force-unlock after checking'],e:['','','']},
+ 24:{t:'tiers',title:'Environment isolation',rows:[['Shared modules (versioned)'],['dev state','stage state','prod state'],['Separate accounts / backends and pipelines']]},
+ 34:{t:'tiers',title:'State layout',rows:[['network state'],['platform state (EKS / data)'],['app state per team'],['Small blast radius, remote_state or SSM for outputs']]},
+ 36:{t:'cmp',title:'Workspaces vs separate state',a:['Workspaces','Same code and backend','Easy, weak isolation'],b:['Separate directories / backends','Different state and access','Strong isolation']},
+ 38:{t:'flow',title:'Refresh-only',n:['Read real infrastructure','Compare with state','Show drift','Accept via apply -refresh-only'],e:['','','']},
+ 42:{t:'flow',title:'Dependency graph',n:['Parse configuration','Build resource graph','Walk in dependency order','Parallel where independent'],e:['','','']},
+ 46:{t:'flow',title:'init, plan, apply',n:['init: providers, modules, backend','plan: refresh + diff','review plan file','apply: execute graph','state updated'],e:['','','','']},
+ 48:{t:'flow',title:'CI-managed apply',n:['PR opened','Plan posted to PR','Review and approval','Apply from CI role','No local applies'],e:['','','','']},
+ 51:{t:'flow',title:'Module release',n:['Change module','Tag semantic version','Publish to registry','Consumers bump version pin'],e:['','','']},
+ 21:{t:'loop',title:'Drift detection',n:['Scheduled plan','Detect manual change','Alert owner','Import or revert'],c:'daily'},
+ 20:{t:'cmp',title:'Local vs CI differences',a:['Local','Your credentials, cached plugins','Different versions'],b:['CI','Role credentials, clean workspace','Pin versions to match']}
 };

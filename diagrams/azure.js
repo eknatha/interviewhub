@@ -17,5 +17,19 @@ window.DIAGRAMS.azure = {
  85:{t:'tiers',title:'HA and DR',rows:[['Traffic Manager / Front Door'],['Region A primary','Region B secondary'],['Geo-replicated data']]},
  103:{t:'flow',title:'OIDC deploy',n:['GitHub Actions','OIDC token','Federated credential','Deploy to AKS'],e:['','','']},
  124:{t:'flow',title:'NSG evaluation',n:['Packet','NSG rules by priority','First match wins','Allow or deny'],e:['','','']},
- 142:{t:'flow',title:'Slot swap',n:['Deploy to staging slot','Warm up','Swap','Instant rollback by swapping back'],e:['','','']}
+ 142:{t:'flow',title:'Slot swap',n:['Deploy to staging slot','Warm up','Swap','Instant rollback by swapping back'],e:['','','']},
+ 2:{t:'flow',title:'Managed identity',n:['App on Azure resource','Request token from IMDS','Entra ID issues token','Call Key Vault / Storage'],e:['','','']},
+ 3:{t:'tiers',title:'Hub-and-spoke VNet',rows:[['On-prem via VPN / ExpressRoute'],['Hub VNet: Firewall, Bastion, gateways'],['Spoke: AKS','Spoke: data','Spoke: apps']]},
+ 12:{t:'cmp',title:'Private Endpoint vs Service Endpoint',a:['Private Endpoint','Private IP in your VNet','Works from on-prem, needs private DNS'],b:['Service Endpoint','Optimised route to public service','Service keeps public IP']},
+ 15:{t:'flow',title:'Key Vault on AKS',n:['Pod service account','Workload identity federation','Entra token','CSI driver mounts secret'],e:['','','']},
+ 25:{t:'flow',title:'Azure Policy',n:['Policy definition','Assignment at scope','Evaluate resources','Deny, audit or remediate'],e:['','','']},
+ 32:{t:'tiers',title:'Layered network security',rows:[['Front Door / App Gateway + WAF (L7 ingress)'],['Azure Firewall (central egress, L3-L7)'],['NSG (subnet / NIC filtering)']]},
+ 33:{t:'flow',title:'Private endpoint DNS',n:['Client resolves name','Private DNS zone linked to VNet','CNAME to privatelink','Private IP returned'],e:['','','']},
+ 35:{t:'cmp',title:'VPN Gateway vs ExpressRoute',a:['VPN Gateway','Encrypted over internet','Quick, cheaper, variable latency'],b:['ExpressRoute','Private circuit','Predictable latency and bandwidth']},
+ 44:{t:'cmp',title:'AKS networking models',a:['Azure CNI','Pods get VNet IPs','IP planning needed'],b:['CNI Overlay / kubenet','Pods use overlay range','Saves VNet addresses']},
+ 48:{t:'tiers',title:'Multi-region active-active',rows:[['Azure Front Door / Traffic Manager'],['Region 1: AKS + app gateway','Region 2: AKS + app gateway'],['Cosmos DB multi-region / geo-replicated data']]},
+ 53:{t:'loop',title:'Cluster autoscaler',n:['Pending pods','Scale up node pool','Pods scheduled','Idle nodes removed'],c:'scale-down delay'},
+ 63:{t:'flow',title:'Network policy enforcement',n:['Default allow','Apply deny-all','Add allow rules by label','Verify with test pods'],e:['','','']},
+ 68:{t:'flow',title:'502/504 behind App Gateway',n:['Client','App Gateway listener','Backend pool health probe','AKS service / pod','Timeouts and probe path'],e:['','','','']},
+ 81:{t:'tiers',title:'Central logging',rows:[['AKS clusters in many subscriptions'],['Diagnostic settings / Container Insights'],['Log Analytics workspace'],['Dashboards, alerts, Sentinel']]}
 };

@@ -1,6 +1,18 @@
 {
- "generated": "2026-10-21",
+ "generated": "2026-10-23",
  "guides": {
+  "ai": {
+   "questions": 150,
+   "specific": 90,
+   "fallback": 60,
+   "pct": 60
+  },
+  "ansible": {
+   "questions": 100,
+   "specific": 95,
+   "fallback": 5,
+   "pct": 95
+  },
   "architecture_tradeoffs": {
    "questions": 170,
    "specific": 96,
@@ -67,6 +79,12 @@
    "fallback": 15,
    "pct": 92
   },
+  "helm": {
+   "questions": 100,
+   "specific": 99,
+   "fallback": 1,
+   "pct": 99
+  },
   "kubernetes": {
    "questions": 170,
    "specific": 154,
@@ -91,11 +109,23 @@
    "fallback": 13,
    "pct": 84
   },
+  "openstack": {
+   "questions": 150,
+   "specific": 143,
+   "fallback": 7,
+   "pct": 95
+  },
   "product_management": {
    "questions": 113,
    "specific": 40,
    "fallback": 73,
    "pct": 35
+  },
+  "python_sre": {
+   "questions": 100,
+   "specific": 88,
+   "fallback": 12,
+   "pct": 88
   },
   "sre_devops_scenarios": {
    "questions": 171,
@@ -122,9 +152,9 @@
    "pct": 92
   }
  },
- "total": 2961,
- "specific": 2294,
- "fallback": 667,
- "pct": 77,
- "uniqueUrls": 671
+ "total": 3561,
+ "specific": 2809,
+ "fallback": 752,
+ "pct": 79,
+ "uniqueUrls": 791
 }

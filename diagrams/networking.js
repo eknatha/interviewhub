@@ -38,5 +38,19 @@ window.DIAGRAMS.networking = {
  131:{t:'cmp',title:'QUIC vs TCP+TLS',a:['TCP + TLS 1.3','Separate handshakes','Head-of-line blocking'],b:['QUIC (HTTP/3)','One handshake, over UDP','Independent streams']},
  138:{t:'flow',title:'Client IP through proxies',n:['Client','CDN','Load balancer','App'],e:['X-Forwarded-For','append','trust only proxies']},
  156:{t:'flow',title:'Preserving client IP',n:['Client','LB (SNAT)','App sees LB IP','Use XFF / PROXY protocol'],e:['','','']},
- 159:{t:'cmp',title:'gRPC imbalance',a:['L4 balancing','One long HTTP/2 conn per client','One pod gets the traffic'],b:['L7 / client-side','Balance per request','Even spread']}
+ 159:{t:'cmp',title:'gRPC imbalance',a:['L4 balancing','One long HTTP/2 conn per client','One pod gets the traffic'],b:['L7 / client-side','Balance per request','Even spread']},
+ 7:{t:'flow',title:'DNS troubleshooting',n:['Reproduce with dig','Check resolver and search path','Query authoritative server','Compare TTL / cache'],e:['','','']},
+ 12:{t:'cmp',title:'Flow vs congestion control',a:['Flow control','Receiver window','Protects the receiver'],b:['Congestion control','cwnd, slow start','Protects the network']},
+ 15:{t:'flow',title:'BGP in cloud networking',n:['On-prem router','eBGP session','Cloud router','Routes exchanged'],e:['','','']},
+ 21:{t:'cmp',title:'Stateful vs stateless firewall',a:['Stateful','Tracks connections','Return traffic auto-allowed'],b:['Stateless','Each packet checked','Rules needed both directions']},
+ 27:{t:'cmp',title:'L4 vs L7 load balancer',a:['L4','TCP/UDP, fast','No HTTP awareness'],b:['L7','Host / path routing, TLS','More features, more overhead']},
+ 41:{t:'fan',title:'ECMP',src:'Router',mid:['Path 1','Path 2','Path 3'],dst:'Destination',l1:'hash 5-tuple',l2:''},
+ 44:{t:'tiers',title:'Zero trust',rows:[['Strong identity (user + device)'],['Policy decision point'],['Per-request authorisation'],['Micro-segmented services, encrypted']]},
+ 46:{t:'flow',title:'MTU mismatch',n:['Large packet, DF set','Link with smaller MTU','ICMP frag needed','PMTUD blackhole if ICMP blocked'],e:['','','']},
+ 47:{t:'flow',title:'SNAT and DNAT',n:['Private client','SNAT gateway','Internet','DNAT to private target'],e:['out','','in']},
+ 49:{t:'tiers',title:'Layers and load balancers',rows:[['L7: application load balancer / ingress'],['L4: network load balancer'],['L3: routing and gateways'],['L2: switching / VLAN']]},
+ 51:{t:'flow',title:'Conntrack exhaustion',n:['New connection','Conntrack table full','Packets dropped','Tune table, timeouts, reduce churn'],e:['','','']},
+ 55:{t:'flow',title:'DNS failover',n:['Health check','Unhealthy record removed','Low TTL answer','Clients move on expiry'],e:['','','']},
+ 56:{t:'cmp',title:'Split-horizon DNS',a:['Internal view','Private IP answers','Inside the network'],b:['External view','Public IP answers','Internet']},
+ 60:{t:'cmp',title:'DNS transports',a:['UDP/TCP 53','Plain text','Fast, easy to inspect'],b:['DoT / DoH','Encrypted channel','Privacy, harder to monitor']}
 };

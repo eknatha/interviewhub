@@ -12,5 +12,18 @@ window.DIAGRAMS.gcp = {
  61:{t:'fan',title:'Log sinks',src:'Cloud Logging',mid:['BigQuery','Cloud Storage','Pub/Sub'],dst:'Analysis and archive',l1:'sink filter',l2:''},
  64:{t:'flow',title:'CMEK',n:['Cloud KMS key','Encrypts data key','Service encrypts data','Revoke key: data unreadable'],e:['','','']},
  70:{t:'cmp',title:'BigQuery pricing',a:['On-demand','Pay per TB scanned','Bursty, light use'],b:['Capacity slots','Pay for reserved compute','Steady heavy use']},
- 79:{t:'flow',title:'VPC Service Controls',n:['Request','Perimeter check','Access level / ingress rule','Allow or deny'],e:['','','']}
+ 79:{t:'flow',title:'VPC Service Controls',n:['Request','Perimeter check','Access level / ingress rule','Allow or deny'],e:['','','']},
+ 3:{t:'flow',title:'Workload Identity Federation',n:['External workload (GitHub, AWS)','Present OIDC / SAML token','STS exchange','Short-lived GCP token'],e:['','','']},
+ 5:{t:'flow',title:'Service account impersonation',n:['Caller identity','Token Creator role','Generate token for SA','Act as SA, audited'],e:['','','']},
+ 8:{t:'flow',title:'GKE Workload Identity',n:['Pod KSA','GKE metadata server','IAM binding to GSA','Access Google APIs'],e:['','','']},
+ 12:{t:'tiers',title:'Cloud Load Balancing choice',rows:[['Global external ALB (HTTP/S, L7)','Regional ALB'],['Network LB (TCP/UDP, L4)','Internal LB'],['Backends: MIGs, NEGs, Cloud Run']]},
+ 14:{t:'cmp',title:'Shared VPC vs peering',a:['Shared VPC','Host project owns network','Service projects use subnets'],b:['VPC peering','Two separate networks','Non-transitive']},
+ 26:{t:'tiers',title:'VPC Service Controls',rows:[['Service perimeter'],['Projects and Google APIs inside'],['Ingress / egress rules and access levels'],['Outside callers blocked']]},
+ 36:{t:'tiers',title:'Resource hierarchy and org policy',rows:[['Organization (org policies)'],['Folders (prod, dev)'],['Projects'],['Resources']]},
+ 38:{t:'tiers',title:'Multi-cluster GKE',rows:[['Multi-cluster gateway / DNS'],['GKE cluster region A','GKE cluster region B'],['Fleet management, Config Sync']]},
+ 47:{t:'cmp',title:'Gateway API vs Ingress',a:['Ingress','One resource, annotations','Limited roles'],b:['Gateway API','GatewayClass, Gateway, HTTPRoute','Role-oriented, richer routing']},
+ 51:{t:'cmp',title:'Private Google Access vs PSC',a:['Private Google Access','VMs without external IP reach Google APIs','Uses Google public ranges'],b:['Private Service Connect','Private endpoint IP in your VPC','Also for published services']},
+ 53:{t:'tiers',title:'Hybrid DNS',rows:[['On-prem DNS'],['Cloud DNS inbound / outbound forwarding'],['Private zones, peering zones'],['VPC resources']]},
+ 78:{t:'flow',title:'Cloud NAT port allocation',n:['VM egress connection','Cloud NAT gateway','Ports per VM allocated','Exhaustion: OUT_OF_RESOURCES'],e:['','','']},
+ 87:{t:'flow',title:'Cloud VPN with BGP',n:['Tunnel up','Cloud Router BGP session','Routes advertised','Traffic flows'],e:['','','']}
 };

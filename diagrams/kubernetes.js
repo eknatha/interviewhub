@@ -45,5 +45,19 @@ window.DIAGRAMS.kubernetes = {
  122:{t:'cmp',title:'QoS classes',a:['Guaranteed','requests = limits','Evicted last'],b:['BestEffort','No requests or limits','Evicted first']},
  124:{t:'cmp',title:'Service types',a:['ClusterIP / NodePort','Internal only / node port','Building blocks'],b:['LoadBalancer / ExternalName','Cloud LB / DNS alias','External access']},
  125:{t:'tiers',title:'Control plane',rows:[['kube-apiserver'],['etcd','scheduler','controller-manager'],['kubelet on every node']]},
- 158:{t:'flow',title:'502s on deploy',n:['Pod gets SIGTERM','Still in endpoints','LB sends request','Fix: preStop sleep + readiness'],e:['','','']}
+ 158:{t:'flow',title:'502s on deploy',n:['Pod gets SIGTERM','Still in endpoints','LB sends request','Fix: preStop sleep + readiness'],e:['','','']},
+ 10:{t:'flow',title:'NetworkPolicy debugging',n:['List policies in namespace','Check pod labels vs selectors','Check CNI supports policy','Test with temporary pod'],e:['','','']},
+ 26:{t:'flow',title:'Safe node drain',n:['Cordon','Check PDBs','Evict pods gracefully','Maintenance','Uncordon'],e:['','','','']},
+ 35:{t:'tiers',title:'Multi-team platform',rows:[['Developer portal / GitOps repos'],['Namespaces with quota, RBAC, policies'],['Shared cluster services: ingress, observability, secrets'],['Node pools by workload']]},
+ 39:{t:'cmp',title:'Choosing a workload type',a:['Stateless / node-wide','Deployment, DaemonSet','Interchangeable pods'],b:['Stateful / batch','StatefulSet, Job, CronJob','Stable identity or run-to-completion']},
+ 43:{t:'tiers',title:'Topology spread',rows:[['Zone A: 2 pods','Zone B: 2 pods','Zone C: 2 pods'],['maxSkew keeps spread even']]},
+ 55:{t:'flow',title:'Service name resolution',n:['Pod looks up svc.ns','CoreDNS (search domains)','Service ClusterIP','kube-proxy to pod'],e:['','','']},
+ 60:{t:'flow',title:'CSI volume lifecycle',n:['PVC','Provisioner creates volume','Attach to node','Kubelet mount','Pod uses it'],e:['','','','']},
+ 67:{t:'loop',title:'Operator pattern',n:['Custom resource (desired)','Controller watches','Reconcile actions','Observe status'],c:'reconcile'},
+ 78:{t:'tiers',title:'Control plane security',rows:[['Authentication (OIDC, certs)'],['Authorization (RBAC)'],['Admission control'],['Audit logs and TLS to etcd']]},
+ 83:{t:'flow',title:'API request pipeline',n:['Authentication','Authorization','Mutating admission','Validation','Persist'],e:['','','','']},
+ 93:{t:'flow',title:'Cluster upgrade',n:['Check deprecated APIs','Upgrade control plane','Upgrade node pools (surge)','Verify workloads'],e:['','','']},
+ 99:{t:'tiers',title:'Multi-cluster',rows:[['Global traffic routing'],['Cluster East','Cluster West'],['GitOps fleet config + shared identity']]},
+ 108:{t:'flow',title:'Helm release',n:['helm upgrade --install','Release revision stored','Hooks and rollout','helm rollback to prior revision'],e:['','','']},
+ 114:{t:'cmp',title:'iptables vs eBPF dataplane',a:['kube-proxy iptables','Long rule chains','Slower at large scale'],b:['Cilium eBPF','Kernel-level maps','Faster, richer observability']}
 };

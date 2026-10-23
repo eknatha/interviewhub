@@ -20,5 +20,21 @@ window.DIAGRAMS.aws = {
  107:{t:'flow',title:'Terraform state on AWS',n:['Terraform','S3 backend','DynamoDB lock','Versioning + KMS'],e:['','','']},
  131:{t:'flow',title:'Pod to AWS IAM',n:['Pod SA token','STS AssumeRoleWithWebIdentity','Role credentials','Call AWS API'],e:['','','']},
  145:{t:'flow',title:'OIDC from CI',n:['CI job OIDC token','IAM trust policy','Short-lived credentials','Deploy'],e:['','','']},
- 157:{t:'flow',title:'S3 recovery',n:['Versioning on','Delete marker added','Remove marker','Object restored'],e:['','','']}
+ 157:{t:'flow',title:'S3 recovery',n:['Versioning on','Delete marker added','Remove marker','Object restored'],e:['','','']},
+ 2:{t:'flow',title:'Cross-account access with STS',n:['Principal in account A','sts:AssumeRole','Trust policy in account B','Temporary credentials','Call B resources'],e:['','checks trust','','']},
+ 6:{t:'tiers',title:'EKS responsibility split',rows:[['AWS managed control plane (API server, etcd)'],['Your data plane: managed node groups / Fargate / Karpenter'],['Your workloads, add-ons, upgrades']]},
+ 7:{t:'flow',title:'AWS Load Balancer Controller',n:['Ingress / Service annotation','Controller watches API','Creates ALB / NLB + target groups','Pod IPs registered as targets'],e:['','','']},
+ 14:{t:'flow',title:'Karpenter provisioning',n:['Unschedulable pods','Karpenter reads requirements','Launches right-sized instance','Pods bind, empty nodes consolidated'],e:['','','']},
+ 18:{t:'tiers',title:'Organizations and SCPs',rows:[['Management account'],['Root OU with SCP guardrails'],['Prod OU','Dev OU','Security OU'],['Member accounts']]},
+ 20:{t:'cmp',title:'S3 production features',a:['Protect data','Versioning, Object Lock','Encryption, bucket policies'],b:['Manage cost','Lifecycle rules, storage classes','Replication for DR']},
+ 37:{t:'cmp',title:'IAM policy types',a:['Identity-based','Attached to user / role','What this principal can do'],b:['Resource-based','Attached to the resource','Who can access it, incl. cross-account']},
+ 45:{t:'flow',title:'Spot interruption handling',n:['Mixed instance fleet','2-minute interruption notice','Drain and checkpoint','Replacement capacity'],e:['','','']},
+ 51:{t:'tiers',title:'Connecting VPCs and on-prem',rows:[['On-prem network'],['VPN / Direct Connect'],['Transit Gateway (hub)'],['VPC A','VPC B','VPC C']]},
+ 52:{t:'cmp',title:'PrivateLink vs peering',a:['PrivateLink','One service exposed via endpoint','No CIDR overlap issue'],b:['VPC peering','Full network connectivity','Non-transitive, CIDRs must differ']},
+ 53:{t:'flow',title:'Route 53 failover',n:['Client DNS query','Route 53 policy','Health check status','Primary or secondary answer'],e:['','','']},
+ 57:{t:'flow',title:'Private subnet cannot reach internet',n:['Route table: 0.0.0.0/0','NAT gateway in public subnet','Internet gateway','Security group / NACL / DNS'],e:['','','']},
+ 60:{t:'tiers',title:'Multi-region application',rows:[['Route 53 / Global Accelerator'],['Region A stack','Region B stack'],['Aurora Global / DynamoDB global tables','S3 replication']]},
+ 64:{t:'flow',title:'Backup and restore',n:['AWS Backup plan','Snapshots to vault','Cross-region copy','Restore test'],e:['','','']},
+ 79:{t:'cmp',title:'Database HA vs DR',a:['HA (Multi-AZ)','Synchronous standby','Automatic failover in region'],b:['DR (cross-region)','Read replica or global DB','Promote in another region']},
+ 93:{t:'tiers',title:'Service mesh on EKS',rows:[['Pod + sidecar proxy'],['mTLS between services'],['Control plane (Istio / App Mesh)']]}
 };
