@@ -8,9 +8,9 @@
    "pct": 60
   },
   "ansible": {
-   "questions": 100,
-   "specific": 95,
-   "fallback": 5,
+   "questions": 150,
+   "specific": 143,
+   "fallback": 7,
    "pct": 95
   },
   "architecture_tradeoffs": {
@@ -80,8 +80,8 @@
    "pct": 92
   },
   "helm": {
-   "questions": 100,
-   "specific": 99,
+   "questions": 150,
+   "specific": 149,
    "fallback": 1,
    "pct": 99
   },
@@ -122,9 +122,9 @@
    "pct": 35
   },
   "python_sre": {
-   "questions": 100,
-   "specific": 88,
-   "fallback": 12,
+   "questions": 150,
+   "specific": 132,
+   "fallback": 18,
    "pct": 88
   },
   "sre_devops_scenarios": {
@@ -152,9 +152,9 @@
    "pct": 92
   }
  },
- "total": 3561,
- "specific": 2809,
- "fallback": 752,
- "pct": 79,
- "uniqueUrls": 791
+ "total": 3711,
+ "specific": 2951,
+ "fallback": 760,
+ "pct": 80,
+ "uniqueUrls": 795
 }
