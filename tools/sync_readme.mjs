@@ -30,6 +30,11 @@ const names = {
   behavioral_star: ['Behavioral Interview (STAR)', 'Incidents, leadership, communication, ownership'],
   sre_devops_scenarios: ['Production Scenarios', 'STAR-format incident walkthroughs across SRE/DevOps/Platform'],
   architecture_tradeoffs: ['Staff+ Architecture & Trade-offs', 'Build vs buy, multi-region, tech debt, big bets'],
+  openstack: ['OpenStack Private Cloud', 'Nova, Neutron, Cinder, Keystone, Ceph, HA, upgrades, troubleshooting'],
+  ansible: ['Ansible', 'Playbooks, roles, inventory, Vault, Jinja2, error handling, AWX, testing with Molecule'],
+  python_sre: ['Python for SRE & DevOps', 'Scripting, CLI tools, cloud SDKs, concurrency, testing, packaging, ops automation, observability, patterns'],
+  helm: ['Helm', 'Charts, templates, values, releases, repositories, CI/CD, security, troubleshooting'],
+  ai: ['AI, LLM & MLOps', 'RAG, agents, model serving, GPUs on K8s, evaluation, LLM security, cost'],
   system_design: ['System Design', 'URL shortener, rate limiter, cache, multi-region K8s, IDP'],
 };
 

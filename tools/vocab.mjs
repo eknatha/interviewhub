@@ -105,4 +105,13 @@ export const VOCAB = [
   ['Agile / ITIL', 'Practices & leadership', /\bagile\b|\bscrum\b|\bkanban\b|\bITIL\b|\bjira\b|\bservicenow\b/i],
   ['Product / roadmap', 'Practices & leadership', /\bproduct (?:management|manager|roadmap)\b|\broadmap\b|\bprioriti[sz]\w+|\bRICE\b/i],
   ['Migration / modernization', 'Practices & leadership', /\bmigrat\w+|\bmoderni[sz]\w+|\blift[- ]and[- ]shift\b/i],
+  // AI & ML
+  ['LLMs / GenAI', 'AI & ML', /\bLLMs?\b|\bgenerative AI\b|\bgenai\b|\blarge language models?\b|\bGPT\b|\bclaude\b|\bgemini\b|\bllama\b|\bbedrock\b/i],
+  ['RAG / vector search', 'AI & ML', /\bRAG\b|\bretrieval[- ]augmented\b|\bvector (?:database|db|store|search)\b|\bembeddings?\b|\bpgvector\b|\bpinecone\b|\bmilvus\b|\bqdrant\b/i],
+  ['AI agents / MCP', 'AI & ML', /\bAI agents?\b|\bagentic\b|\bMCP\b|\bmodel context protocol\b|\blangchain\b|\blanggraph\b/i],
+  ['Model serving', 'AI & ML', /\bvllm\b|\bKServe\b|\btriton\b|\bTensorRT\b|\bmodel serving\b|\binference (?:service|server|endpoint)s?\b/i],
+  ['GPU / CUDA', 'AI & ML', /\bGPUs?\b|\bCUDA\b|\bnvidia\b|\bMIG\b|\bDCGM\b/i],
+  ['MLOps', 'AI & ML', /\bMLOps\b|\bLLMOps\b|\bkubeflow\b|\bmlflow\b|\bfeature store\b|\bmodel registry\b|\bsagemaker\b|\bvertex ai\b/i],
+  ['Prompt engineering', 'AI & ML', /\bprompt engineering\b|\bprompts?\b|\bfine[- ]tuning\b|\bLoRA\b/i],
+  ['Ceph / storage', 'Virtualization & infra', /\bceph\b|\brbd\b|\bswift\b/i],
 ];

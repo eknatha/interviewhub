@@ -22,7 +22,7 @@ const shortName = {
   linux: 'Linux', database_performance: 'Databases', container_lifecycle: 'Containers', git_production: 'Git',
   observability: 'Observability', cicd: 'CI/CD', sre_reliability: 'SRE', product_management: 'Platform PM',
   coding_scripting: 'Coding', devsecops_security: 'DevSecOps', behavioral_star: 'Behavioral',
-  sre_devops_scenarios: 'Scenarios', architecture_tradeoffs: 'Architecture', system_design: 'System design',
+  sre_devops_scenarios: 'Scenarios', openstack: 'OpenStack', ai: 'AI / LLM', ansible: 'Ansible', python_sre: 'Python SRE', helm: 'Helm', architecture_tradeoffs: 'Architecture', system_design: 'System design',
 };
 
 const tags = [];

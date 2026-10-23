@@ -1,0 +1,222 @@
+[
+ {
+  "tag": "conc",
+  "q": "How do you use multiprocessing and process pools correctly for CPU-bound work?",
+  "a": "Multiprocessing runs separate interpreter processes, so CPU-bound Python code can use several cores. The ProcessPoolExecutor or multiprocessing.Pool distributes tasks to worker processes. Arguments and results are pickled and sent between processes, so they must be picklable, and large objects are expensive to transfer, which means chunking work and returning small results is important, or sharing data through memory-mapped files or shared memory. Functions must be importable at module level, and scripts need the main guard, because on some platforms new processes import the main module again, and without the guard they spawn recursively. The start method matters: fork is fast but unsafe with threads and some libraries, while spawn is safer and the default on macOS and Windows. Choose the worker count near the number of cores, leaving headroom, and consider memory since each process has its own copy. Handle worker exceptions by checking future results, set timeouts and make sure the pool shuts down cleanly. For many small tasks, overhead can exceed the gain, so measure before adopting.",
+  "f": [
+   "Why does the main guard matter with multiprocessing?",
+   "What must be true of arguments passed to workers?"
+  ],
+  "p": "Use ProcessPoolExecutor or Pool for CPU-bound tasks; arguments and results must be picklable and chunked to limit transfer cost. Use the main guard, choose spawn or fork carefully, size workers to cores and memory, and handle worker errors. Measure, since small tasks may not benefit.",
+  "cmds": [
+   "from concurrent.futures import ProcessPoolExecutor\nif __name__ == '__main__':\n    with ProcessPoolExecutor(max_workers=os.cpu_count()) as ex:\n        out = list(ex.map(hash_file, files, chunksize=16))"
+  ],
+  "tip": "Say chunk the work and keep results small."
+ },
+ {
+  "tag": "test",
+  "q": "What is property-based testing and where does it help in operations code?",
+  "a": "Property-based testing, with libraries such as Hypothesis, generates many inputs automatically and checks that stated properties hold for all of them, instead of testing a few hand-picked examples. You describe the kinds of input, such as strings, integers in a range or structured records, and a property, such as parsing then formatting a value gives the original back, a sorted list is ordered, or a function never raises for valid input. When a failure is found, the tool shrinks the input to a minimal failing example, which makes the bug easy to understand. It is valuable for parsers of logs and configuration formats, CIDR and version-string handling, serialisation, rate limiters and idempotency, where edge cases such as empty strings, unusual Unicode, huge numbers or boundaries are easy to overlook. It complements example-based tests, which remain better for documenting specific scenarios. Practical points are keeping properties meaningful, seeding for reproducibility in CI, controlling runtime with settings, and saving found failures as regression tests.",
+  "f": [
+   "What does shrinking do?",
+   "Which properties are good for a parser?"
+  ],
+  "p": "Property-based testing with Hypothesis generates many inputs and checks properties such as round trips and ordering, shrinking failures to minimal examples. It suits parsers, CIDR and version handling and idempotency, alongside example tests.",
+  "cmds": [
+   "from hypothesis import given, strategies as st\n@given(st.lists(st.integers()))\ndef test_sorted(xs):\n    assert sorted(xs) == sorted(sorted(xs))",
+   "pytest --hypothesis-seed=42"
+  ],
+  "tip": "Say round-trip properties find edge cases you did not think of."
+ },
+ {
+  "tag": "pkg",
+  "q": "How do you deploy and run a Python service or script on servers with systemd?",
+  "a": "I install the application into a dedicated directory with its own virtual environment built from the lock file, owned by a service account, rather than into the system Python. A systemd unit then runs it: ExecStart points at the environment's interpreter or console script, User and Group set the unprivileged account, WorkingDirectory and Environment or EnvironmentFile supply configuration, and Restart on failure with a limited restart rate handles crashes. Hardening options such as NoNewPrivileges, ProtectSystem, PrivateTmp, ReadOnlyPaths and memory or CPU limits reduce risk. Logs go to standard output and are collected by the journal, with structured fields. For periodic jobs, a systemd timer pairs with a oneshot service and gives better logging, dependency handling, randomised delay and missed-run catch-up than cron. Deployments create a new versioned directory and switch a symlink, so rollback is quick, with configuration management or a pipeline doing the work, and a health check after restart. Graceful shutdown handles SIGTERM, within TimeoutStopSec.",
+  "f": [
+   "Why use a systemd timer instead of cron?",
+   "Which systemd options harden a service?"
+  ],
+  "p": "Install into a dedicated directory with its own virtual environment and service account, run with a systemd unit using Restart, EnvironmentFile and hardening options, use timers for periodic jobs, switch versioned releases by symlink and handle SIGTERM within the stop timeout.",
+  "cmds": [
+   "[Service]\nUser=svc-tool\nExecStart=/opt/tool/current/.venv/bin/tool run\nRestart=on-failure\nNoNewPrivileges=true\nProtectSystem=strict",
+   "systemctl status tool && journalctl -u tool -n 50"
+  ],
+  "tip": "Say a dedicated venv and user, hardened unit, timers over cron."
+ },
+ {
+  "tag": "files",
+  "q": "How do you generate reports from CSV, JSON or cloud data using the csv module or pandas?",
+  "a": "For simple tasks, the csv module reads and writes rows as lists or dictionaries with DictReader and DictWriter, streams large files and needs no dependency. For analysis, pandas loads data into DataFrames where I can filter, group, join and pivot with concise operations, and read and write CSV, JSON, Excel and Parquet. Typical reports are cost by tag from billing exports, inventory of instances by region, certificate expiry lists or vulnerability summaries. I specify dtypes and date parsing explicitly, use chunksize or usecols for big files, handle missing values deliberately and avoid iterating rows in Python, preferring vectorised operations. For very large data, DuckDB or Polars query files directly with SQL or lazy plans, and are fast and memory efficient. Output should be reproducible and reviewable: sorted rows, stable column order, timestamps in UTC, and clear headers. Reports can be written to CSV or Excel, rendered as HTML or Markdown tables and sent by email or Slack, with sensitive columns removed and the generating code and parameters recorded.",
+  "f": [
+   "Why avoid iterating rows in pandas?",
+   "When would you use DuckDB instead of pandas?"
+  ],
+  "p": "Use csv DictReader and DictWriter for simple streaming, pandas for grouping, joins and pivots with explicit dtypes and chunking, and DuckDB or Polars for large files. Keep output reproducible with stable ordering and UTC timestamps, and strip sensitive columns.",
+  "cmds": [
+   "import pandas as pd\ndf = pd.read_csv('billing.csv', usecols=['tag_team', 'cost'], dtype={'tag_team': 'string'})\nprint(df.groupby('tag_team')['cost'].sum().sort_values(ascending=False))"
+  ],
+  "tip": "Say vectorise, never loop over rows."
+ },
+ {
+  "tag": "ops",
+  "q": "How would you write a robust health-check or monitoring script that runs from cron or a timer?",
+  "a": "The script should be simple, fast and honest about failure. It checks one or a few well-defined things, such as an HTTP endpoint returning the expected status and content within a time limit, a TCP port, disk usage on a mount, certificate expiry or a queue depth, with explicit timeouts on every network call so it cannot hang and pile up. It reports results through the exit code, a metric or a push to the monitoring system, and a structured log line, and distinguishes check failed from check could not run. To avoid alert storms, it applies thresholds with a few consecutive failures before alerting, and recovery notifications. A lock file or flock prevents overlapping runs if one is slow. It runs as an unprivileged user with minimal access, and credentials come from the environment or a secrets store. I prefer exposing metrics to Prometheus, through a textfile collector or an exporter, and alerting centrally, rather than sending ad-hoc emails from each script.",
+  "f": [
+   "How do you prevent overlapping cron runs?",
+   "How do you distinguish a failing check from a broken check?"
+  ],
+  "p": "Check specific things with explicit timeouts, report through exit codes, metrics and structured logs, distinguish failure from inability to check, require consecutive failures before alerting, prevent overlap with a lock and run unprivileged. Prefer Prometheus metrics to ad-hoc emails.",
+  "cmds": [
+   "r = requests.get(url, timeout=5)\nok = r.status_code == 200 and 'ok' in r.text\nsys.exit(0 if ok else 2)",
+   "flock -n /var/lock/check.lock python check.py"
+  ],
+  "tip": "Say timeouts everywhere and a lock against overlap."
+ },
+ {
+  "tag": "ops",
+  "q": "How would you write a script to find and clean up unused cloud resources safely, such as unattached volumes or old snapshots?",
+  "a": "Cleanup scripts are dangerous because mistakes delete real data, so safety dominates the design. I begin with discovery only: list candidates, such as unattached volumes older than a threshold, snapshots without an associated AMI or retention tag, or idle load balancers, and output a report with owner tags, ages and estimated cost. The deletion step is separate, requires an explicit apply flag and defaults to dry-run. Multiple guards apply: skip resources tagged with a do-not-delete or retention marker, require a minimum age, restrict to specific accounts and regions printed before running, cap the number of deletions per run, and snapshot or back up before deleting where appropriate. A grace period approach first tags a resource with a planned deletion date and notifies the owner, deleting later only if no one objects. I use paginators for complete listing, handle dependencies and errors per resource without stopping, log every action with identifiers for audit, and make the job idempotent. Testing runs in a sandbox account with decoy resources.",
+  "f": [
+   "What is a grace period or tag-then-delete approach?",
+   "Which guards limit the blast radius?"
+  ],
+  "p": "Separate discovery from deletion, default to dry-run, honour protection tags, enforce minimum age, print account and region, cap deletions, tag-then-delete with owner notification, paginate fully, log every action and test in a sandbox with decoys.",
+  "cmds": [
+   "for page in ec2.get_paginator('describe_volumes').paginate(Filters=[{'Name':'status','Values':['available']}]):\n    for v in page['Volumes']:\n        if age_days(v['CreateTime']) > 30 and not protected(v): candidates.append(v['VolumeId'])",
+   "python cleanup.py --account prod --region eu-west-1 --max-delete 25 --apply"
+  ],
+  "tip": "Say report first, then tag, then delete."
+ },
+ {
+  "tag": "ops",
+  "q": "How do you monitor TLS certificate expiry with Python?",
+  "a": "Expired certificates cause avoidable outages, so a scheduled check should inventory endpoints and warn well ahead. For each host and port, the script opens a TLS connection with the ssl module and a timeout, uses the proper server name for SNI, retrieves the peer certificate and reads the notAfter date, computing days remaining. Libraries such as cryptography parse certificates in more detail, including issuer, subject alternative names and chain, useful for finding wrong or incomplete chains. Sources of endpoints include a static list, DNS records, load balancers, Kubernetes ingress resources and certificate manager inventories, plus certificate files on disk for internal services. Thresholds create tiered alerts, for example warning at thirty days and critical at seven, and the check emits a Prometheus metric with the expiry timestamp so alert rules and dashboards work centrally. It must verify the certificate properly for trust as well, and distinguish connection failures from expiry. Where possible, automation with ACME or a certificate manager renews certificates, and the check confirms renewal actually happened.",
+  "f": [
+   "Why must you set SNI when connecting?",
+   "What other certificate problems besides expiry should you detect?"
+  ],
+  "p": "Connect with ssl and SNI under a timeout, read notAfter, compute days left, parse chains with cryptography, source endpoints from inventories and Kubernetes, alert in tiers and export an expiry metric. Also detect trust and chain errors and confirm automatic renewal worked.",
+  "cmds": [
+   "import ssl, socket, datetime\nctx = ssl.create_default_context()\nwith socket.create_connection((host, 443), timeout=5) as s, ctx.wrap_socket(s, server_hostname=host) as t:\n    exp = datetime.datetime.strptime(t.getpeercert()['notAfter'], '%b %d %H:%M:%S %Y %Z')\nprint((exp - datetime.datetime.utcnow()).days)"
+  ],
+  "tip": "Say export the expiry as a metric and alert in tiers."
+ },
+ {
+  "tag": "ops",
+  "q": "How would you automate database backups and restore verification with Python?",
+  "a": "A backup script orchestrates native tools rather than reimplementing them. It runs pg_dump or a physical backup tool, or triggers cloud snapshots through the SDK, with credentials from the environment or a secrets manager, uses compression and encryption, streams output directly to object storage to avoid large temporary files, and writes a checksum and a manifest with the timestamp, version, size and source. It applies a retention policy, deleting old backups according to rules, with protection for the most recent good backups, and sends metrics and alerts if a run fails or is late. Crucially, backups are only real if they restore, so a verification job periodically restores the latest backup to an isolated instance, runs sanity queries or row count comparisons, measures restore time against the recovery objective, and reports the result. Locking prevents overlapping runs, errors from the subprocess are checked through exit codes and not ignored, and logs omit secrets. Access to backup storage is restricted and immutable or versioned storage protects against ransomware and mistakes.",
+  "f": [
+   "Why must a backup be tested by restoring?",
+   "How do you protect backups from deletion?"
+  ],
+  "p": "Orchestrate native dump or snapshot tools, stream compressed encrypted output to object storage with checksums and a manifest, apply retention, alert on failure or lateness, and regularly restore into an isolated instance to verify content and measure restore time. Use immutable storage.",
+  "cmds": [
+   "subprocess.run(f'pg_dump -Fc {db} | gzip | aws s3 cp - s3://backups/{db}/{ts}.dump.gz', shell=True, check=True)",
+   "pg_restore -d verify_db latest.dump && psql verify_db -c 'select count(*) from orders'"
+  ],
+  "tip": "Say the restore test is the real backup test."
+ },
+ {
+  "tag": "ops",
+  "q": "How would you build an inventory or compliance report across many cloud accounts and regions?",
+  "a": "I design it as a pipeline of collection, normalisation and reporting. Collection iterates through accounts, using an assumed role in each, and through enabled regions, calling the relevant describe or list APIs with paginators, in parallel with a bounded thread pool and error handling per account and region, so one failure does not abort the run. Retries and backoff handle throttling. The raw results are normalised into a common schema with fields like account, region, resource type, identifier, tags, creation time and key settings, which makes querying uniform across services. The data is stored, for example as Parquet or in a database, with a timestamp for each run, so I can see trends and changes. Rules then evaluate compliance, such as missing owner tags, unencrypted volumes, public buckets or outdated runtimes, producing findings with severity and owners. Reports are generated as dashboards or files and delivered to teams. Native services such as AWS Config or Resource Explorer can do part of this, so I use them when they fit, and write custom code for gaps.",
+  "f": [
+   "Why normalise into a common schema?",
+   "When would you use AWS Config instead of custom code?"
+  ],
+  "p": "Collect with assumed roles across accounts and regions using paginators and bounded parallelism, normalise to a common schema, store timestamped results, evaluate compliance rules into findings with owners and deliver reports. Use native services like AWS Config where they fit.",
+  "cmds": [
+   "sts = boto3.client('sts')\ncreds = sts.assume_role(RoleArn=f'arn:aws:iam::{acct}:role/audit', RoleSessionName='inv')['Credentials']\nec2 = boto3.client('ec2', region_name=r, aws_access_key_id=creds['AccessKeyId'], aws_secret_access_key=creds['SecretAccessKey'], aws_session_token=creds['SessionToken'])"
+  ],
+  "tip": "Say tolerate per-account failures and store results over time."
+ },
+ {
+  "tag": "ops",
+  "q": "How would you write a Kubernetes operator or controller in Python, for example with kopf?",
+  "a": "A controller watches resources and reconciles actual state toward desired state. With kopf, a Python framework, I define handlers with decorators for events such as creation, update, deletion and timers on a custom resource, and the framework handles watching, retries, status patches, finalizers and leader election. First I define the custom resource definition with a validated schema, then write handlers that read the spec, create or patch child resources such as deployments or secrets, set owner references so Kubernetes garbage-collects children, and update the status with conditions that users can inspect. Handlers must be idempotent, since events can be repeated or replayed, and should not block for long. RBAC is least privilege for exactly the resources the operator manages, and it runs as a deployment with health probes and metrics. I test handlers with unit tests on the logic and an integration test in a kind cluster. For serious or widely used operators, Go with controller-runtime is the common choice, but Python is productive for internal automation.",
+  "f": [
+   "Why must handlers be idempotent?",
+   "What are owner references for?"
+  ],
+  "p": "Use kopf handlers for create, update, delete and timers on a custom resource: reconcile child resources with owner references, update status conditions, keep handlers idempotent and non-blocking, apply least-privilege RBAC and test in a kind cluster. Go with controller-runtime suits larger operators.",
+  "cmds": [
+   "import kopf\n@kopf.on.create('example.com', 'v1', 'databases')\ndef create(spec, name, namespace, logger, **kw):\n    logger.info(f'creating {name}')\n    return {'phase': 'Ready'}",
+   "kopf run operator.py --namespace=default"
+  ],
+  "tip": "Say idempotent reconcile with owner references and status."
+ },
+ {
+  "tag": "ops",
+  "q": "How would you build a ChatOps bot or command that lets engineers run safe operations from Slack?",
+  "a": "The bot is a thin, audited front end over well-tested automation. Engineers invoke commands such as a status check or a scale operation through a slash command or button, which Slack sends to a service as a signed HTTP request. The service verifies the Slack signature and timestamp, acknowledges within three seconds and processes asynchronously, posting results back into the thread. Authorisation is essential: map the Slack user to roles, check permissions per command, and require approvals for risky actions with a second person confirming through an interactive message. Commands are an allow list, each backed by a function with validated arguments, not free-form shell execution. The bot uses its own scoped credentials, never the user's, and logs who ran what, when and with which parameters, to an audit trail, linking to the run output. Rate limits, per-channel restrictions and a kill switch limit damage. Idempotency keys prevent double execution on retries, and long operations report progress. Secrets stay out of messages, and outputs are redacted before posting.",
+  "f": [
+   "Why verify the Slack signature?",
+   "How do approvals work for risky commands?"
+  ],
+  "p": "Receive signed slash-command requests, verify them, ack fast and process async; use an allow list of validated commands, map users to roles, require second-person approval for risky actions, use scoped bot credentials, log an audit trail, add idempotency and redact outputs.",
+  "cmds": [
+   "from slack_bolt import App\napp = App(token=bot_token, signing_secret=secret)\n@app.command('/scale')\ndef scale(ack, command, respond):\n    ack()\n    respond(f\"Scaling {command['text']}\")"
+  ],
+  "tip": "Say allow-listed commands, role checks and an audit log."
+ },
+ {
+  "tag": "ops",
+  "q": "Compare cron, systemd timers, Kubernetes CronJobs and workflow schedulers such as Airflow for running scheduled Python jobs.",
+  "a": "Cron is simple and ubiquitous: a schedule line runs a command, but it has minimal environment, no dependency handling, little visibility, mail-based output and no built-in protection from overlapping runs or missed schedules when the machine is down. Systemd timers improve on this with journald logging, resource controls, dependencies, randomised delay, persistent catch-up after downtime and easy inspection with systemctl. Kubernetes CronJobs run containers on a schedule with concurrency policies, history limits, retries through the Job controller and the cluster's logging, good when the workload is containerised, though time zones, missed-start deadlines and idempotency need care. Workflow schedulers such as Airflow, Prefect or Dagster model multi-step pipelines with dependencies, retries, backfills, parameters, dashboards, alerting and per-task logs, suited to data pipelines and complex workflows, with more infrastructure to run. I choose the simplest tool that meets the need: timers for single-host jobs, CronJobs for cluster tasks, and a workflow engine when dependencies, backfills and visibility matter. Jobs should always be idempotent, lock against overlap and alert when they fail or do not run.",
+  "f": [
+   "What does a CronJob concurrencyPolicy do?",
+   "How do you detect a job that silently did not run?"
+  ],
+  "p": "Cron is simple but blind; systemd timers add logging, catch-up and controls; Kubernetes CronJobs suit containerised tasks with concurrency policies; Airflow-style schedulers handle multi-step dependencies and backfills. Pick the simplest that fits, make jobs idempotent, lock against overlap and alert on missed runs.",
+  "cmds": [
+   "kubectl create cronjob backup --image=registry/backup:1.2 --schedule='0 2 * * *' -- python backup.py",
+   "systemctl list-timers --all"
+  ],
+  "tip": "Say simplest tool that fits, plus dead-man's-switch alerting."
+ },
+ {
+  "tag": "ops",
+  "q": "How do you handle scheduled jobs that must not overlap or must run exactly once across several machines?",
+  "a": "Overlap protection on one host uses a lock file with flock, or the scheduler's own setting such as a Kubernetes concurrencyPolicy of Forbid, or systemd, which does not start a unit that is already running. Across machines, a distributed lock is needed: options include a database row or advisory lock, a lease in Redis with an expiring key, a compare-and-swap in etcd or Consul, or leader election, where one instance is chosen to run the scheduled work while others stand by. Locks should have a time-to-live and be renewed while the job runs, so a crashed holder does not block forever, and the job should tolerate the lock expiring by being idempotent, since clock pauses and network partitions can cause two holders. True exactly-once is hard, so I aim for at-least-once execution with idempotent effects, using idempotency keys or state records. Fencing tokens protect against a stale holder writing after losing the lock. Simpler alternatives avoid the problem: run the scheduler as a single instance with failover, or use a managed scheduler that guarantees single invocation.",
+  "f": [
+   "Why do distributed locks need a time-to-live?",
+   "What is a fencing token?"
+  ],
+  "p": "Use flock or scheduler concurrency settings on one host, and distributed locks or leader election across hosts with a TTL and renewal. Because exactly-once is hard, aim for at-least-once with idempotent effects and fencing tokens, or use a single scheduler with failover.",
+  "cmds": [
+   "flock -n /var/lock/job.lock python job.py",
+   "r.set('lock:backup', host, nx=True, ex=600)"
+  ],
+  "tip": "Say at-least-once with idempotent effects beats chasing exactly-once."
+ },
+ {
+  "tag": "obs",
+  "q": "How would you monitor disk space and clean up logs automatically, safely?",
+  "a": "I start with detection: use psutil or shutil.disk_usage to read usage per mount, and report both percent and absolute free space, including inode usage, which can run out separately. Thresholds alert in tiers and export metrics so trends and time-to-full forecasts are visible. For cleanup, the safest approach is configured rotation, logrotate or journald limits, and fixing the source of excess logging, instead of a script deleting files. If an automated cleaner is needed, it works from an explicit allow list of directories and patterns, only removes files older than a retention period, never follows symlinks outside its scope, skips files that are open, which I can check with lsof or psutil, and logs everything it removes, with a dry-run mode. Truncating an active log is preferable to deleting it, since a deleted file held open by a process continues consuming space until the process closes it. After cleaning, it verifies free space increased and escalates if not. Testing uses a temporary directory with fake files before it touches a real system.",
+  "f": [
+   "Why does deleting an open file not free space?",
+   "Why monitor inodes as well as bytes?"
+  ],
+  "p": "Measure percent, bytes and inodes with psutil or shutil, alert in tiers and export metrics. Prefer logrotate and fixing noisy logging; if a cleaner is needed, use an allow list, retention age, symlink safety, skip open files, dry-run and logging, and verify the outcome.",
+  "cmds": [
+   "import shutil\nu = shutil.disk_usage('/var')\nprint(u.free / u.total)",
+   "lsof +L1 | head",
+   "find /var/log/app -type f -mtime +14 -name '*.gz' -print"
+  ],
+  "tip": "Say deleted-but-open files still hold space."
+ },
+ {
+  "tag": "ops",
+  "q": "How would you automate a rolling restart or deployment across servers from Python while keeping the service available?",
+  "a": "I model it as an ordered, observable procedure. First, build the host list from a trusted source and divide it into small batches, never touching more than a safe fraction of capacity at once. For each batch: remove hosts from the load balancer or mark them draining and wait for connections to complete, perform the action, such as deploying a release and restarting the service, run health checks that must pass within a timeout, then re-add the hosts and watch error rate and latency from monitoring before moving on. If checks fail, the rollout stops automatically and optionally rolls back the affected batch, with a clear report. The first batch is a canary. Operations use idempotent steps, timeouts and retries, a lock to avoid two rollouts at once, and a dry-run showing the plan. Parallelism is bounded within a batch. Logs record each step per host. For standard cases, I would use existing tools, Ansible, Kubernetes rolling updates or a deployment platform, and only write custom code for logic those tools cannot express.",
+  "f": [
+   "What stops the rollout automatically?",
+   "When would you not write this in Python?"
+  ],
+  "p": "Build the host list, batch it within capacity limits, drain from the load balancer, deploy and restart, require health checks, watch metrics, then continue; stop and optionally roll back on failure. Use a canary, idempotent steps, locks, dry-run and logs, and prefer Ansible or Kubernetes when they fit.",
+  "cmds": [
+   "for batch in chunks(hosts, size=3):\n    drain(batch); deploy(batch)\n    if not healthy(batch, timeout=120): rollback(batch); raise SystemExit('batch failed')\n    undrain(batch); time.sleep(30)"
+  ],
+  "tip": "Say batch, drain, deploy, health check, stop on failure."
+ }
+]

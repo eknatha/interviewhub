@@ -1,0 +1,341 @@
+[
+ {
+  "tag": "core",
+  "q": "What are mutable and immutable types in Python, and why do mutable default arguments cause bugs?",
+  "a": "Immutable objects such as ints, strings, tuples and frozensets cannot change after creation, while mutable ones such as lists, dicts and sets can be modified in place. Variables are references, so assigning one list to another name gives two names for the same object, and a change through one is visible through the other, which surprises people in scripts that pass configuration around. The classic bug is a mutable default argument: the default value is evaluated once when the function is defined, so a function with an empty list default shares that same list across calls, and results accumulate between invocations. In an automation script that might leak hosts from one run into the next. The fix is to use None as the default and create a new list inside the function. To avoid aliasing, copy with the copy method, slicing, or copy.deepcopy for nested structures. I also prefer immutable tuples or frozen dataclasses for configuration that must not change.",
+  "f": [
+   "How do you copy a nested dictionary safely?",
+   "Why are dictionary keys required to be hashable?"
+  ],
+  "p": "Immutable types never change; mutable ones change in place and are shared by reference. Default arguments are evaluated once, so use None and create the list inside the function. Copy or deepcopy to avoid aliasing.",
+  "cmds": [
+   "def add_host(h, hosts=None):\n    hosts = [] if hosts is None else hosts\n    hosts.append(h)\n    return hosts",
+   "import copy; cfg2 = copy.deepcopy(cfg)"
+  ],
+  "tip": "Say default arguments are evaluated once at definition."
+ },
+ {
+  "tag": "core",
+  "q": "How do list, dict and set comprehensions and generator expressions differ, and when do you use each?",
+  "a": "A comprehension builds a collection in one expression: square brackets make a list, curly braces with key and value make a dictionary, and curly braces with a single expression make a set. They are concise and usually faster than an equivalent loop with append. A generator expression uses parentheses and produces items lazily, one at a time, without building the whole collection in memory. For automation this matters with large inputs: summing the sizes of a million log entries with a generator expression uses constant memory, while a list comprehension would allocate the whole list. I use comprehensions when the result is needed as a collection and the logic is simple, for example filtering running instances or building a lookup dictionary by instance ID. When a comprehension needs nested conditions or side effects, a plain loop is clearer. Generators also compose with functions like any, all, sum and join, short-circuiting where possible.",
+  "f": [
+   "When does a generator expression save memory?",
+   "Why avoid side effects inside comprehensions?"
+  ],
+  "p": "Comprehensions build lists, dicts or sets eagerly in one expression; generator expressions are lazy and use constant memory. Use comprehensions for simple filtering and mapping, generators for large streams, and loops when logic gets complex.",
+  "cmds": [
+   "running = [i['id'] for i in instances if i['state'] == 'running']",
+   "total = sum(len(line) for line in open('big.log'))"
+  ],
+  "tip": "Say lazy generators for large data, loops when logic is complex."
+ },
+ {
+  "tag": "core",
+  "q": "What are generators and the yield keyword, and how do they help with log and data streaming?",
+  "a": "A generator function contains yield and returns an iterator that produces values one at a time, pausing at each yield and resuming where it left off, keeping its local state between calls. This lets you process data as a stream instead of loading everything into memory. In operations work, a generator that reads a multi-gigabyte log line by line, filters errors and yields parsed records lets you chain stages, read, parse, filter and aggregate, each consuming the previous one lazily, similar to a Unix pipeline, with memory use staying flat. Generators are also useful for paginated APIs: a function that yields items page by page hides pagination from the caller. Related features include yield from to delegate to another generator, send to pass values in, and closing with try and finally for cleanup. A generator can be iterated only once, so if you need multiple passes you must recreate it or materialise the results. They make code readable and efficient together.",
+  "f": [
+   "Why can a generator be consumed only once?",
+   "How does yield from help with pagination?"
+  ],
+  "p": "A generator uses yield to produce values lazily and keeps state between calls. Chain generators for streaming log processing with flat memory, and wrap paginated APIs so callers just iterate. They are single-use.",
+  "cmds": [
+   "def errors(path):\n    with open(path) as f:\n        for line in f:\n            if 'ERROR' in line:\n                yield line\n\nfor e in errors('app.log'):\n    print(e)"
+  ],
+  "tip": "Say streaming pipelines keep memory flat."
+ },
+ {
+  "tag": "core",
+  "q": "How do decorators work and what are practical uses in automation code?",
+  "a": "A decorator is a function that takes a function and returns a new function, usually wrapping the original to add behaviour before or after the call. The at-sign syntax is shorthand for reassigning the name to the wrapped version. Inside the wrapper you call the original with its arguments and return the result, and you apply functools.wraps so the wrapped function keeps its name and docstring, which matters for logging and debugging. Decorators can take arguments by adding another outer function. Useful applications in operations scripts include retrying a flaky API call with backoff, timing how long a function takes, logging entry and exit, caching results, enforcing permissions, rate limiting, and registering functions as commands or handlers, as frameworks like click and FastAPI do. Class-based decorators are possible too. A caution is that heavy stacking of decorators can obscure control flow and stack traces, so I keep them focused and well tested.",
+  "f": [
+   "Why use functools.wraps?",
+   "How do you write a decorator that takes arguments?"
+  ],
+  "p": "A decorator wraps a function to add behaviour such as retries, timing, logging or caching. Use functools.wraps to preserve metadata, add an outer function for arguments, and keep decorators focused so control flow stays clear.",
+  "cmds": [
+   "import functools, time\ndef retry(n=3, delay=1):\n    def deco(fn):\n        @functools.wraps(fn)\n        def wrapper(*a, **kw):\n            for i in range(n):\n                try: return fn(*a, **kw)\n                except Exception:\n                    if i == n - 1: raise\n                    time.sleep(delay * 2 ** i)\n        return wrapper\n    return deco"
+  ],
+  "tip": "Say functools.wraps and a retry decorator as the example."
+ },
+ {
+  "tag": "core",
+  "q": "What are context managers and how do you use them for resources such as files, locks and connections?",
+  "a": "A context manager defines setup and cleanup around a block, used with the with statement. Entering calls the enter method and leaving, even through an exception, calls exit, so resources are released reliably. Files, locks, database connections, temporary directories and subprocess handles all support it. In scripts this prevents leaks, such as leaving a file open or a lock held when an error occurs. You can write your own either as a class with enter and exit methods, or more simply with the contextlib.contextmanager decorator on a generator that yields once, with try and finally around the yield for cleanup. Practical examples: a context manager that takes a lock file, a timer that logs elapsed time, a temporary change of working directory or environment variable, or one that opens an SSH session and always closes it. contextlib also offers suppress for expected exceptions and ExitStack to manage a dynamic number of contexts.",
+  "f": [
+   "How does contextlib.contextmanager work?",
+   "When would you use ExitStack?"
+  ],
+  "p": "A context manager guarantees cleanup via with, even on exceptions, for files, locks, connections and temp dirs. Write one with enter and exit, or with contextlib.contextmanager and try and finally around a single yield. ExitStack handles dynamic numbers of contexts.",
+  "cmds": [
+   "from contextlib import contextmanager\n@contextmanager\ndef timer(label):\n    t = time.perf_counter()\n    try: yield\n    finally: print(label, time.perf_counter() - t)",
+   "with open('a.txt') as f, open('b.txt', 'w') as g:\n    g.write(f.read())"
+  ],
+  "tip": "Say with guarantees cleanup even when errors occur."
+ },
+ {
+  "tag": "core",
+  "q": "How should you handle exceptions in operational scripts?",
+  "a": "The aim is to fail clearly, clean up and never hide real problems. I catch specific exceptions I can handle, such as a connection timeout or a missing file, and let unexpected ones propagate, since a bare except or catching Exception silently turns bugs into mysterious behaviour. When I catch, I either recover meaningfully, retry, or add context and re-raise, using raise from to keep the original cause. Use finally or context managers for cleanup, and the else clause for code that should run only when no exception happened. For scripts, the top level catches known error types, logs them with enough detail, including the traceback at debug level, and exits with a nonzero status so cron, CI and orchestrators notice. Custom exception classes express domain errors like a quota exceeded or a failed validation. I avoid using exceptions for normal control flow in hot paths, and I never swallow KeyboardInterrupt or SystemExit by accident.",
+  "f": [
+   "Why avoid a bare except?",
+   "What does raise from do?"
+  ],
+  "p": "Catch specific exceptions you can handle, let others propagate, add context with raise from, clean up with finally or context managers, use custom exceptions for domain errors, and exit nonzero at the top level after logging.",
+  "cmds": [
+   "try:\n    r = client.get(url, timeout=5)\n    r.raise_for_status()\nexcept requests.Timeout as e:\n    raise RuntimeError(f'API timed out: {url}') from e"
+  ],
+  "tip": "Say never swallow errors silently; exit nonzero."
+ },
+ {
+  "tag": "core",
+  "q": "How do type hints, dataclasses and pydantic improve automation code?",
+  "a": "Type hints annotate parameters, returns and variables with expected types. Python does not enforce them at run time, but tools such as mypy and editors check them, catching mistakes like passing a string where a list is expected, and they document intent for the next reader. Dataclasses reduce boilerplate for classes that mainly hold data, generating init, repr and equality, with options for immutability through frozen and for default factories. Pydantic goes further by validating and converting data at run time: you define a model with typed fields, and constructing it from a dictionary or JSON checks types, applies defaults and raises clear errors, which is ideal for configuration files, API responses and environment settings. In operational code that handles messy inputs, this catches problems at the boundary instead of deep inside a script. I use hints everywhere in shared code, dataclasses for internal records and pydantic for external input, and run mypy in CI to keep them accurate.",
+  "f": [
+   "Does Python enforce type hints at run time?",
+   "When would you choose pydantic over a dataclass?"
+  ],
+  "p": "Type hints document and let mypy catch errors; dataclasses remove boilerplate for data records; pydantic validates and converts external input such as config and API data at run time. Run mypy in CI.",
+  "cmds": [
+   "from pydantic import BaseModel\nclass Settings(BaseModel):\n    region: str\n    retries: int = 3\nSettings(**{'region': 'us-east-1'})",
+   "mypy src/"
+  ],
+  "tip": "Say validate at the boundary with pydantic."
+ },
+ {
+  "tag": "core",
+  "q": "What is the GIL and how does it affect Python in infrastructure work?",
+  "a": "The Global Interpreter Lock is a mutex in the standard CPython interpreter that lets only one thread execute Python bytecode at a time. As a result, threads do not give true parallelism for CPU-bound Python code, since they take turns, but they work well for I/O-bound work, because the lock is released while waiting on the network, disk or a subprocess. Most infrastructure scripts are I/O-bound, calling APIs, running SSH commands or reading files, so a thread pool or asyncio gives real speedups. For CPU-bound work, such as parsing large datasets or hashing many files, use multiprocessing or a process pool, which uses separate interpreters, or move hot loops to native extensions, as libraries like numpy and cryptography do. Recent Python versions are making the lock optional through experimental free-threaded builds, but code should not depend on that yet. So the rule is threads or asyncio for waiting, processes for computing.",
+  "f": [
+   "Why do threads help for API calls but not for hashing?",
+   "What is a free-threaded build?"
+  ],
+  "p": "The GIL lets one thread run Python bytecode at a time, so threads help I/O-bound work but not CPU-bound work. Use threads or asyncio for waiting on networks and processes or native extensions for heavy computation.",
+  "cmds": [
+   "from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor",
+   "python -c \"import sys; print(sys._is_gil_enabled())\""
+  ],
+  "tip": "Say threads for waiting, processes for computing."
+ },
+ {
+  "tag": "core",
+  "q": "Explain scope, closures and common pitfalls with late binding in loops.",
+  "a": "Python resolves names using the LEGB rule: local, enclosing, global, then built-in. Assigning to a name inside a function makes it local unless declared global or nonlocal, which is why modifying a module-level counter inside a function without the global keyword raises an error. A closure is a function that remembers variables from its enclosing scope even after that scope has finished, which is how decorators and factory functions work. A frequent pitfall is late binding: closures capture the variable, not its value at creation time, so functions created in a loop all see the final value of the loop variable. For example a list of callbacks built in a loop each using the loop variable will all use the last one. The fix is to bind the value with a default argument, use functools.partial, or create the function in a helper. Related pitfalls include shadowing built-in names like list or id, and unintentionally modifying global state, which makes scripts hard to test.",
+  "f": [
+   "How do you fix late binding in a list of callbacks?",
+   "What does nonlocal do?"
+  ],
+  "p": "Names resolve local, enclosing, global, built-in. Closures capture variables, not values, so loop-created functions share the last value; bind with default arguments or functools.partial. Use nonlocal or global deliberately and avoid shadowing built-ins.",
+  "cmds": [
+   "callbacks = [lambda x=h: ping(x) for h in hosts]",
+   "from functools import partial\ncallbacks = [partial(ping, h) for h in hosts]"
+  ],
+  "tip": "Say closures capture variables, not values."
+ },
+ {
+  "tag": "core",
+  "q": "How do strings, bytes and encodings work, and what problems appear when handling logs and subprocess output?",
+  "a": "In Python 3 a str is a sequence of Unicode characters, while bytes is a sequence of raw bytes, and they are not interchangeable. Converting uses encode and decode with an encoding, usually UTF-8. Problems arise at boundaries: files opened in text mode use a default encoding that depends on the environment, so scripts behave differently in a container with a C locale, and I therefore pass encoding explicitly. Logs may contain invalid byte sequences, so decoding with the errors argument set to replace or backslashreplace avoids crashes, while binary files are read in binary mode. Subprocess output is bytes unless text mode or an encoding is requested. Network protocols and hashing functions need bytes, so encode before hashing. F-strings are the preferred way to format text, with format specifiers for widths and precision, and repr or the r conversion for debugging. For data handling I decode at the input boundary, work in str internally and encode at the output boundary.",
+  "f": [
+   "How do you read a log file with invalid UTF-8?",
+   "Why must text be encoded before hashing?"
+  ],
+  "p": "str is Unicode text and bytes is raw data. Decode at input, work in str, encode at output, pass encodings explicitly, and use errors=replace for dirty logs. Subprocess output needs text mode or decoding, and hashing needs bytes.",
+  "cmds": [
+   "open('app.log', encoding='utf-8', errors='replace')",
+   "subprocess.run(cmd, capture_output=True, text=True, check=True)",
+   "hashlib.sha256('abc'.encode()).hexdigest()"
+  ],
+  "tip": "Say specify the encoding explicitly."
+ },
+ {
+  "tag": "pkg",
+  "q": "How do modules, packages, imports and the __main__ guard work in a script project?",
+  "a": "A module is a Python file and a package is a directory of modules, traditionally with an init file, imported by name through the module search path, which includes the script directory, installed site-packages and the PYTHONPATH. Importing runs the module's top-level code once and caches it. Relative imports inside a package use dots. The name dunder variable equals main when a file is run directly and the module name when imported, so the guard if name equals main protects code that should run only as a script, allowing the same file to be imported by tests without side effects. I structure projects with a package directory, thin entry points, a pyproject file and tests alongside, and install the project in editable mode for development so imports work the same as in production. Pitfalls are circular imports, which I fix by restructuring or importing inside functions, naming a file like a standard library module such as json.py, which shadows it, and modifying sys.path hacks.",
+  "f": [
+   "Why does naming a file json.py break things?",
+   "How do you avoid circular imports?"
+  ],
+  "p": "Modules are files and packages are directories imported through the search path. Guard script code with if __name__ == '__main__' so tests can import safely. Use a package layout with an editable install, avoid shadowing stdlib names and break circular imports by restructuring.",
+  "cmds": [
+   "if __name__ == '__main__':\n    raise SystemExit(main())",
+   "pip install -e ."
+  ],
+  "tip": "Say the main guard keeps modules importable and testable."
+ },
+ {
+  "tag": "files",
+  "q": "How do you process a very large log file efficiently in Python?",
+  "a": "The key is to avoid loading it all into memory. Iterating over a file object reads it line by line with buffering, so a for loop over the file handles gigabytes with constant memory. I combine that with generators to filter and transform lazily, compile regular expressions once outside the loop, and keep per-line work cheap. For counting or aggregating, I use collections.Counter or defaultdict and update them as I stream. For compressed files, gzip.open in text mode streams the same way. When a file is too large for one core, I split it into byte ranges aligned to line boundaries and process chunks in a process pool, then merge results. To follow a live log, I read, then seek and poll like tail, and handle rotation by detecting inode changes. For extremely large analytic work I consider a proper tool, such as grep, awk, ripgrep or loading into DuckDB or a log platform, since a Python loop is rarely the fastest option for a simple search.",
+  "f": [
+   "How do you tail a file that is rotated?",
+   "When is awk or ripgrep better than Python?"
+  ],
+  "p": "Iterate the file object line by line with generators, precompile regexes, aggregate with Counter, stream gzip in text mode, split into chunks across processes if needed and handle rotation when tailing. Use grep, ripgrep or DuckDB when they fit better.",
+  "cmds": [
+   "import re, collections, gzip\nrx = re.compile(r' 5\\d\\d ')\nc = collections.Counter()\nwith gzip.open('access.log.gz', 'rt') as f:\n    for line in f:\n        if rx.search(line): c[line.split()[0]] += 1",
+   "rg -c ' 5[0-9][0-9] ' access.log"
+  ],
+  "tip": "Say stream with constant memory and precompile regexes."
+ },
+ {
+  "tag": "files",
+  "q": "How do you read and write JSON, YAML and TOML safely?",
+  "a": "For JSON the standard json module handles loads and dumps, and I pass indent and sort keys for readable, stable output that produces clean diffs in Git. For YAML I use PyYAML or ruamel.yaml, and the critical rule is to call safe_load, never load without a safe loader, because the full loader can construct arbitrary Python objects and execute code from untrusted input. Ruamel preserves comments and ordering, useful when editing files a human maintains. TOML is read with the standard tomllib module from Python 3.11, which is read-only, with a separate library such as tomli-w for writing. Whatever the format, I validate the structure after loading, with pydantic or jsonschema, so a missing key fails with a clear message. When writing configuration files that other processes read, I write to a temporary file and atomically rename, to avoid readers seeing a partial file. I also open files with an explicit encoding and avoid putting secrets into files that may be committed.",
+  "f": [
+   "Why is yaml.load dangerous?",
+   "Why write to a temp file then rename?"
+  ],
+  "p": "Use json with indent and sorted keys, yaml.safe_load never full load, tomllib for TOML, validate with pydantic or jsonschema, and write via a temp file and atomic rename. Preserve comments with ruamel when editing human-maintained YAML.",
+  "cmds": [
+   "import yaml\ncfg = yaml.safe_load(open('config.yml', encoding='utf-8'))",
+   "import tomllib\nwith open('pyproject.toml', 'rb') as f: d = tomllib.load(f)",
+   "json.dumps(data, indent=2, sort_keys=True)"
+  ],
+  "tip": "Say safe_load only."
+ },
+ {
+  "tag": "files",
+  "q": "How do you use regular expressions to parse logs, and what are the pitfalls?",
+  "a": "The re module compiles patterns, and I compile once and reuse. For structured parsing I use named groups, so the result is a dictionary of fields such as client IP, timestamp, method, path and status, which is much clearer than numeric group indexes. Use search to find a pattern anywhere, match to anchor at the start, fullmatch for the entire string and finditer for all occurrences, with raw strings to avoid backslash confusion. Pitfalls: catastrophic backtracking with nested quantifiers on adversarial or long inputs, which can freeze a script, so keep patterns specific and avoid overlapping wildcards; greedy matching that spans more than intended, fixed with non-greedy quantifiers or negated character classes; fragile regexes on formats with proper parsers, where JSON, XML or well-defined formats should use a real parser; and unhandled non-matching lines, where match returns None and attribute access fails. For common formats like Apache logs, a maintained parser or splitting on known delimiters can be simpler and faster. I test patterns with sample lines, including bad ones.",
+  "f": [
+   "What is catastrophic backtracking?",
+   "When is a regex the wrong tool?"
+  ],
+  "p": "Compile once, use named groups, choose search, match or fullmatch deliberately and use raw strings. Beware backtracking, greedy matches and None results; use real parsers for structured formats and test with bad lines.",
+  "cmds": [
+   "rx = re.compile(r'(?P<ip>\\S+) .* \"(?P<method>[A-Z]+) (?P<path>\\S+).*\" (?P<status>\\d{3})')\nm = rx.match(line)\nif m: rec = m.groupdict()"
+  ],
+  "tip": "Say named groups and handle the None case."
+ },
+ {
+  "tag": "files",
+  "q": "How do you use pathlib and shutil for file operations, and how do you write files atomically?",
+  "a": "Pathlib models paths as objects: the slash operator joins paths, and methods such as exists, is_file, mkdir with parents and exist_ok, glob and rglob, read_text, write_text, stat and unlink handle common operations in a portable, readable way, replacing a mix of os.path calls. Shutil adds higher-level operations: copy and copy2, copytree, move, rmtree, disk_usage and which. For safe writes, I avoid truncating the destination first. The atomic pattern is to write the new content to a temporary file in the same directory, flush and fsync it, then use os.replace to rename over the destination, which is atomic on the same filesystem, so readers see either the old or the new file, never a partial one. I set permissions explicitly, especially for files containing secrets, with a restrictive mode from creation using os.open flags or tempfile. For deletion, I check paths carefully before rmtree, to avoid removing the wrong directory through an empty variable.",
+  "f": [
+   "Why must the temp file be in the same directory?",
+   "How do you guard against a dangerous rmtree?"
+  ],
+  "p": "Pathlib provides readable path handling and shutil gives copy, move and rmtree. Write atomically by creating a temp file in the same directory, fsync, then os.replace, set restrictive permissions and validate paths before deleting.",
+  "cmds": [
+   "import os, tempfile, pathlib\nd = pathlib.Path('/etc/app')\nwith tempfile.NamedTemporaryFile('w', dir=d, delete=False) as t:\n    t.write(data); t.flush(); os.fsync(t.fileno())\nos.replace(t.name, d / 'app.conf')"
+  ],
+  "tip": "Say temp file then os.replace for atomic updates."
+ },
+ {
+  "tag": "files",
+  "q": "How do you run external commands safely and robustly with subprocess?",
+  "a": "I use subprocess.run with a list of arguments and without shell mode, which avoids shell injection and quoting bugs, because each argument is passed directly. I set check true so a nonzero exit raises CalledProcessError, capture_output and text to collect decoded output, a timeout so a hung command cannot block the script forever, and an explicit env and cwd when needed. If a shell feature is truly required, I use shlex.quote on any untrusted value, but usually I do the piping in Python. For long-running commands I stream output with Popen and iterate the stdout pipe, taking care of deadlocks when both stdout and stderr fill their buffers, avoided by merging stderr into stdout or using communicate. I log the command and exit code, but never secrets passed as arguments, since they appear in process listings; secrets go through environment variables or stdin. I handle FileNotFoundError when the binary is missing, and terminate the process tree on timeout where required. Whenever a Python library exists, it is better than shelling out.",
+  "f": [
+   "Why is shell=True dangerous?",
+   "How do you avoid a deadlock reading stdout and stderr?"
+  ],
+  "p": "Use subprocess.run with an argument list, no shell, check=True, capture_output and text, a timeout and explicit env. Avoid secrets in arguments, handle missing binaries, stream with Popen carefully and prefer libraries over shelling out.",
+  "cmds": [
+   "r = subprocess.run(['kubectl', 'get', 'pods', '-o', 'json'], capture_output=True, text=True, check=True, timeout=30)\npods = json.loads(r.stdout)"
+  ],
+  "tip": "Say a list, not a shell string; always set a timeout."
+ },
+ {
+  "tag": "files",
+  "q": "How do you work with archives and compressed files (tar, zip, gzip) in Python?",
+  "a": "The standard library covers the common formats: the tarfile module reads and writes tar archives with compression modes for gzip, bz2 and xz, the zipfile module handles zip files, and gzip, bz2 and lzma handle single compressed streams. Shutil.make_archive and unpack_archive provide quick helpers. Security is the main concern when extracting archives from untrusted sources: a malicious tar or zip can contain paths with parent directory references or absolute paths, or symlinks, that write outside the target directory, known as path traversal or zip slip. Newer Python versions add an extraction filter parameter to tarfile, recommended as data, which rejects dangerous members, and for older versions I validate each member's resolved path against the target directory before extracting. Also limit the total size and number of files to resist decompression bombs. For backups I stream data into the archive rather than building it in memory, and add checksums so that restore can verify integrity. I record permissions and ownership only when the use case needs them.",
+  "f": [
+   "What is a zip slip attack?",
+   "What does the tarfile data filter do?"
+  ],
+  "p": "Use tarfile, zipfile, gzip and shutil helpers. When extracting untrusted archives, defend against path traversal and symlinks with the tarfile data filter or manual path checks, limit sizes, stream large archives and add checksums for integrity.",
+  "cmds": [
+   "import tarfile\nwith tarfile.open('backup.tgz', 'w:gz') as t:\n    t.add('/etc/app', arcname='app')",
+   "with tarfile.open('in.tgz') as t:\n    t.extractall('/tmp/out', filter='data')"
+  ],
+  "tip": "Say never extract untrusted archives without validation."
+ },
+ {
+  "tag": "files",
+  "q": "How should a Python tool read configuration from files, environment variables and command-line flags?",
+  "a": "I define a clear precedence and a single place that resolves it. A common order from lowest to highest is built-in defaults, a configuration file, environment variables, then command-line flags, so operators can override anything at run time without editing files. Environment variables follow the twelve-factor style, with a prefix for the tool, for example MYTOOL_REGION. I model the final configuration as a typed object, using pydantic settings or a dataclass, which validates types, applies defaults and gives clear errors for missing required values, and the rest of the code receives that object instead of reading os.environ everywhere, which keeps it testable. Secrets are read from environment variables, files mounted by the orchestrator or a secrets manager, never defaulted or logged, and printed configuration is redacted. I document each option, support a dry-run or print-config flag to show the effective values, and keep configuration files in a format such as YAML or TOML with safe loading.",
+  "f": [
+   "Why have one place that resolves configuration?",
+   "How do you redact secrets in logs?"
+  ],
+  "p": "Define precedence defaults, file, environment, flags; resolve once into a typed, validated settings object; read secrets from the environment or a secrets manager; redact when printing, and offer a print-config option.",
+  "cmds": [
+   "from pydantic_settings import BaseSettings\nclass S(BaseSettings):\n    region: str = 'us-east-1'\n    token: str\n    model_config = {'env_prefix': 'MYTOOL_'}",
+   "MYTOOL_REGION=eu-west-1 mytool run"
+  ],
+  "tip": "Say one typed settings object, secrets never logged."
+ },
+ {
+  "tag": "files",
+  "q": "How do you work with temporary files and directories securely?",
+  "a": "Predictable temporary file names in a shared directory like tmp are a security risk, since another user could create a symlink with that name and trick the script into overwriting something else, known as a symlink attack. The tempfile module avoids this: NamedTemporaryFile, TemporaryDirectory and mkstemp create uniquely named files with restrictive permissions, opened exclusively so they cannot be pre-created by someone else. TemporaryDirectory as a context manager removes the directory and its contents when the block exits, even on errors, which keeps scripts clean. When a file must be visible to another process, I use delete false and clean up explicitly, or create the temp file next to the destination for atomic replacement. For sensitive data, I avoid writing to disk at all, or use a directory on a memory-backed filesystem, and remove it securely when done. I never build paths by string concatenation with user input, instead resolving and checking that the result stays within an expected directory.",
+  "f": [
+   "What is a symlink attack on a temp file?",
+   "When would you use mkstemp?"
+  ],
+  "p": "Use tempfile for unique, securely created files and directories with restrictive permissions, TemporaryDirectory as a context manager for cleanup, same-directory temps for atomic replacement, and avoid predictable names or writing secrets to disk.",
+  "cmds": [
+   "import tempfile\nwith tempfile.TemporaryDirectory() as d:\n    work(d)",
+   "fd, path = tempfile.mkstemp(prefix='job-')"
+  ],
+  "tip": "Say predictable temp names are a symlink-attack risk."
+ },
+ {
+  "tag": "files",
+  "q": "How do you compute checksums and compare files or directories for changes?",
+  "a": "The hashlib module provides algorithms such as SHA-256, and for files I read in chunks and update the hash incrementally, so memory use is constant even for very large files. Chunk reads of one megabyte or so are typical, and Python 3.11 adds hashlib.file_digest. For integrity verification of downloads I compare against a published checksum using hmac.compare_digest to avoid timing leaks when it matters. To compare directories, I walk both trees, build a mapping of relative path to hash, size and mode, and diff the dictionaries to find added, removed and changed files, or use filecmp.dircmp for a quick comparison. For change detection at scale, I first compare size and modification time, and compute hashes only when needed. Note that MD5 and SHA-1 are broken for security purposes, fine only for non-security checks such as cache keys, so I default to SHA-256. For configuration drift tasks, I normalise things like line endings and ordering before comparing, to avoid false positives.",
+  "f": [
+   "Why read the file in chunks?",
+   "Why not use MD5 for integrity of downloads?"
+  ],
+  "p": "Hash files in chunks with hashlib SHA-256, or file_digest on newer versions, and compare with a published checksum. For directories, map relative path to hash and diff the maps, checking size and mtime first. Avoid MD5 and SHA-1 for security.",
+  "cmds": [
+   "import hashlib\nh = hashlib.sha256()\nwith open(p, 'rb') as f:\n    for chunk in iter(lambda: f.read(1 << 20), b''):\n        h.update(chunk)\nprint(h.hexdigest())"
+  ],
+  "tip": "Say chunked hashing, SHA-256, compare maps for directories."
+ },
+ {
+  "tag": "cli",
+  "q": "How do you choose between argparse, click and typer for command-line tools?",
+  "a": "Argparse is in the standard library, so it needs no dependency, which suits small scripts and environments where installing packages is hard. It supports subcommands, types, choices and help text but is verbose. Click is a widely used third-party library built on decorators, giving concise definitions, nested command groups, prompts, colours, progress bars, file handling and good testing support through its runner. Typer builds on click and uses Python type hints to define arguments and options, which makes the code very compact and produces help and shell completion automatically. For a quick script I use argparse; for a tool that will grow, with subcommands and users, I use click or typer. Whatever I choose, good practice is meaningful help text, sensible defaults, a version flag, a dry-run option for changes, nonzero exit codes on failure, environment variable fallbacks, and keeping the logic in importable functions so it can be tested without invoking the command line.",
+  "f": [
+   "What does typer add over click?",
+   "How do you test a click command?"
+  ],
+  "p": "Argparse needs no dependency and suits small scripts; click offers concise groups and testing support; typer uses type hints for compact definitions and completion. Choose by size and audience, and keep logic in testable functions with exit codes, help and dry-run.",
+  "cmds": [
+   "import typer\napp = typer.Typer()\n@app.command()\ndef scale(name: str, replicas: int = 2, dry_run: bool = False): ...",
+   "if __name__ == '__main__': app()"
+  ],
+  "tip": "Say argparse for small scripts, click or typer for growing tools."
+ },
+ {
+  "tag": "cli",
+  "q": "How do exit codes and signals work in Python scripts, and why do they matter?",
+  "a": "Exit codes are how scripts tell cron, CI systems, shells and orchestrators whether they succeeded: zero means success and any nonzero means failure, and conventions distinguish kinds of failure, for example one for general errors and two for usage errors. In Python, sys.exit with a number, or raising SystemExit, sets it, and an uncaught exception exits with one. If a script swallows errors and exits zero, automation continues as if nothing happened, which is a common and costly bug, so a top-level handler should map failures to nonzero codes. Signals notify a process asynchronously: SIGTERM requests a graceful stop, as sent by Kubernetes and systemd, SIGINT comes from Ctrl-C, and SIGKILL cannot be caught. The signal module lets a script register handlers to finish current work, flush output, release locks and exit cleanly within the grace period. I also make sure child processes are terminated, and that handlers do minimal work, usually setting a flag checked by the main loop.",
+  "f": [
+   "Why can SIGKILL not be handled?",
+   "What should a SIGTERM handler do?"
+  ],
+  "p": "Exit code zero means success and nonzero failure, so scripts must never hide errors. Handle SIGTERM and SIGINT with the signal module to stop gracefully, flush output, release locks and terminate children, usually by setting a flag the main loop checks.",
+  "cmds": [
+   "import signal, sys\nstop = False\ndef handler(sig, frm):\n    global stop; stop = True\nsignal.signal(signal.SIGTERM, handler)",
+   "sys.exit(1)"
+  ],
+  "tip": "Say orchestrators rely on exit codes and SIGTERM."
+ },
+ {
+  "tag": "cli",
+  "q": "How do you set up logging properly in a Python tool or service?",
+  "a": "I use the standard logging module rather than print. Each module gets a logger named with name dunder, so the hierarchy reflects the package, and libraries only create loggers and never configure handlers, leaving that to the application. The application configures logging once at startup, with level, format and handlers, through basicConfig, dictConfig or a file. A good format includes timestamp, level, logger name and message, and for services I use structured JSON logs so a central system can index fields, including request or job IDs through logging adapters or context variables. I log to standard error or standard output for containers and let the platform collect them, use rotating handlers only for traditional file logging, and choose levels carefully: debug for detail, info for milestones, warning for recoverable issues, error for failures. I pass arguments lazily with percent formatting rather than building strings, log exceptions with exc_info or the exception method, and never log secrets or personal data.",
+  "f": [
+   "Why should libraries not configure logging?",
+   "How do you add a request ID to every log line?"
+  ],
+  "p": "Use logging with per-module loggers, configure once in the application, include timestamp, level and name, emit JSON for services with context such as request IDs, write to stdout or stderr in containers, log exceptions with exc_info and never log secrets.",
+  "cmds": [
+   "import logging\nlogging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')\nlog = logging.getLogger(__name__)\nlog.info('scaling %s to %d', name, n)"
+  ],
+  "tip": "Say libraries create loggers, applications configure them."
+ }
+]

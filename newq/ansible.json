@@ -1,0 +1,1490 @@
+[
+{
+"tag": "basics",
+"q": "What is Ansible and how does its agentless architecture work?",
+"a": "Ansible is an automation tool for configuration management, application deployment and orchestration. A control node reads an inventory of target hosts and a playbook, which is a YAML description of desired state. For each task it generates a small module, copies it to the target over SSH or WinRM, runs it with the target's Python interpreter, collects the JSON result and removes the temporary files. Because nothing permanent is installed, there is no agent to patch, no extra port to open and no central server required, which makes onboarding fast and the attack surface small. The trade-offs are that SSH round trips cost time at large scale, the control node needs network reach to every host, and Python is needed on managed Linux hosts. Modules are designed to be idempotent, so running the same playbook twice should change nothing the second time.",
+"f": [
+"What does a module run look like on the target?",
+"When would you choose an agent-based tool instead?"
+],
+"p": "A control node pushes small modules over SSH or WinRM, runs them, returns JSON and cleans up. No agent is installed, which keeps onboarding easy and the attack surface small, at the cost of SSH latency at very large scale.",
+"cmds": [
+"ansible all -i inventory.ini -m ping",
+"ansible-playbook -i inventory.ini site.yml"
+],
+"tip": "Say agentless plus idempotent modules, and name the scale trade-off."
+},
+{
+"tag": "basics",
+"q": "What is an inventory, and how do static and dynamic inventories differ?",
+"a": "An inventory tells Ansible which hosts exist and how they are grouped. A static inventory is an INI or YAML file listing hosts and groups, with variables attached to hosts or groups. It is simple, readable and ideal for stable environments. A dynamic inventory is produced at run time by an inventory plugin or script that queries a source of truth, such as AWS EC2, Azure, GCP, VMware, OpenStack or a CMDB, so the host list follows reality as instances come and go. Plugins usually build groups from tags, regions or other metadata with keyed groups and compose variables. In practice I combine them: dynamic sources for cloud fleets, static files for fixed infrastructure, and a directory containing both. I keep group_vars and host_vars beside the inventory, and use ansible-inventory with the graph or list options to verify what Ansible sees before running anything.",
+"f": [
+"How do keyed groups work in a cloud inventory plugin?",
+"How do you verify what an inventory resolves to?"
+],
+"p": "Static inventories are files listing hosts and groups; dynamic inventories use plugins to query AWS, Azure, VMware or a CMDB at run time. Combine both in a directory and check results with ansible-inventory.",
+"cmds": [
+"ansible-inventory -i inventory/ --graph",
+"ansible-inventory -i aws_ec2.yml --list | jq '.\"_meta\".hostvars | keys'"
+],
+"tip": "Say you verify with ansible-inventory before any run."
+},
+{
+"tag": "basics",
+"q": "When do you use ad-hoc commands rather than playbooks?",
+"a": "Ad-hoc commands run a single module against a set of hosts from the command line, with no file to write. They are ideal for quick, one-off operational tasks: checking connectivity with the ping module, gathering facts, checking disk space, restarting a service on a few hosts during an incident, copying a file, or testing that a new module and credentials work. Anything that should be repeated, reviewed, versioned or run by someone else belongs in a playbook, because playbooks document intent, can be code reviewed, are repeatable across environments and support handlers, loops, conditionals and variables. My rule is that an ad-hoc command is fine for investigation and for emergencies, but if I run the same command twice I turn it into a playbook or role. I also take care with the command and shell modules ad hoc, since they are not idempotent and I prefer purpose-built modules.",
+"f": [
+"Why avoid shell in ad-hoc commands?",
+"How would you restart a service on 5 hosts quickly and safely?"
+],
+"p": "Ad-hoc commands suit quick investigation or incident actions with one module. Repeatable or shared work goes into a playbook, which is reviewable, versioned and supports variables, handlers and conditionals.",
+"cmds": [
+"ansible web -m service -a 'name=nginx state=restarted' -b",
+"ansible all -m setup -a 'filter=ansible_distribution*'"
+],
+"tip": "Say if you run it twice, it becomes a playbook."
+},
+{
+"tag": "basics",
+"q": "What does idempotency mean in Ansible and how do you keep tasks idempotent?",
+"a": "Idempotency means running a task repeatedly leads to the same end state, and a second run reports no changes. Most core modules achieve this by describing desired state, for example the package module with state present, the file module with a mode, or the service module with state started. Each checks current state first and acts only if different. It matters because it makes playbooks safe to rerun, supports drift correction, and lets you trust the changed count as a signal. Problems arise with the command, shell and raw modules, which always report changed unless told otherwise. I fix that with creates or removes arguments, changed_when and failed_when conditions, or by replacing them with proper modules. I also verify by running twice in CI and expecting zero changes on the second run, and use check mode with diff to preview. Non-idempotent tasks hide real drift and cause noisy handlers.",
+"f": [
+"How do you make a shell task report changed correctly?",
+"How would you test idempotency in CI?"
+],
+"p": "Idempotent tasks converge to the same state on every run, so a second run reports zero changes. Prefer state-based modules, use creates, changed_when and failed_when for command tasks, and test by running twice.",
+"cmds": [
+"ansible-playbook site.yml --check --diff",
+"ansible-playbook site.yml | grep -E 'changed=[1-9]' && echo 'not idempotent'"
+],
+"tip": "Mention the run-twice test in CI."
+},
+{
+"tag": "basics",
+"q": "How does Ansible compare with Puppet, Chef and Terraform, and where does each fit?",
+"a": "Ansible is agentless and push-based, uses YAML and is easy to start with, so it is strong for orchestration, ad-hoc operations and configuration of existing machines. Puppet and Chef use agents that pull configuration from a server on a schedule, with a declarative language in Puppet and Ruby-based recipes in Chef, which gives continuous enforcement and drift correction at large scale but needs infrastructure to run. Terraform is different in kind: it provisions and manages the lifecycle of infrastructure resources such as networks, instances and managed services, tracking them in state, while Ansible is better at what happens inside the machine afterwards. A common pattern is Terraform to create infrastructure and Ansible to configure it, or to bake images with Packer and Ansible. There is overlap, since Ansible has cloud modules and Terraform has provisioners, so I choose by the lifecycle: create and destroy with Terraform, configure and operate with Ansible.",
+"f": [
+"Why not use Ansible for all provisioning?",
+"What is the drawback of a pull-based agent model?"
+],
+"p": "Ansible is agentless, push-based and strong for orchestration and configuration. Puppet and Chef are agent-based pull tools with continuous enforcement. Terraform manages infrastructure lifecycle with state; use it to create, and Ansible to configure.",
+"cmds": [
+"terraform output -json instance_ips > ips.json",
+"ansible-playbook -i inventory/from_tf.py configure.yml"
+],
+"tip": "Say Terraform creates, Ansible configures."
+},
+{
+"tag": "basics",
+"q": "How does Ansible choose configuration, and what is the precedence of ansible.cfg?",
+"a": "Ansible reads settings from several places, and the first match wins rather than merging. The order is the ANSIBLE_CONFIG environment variable, then ansible.cfg in the current directory, then a hidden ansible.cfg in the user's home, then the system file in etc. Individual settings can also be overridden by environment variables such as ANSIBLE_FORKS and by command line flags, which take priority. Because the current directory file is picked up, a project-level ansible.cfg checked into the repository makes behaviour reproducible for the team and in CI, including the inventory path, roles path, remote user, forks, pipelining, callbacks and the collections path. One security detail: Ansible ignores a configuration file in a world-writable directory, to prevent hijacking. I use ansible-config dump with the only-changed option to see which values are in effect and where they came from, which is the fastest way to debug surprising behaviour.",
+"f": [
+"Why is a world-writable ansible.cfg ignored?",
+"How do you see the effective configuration?"
+],
+"p": "The first config found wins: ANSIBLE_CONFIG, then ansible.cfg in the current directory, home, then system. Environment variables and flags override. Keep a project ansible.cfg in the repo and inspect with ansible-config dump.",
+"cmds": [
+"ansible-config dump --only-changed",
+"ansible --version"
+],
+"tip": "Mention a repo-level ansible.cfg for reproducibility."
+},
+{
+"tag": "basics",
+"q": "What are facts, and when would you disable or customise fact gathering?",
+"a": "Facts are system information that Ansible collects from each host at the start of a play using the setup module, such as operating system, distribution, network interfaces, memory and mounts. They are available as variables, for example ansible_facts distribution or ansible_default_ipv4, and let playbooks adapt to different platforms. Gathering costs a round trip and a second or more per host, which is significant at scale. I disable it with gather_facts false when a play needs none, or limit it with gather_subset to only what I use, such as min or network. Fact caching with a backend like Redis or JSON files avoids recomputing across runs. I can also write custom facts as files on the host in the facts.d directory, which Ansible exposes under ansible_local, useful for exposing application or compliance data. I prefer the ansible_facts dictionary over injected top-level variables for clarity.",
+"f": [
+"How does fact caching speed up large runs?",
+"What are local facts?"
+],
+"p": "Facts are host details gathered by the setup module at play start and used as variables. Disable them or limit with gather_subset to save time, cache them for large fleets, and add custom facts under facts.d.",
+"cmds": [
+"ansible web -m setup -a 'gather_subset=min'",
+"- hosts: all\n  gather_facts: false"
+],
+"tip": "Say gather_subset and caching are the scale levers."
+},
+{
+"tag": "basics",
+"q": "How do connection methods and privilege escalation (become) work?",
+"a": "Ansible connects through a connection plugin: SSH by default for Linux and network devices using paramiko or OpenSSH, WinRM or SSH for Windows, local for the control node, and docker or kubectl style plugins for containers. Authentication is normally by SSH keys through an agent, with the remote user set in inventory, config or play. Privilege escalation is controlled by become: when true, tasks run through sudo by default, or su, doas and others, as the become user, root unless specified, and the become password can be supplied or sudo can be passwordless for the automation account. I set become at play level only where needed rather than globally, and use become_user for application accounts. Good practice is a dedicated automation user, key-based authentication, restricted sudoers entries where feasible, and a bastion through ProxyCommand or ansible_ssh_common_args when hosts are in private networks.",
+"f": [
+"How would you reach hosts behind a bastion?",
+"What is the risk of passwordless sudo for all commands?"
+],
+"p": "Connection plugins such as SSH or WinRM reach hosts; become escalates with sudo or su. Use a dedicated automation user with keys, apply become only where needed, and use a bastion through ProxyCommand for private networks.",
+"cmds": [
+"ansible_ssh_common_args='-o ProxyCommand=\"ssh -W %h:%p -q bastion\"'",
+"- hosts: db\n  become: true\n  become_user: postgres"
+],
+"tip": "Say least privilege: become only on tasks that need it."
+},
+{
+"tag": "basics",
+"q": "What is the difference between modules, plugins and collections?",
+"a": "A module is a unit of work that runs on the target host, such as copy, apt, user or service, and returns structured results. A plugin extends Ansible itself and runs on the control node: connection plugins, lookup plugins, filter plugins, callback plugins, inventory plugins and strategy plugins, among others. So modules do the managed work, while plugins change how Ansible connects, reads data, formats output or processes variables. A collection is a distribution format that bundles modules, plugins, roles, playbooks and documentation under a namespace, for example amazon.aws or kubernetes.core, versioned and installed from Galaxy, Automation Hub or a private source. Since ansible-core 2.10 most content lives in collections, so the core package stays small and content releases independently. In playbooks I use fully qualified collection names like ansible.builtin.copy to avoid ambiguity, and pin collection versions in requirements.yml for reproducible runs.",
+"f": [
+"Where do lookup plugins run?",
+"Why pin collection versions?"
+],
+"p": "Modules run on targets and do the work. Plugins run on the control node and extend connections, lookups, filters and callbacks. Collections package modules, plugins and roles under a namespace and are versioned and pinned in requirements.yml.",
+"cmds": [
+"ansible-doc -t module ansible.builtin.copy",
+"ansible-galaxy collection install -r requirements.yml"
+],
+"tip": "Say modules run on targets, plugins on the controller."
+},
+{
+"tag": "basics",
+"q": "What is the difference between ansible-core and the Ansible community package, and how do you manage versions?",
+"a": "Ansible-core is the engine: the command line tools, the language, the built-in collection and the plugin framework. The community Ansible package, sometimes called the batteries-included distribution, bundles ansible-core with a curated set of collections, so a single install gives you many modules. Red Hat's Ansible Automation Platform is a supported product with certified collections, execution environments and a controller. Version management matters because modules and syntax change: each ansible-core release supports a range of Python versions on the control node and on targets, and old targets may need an older interpreter. I pin ansible-core and collection versions in a requirements file, ideally packaged in an execution environment container image, so laptops, CI and the controller all run the same versions. Upgrades are tested in a branch with ansible-lint and Molecule, and I read the porting guides before moving to a new major release.",
+"f": [
+"What breaks when upgrading ansible-core?",
+"Why use an execution environment image?"
+],
+"p": "Ansible-core is the engine and built-ins; the community package adds many collections. Pin ansible-core and collection versions, ideally in an execution environment image, and test upgrades with lint and Molecule before rollout.",
+"cmds": [
+"pip install 'ansible-core==2.17.*'",
+"ansible-galaxy collection list"
+],
+"tip": "Say pin versions and package them in an execution environment."
+},
+{
+"tag": "playbooks",
+"q": "Describe the structure of a playbook, plays and tasks.",
+"a": "A playbook is a YAML file containing a list of plays. Each play maps a group of hosts to a set of tasks and defines settings such as the remote user, become, variables, gather_facts and tags. Within a play, execution is ordered: pre_tasks, then roles, then tasks, then post_tasks, with handlers notified along the way and run at defined points. Each task calls one module with arguments, may have a name, conditions, loops, register, tags, delegation, error handling and notify. Tasks run in order against all hosts in the play in parallel, up to the forks limit, using the linear strategy by default, so every host completes a task before the next starts. Good style is to give every task a descriptive name, keep plays short by moving logic into roles, use fully qualified module names, keep YAML valid and indent consistently, and put variables in group_vars rather than inside the play.",
+"f": [
+"In what order do pre_tasks, roles and tasks run?",
+"What does the linear strategy mean?"
+],
+"p": "A playbook is a list of plays; each play targets hosts, sets options and runs pre_tasks, roles, tasks and post_tasks in order. Tasks call modules, run across hosts in parallel, and notify handlers. Keep plays short and named.",
+"cmds": [
+"- name: Configure web\n  hosts: web\n  become: true\n  tasks:\n    - name: Install nginx\n      ansible.builtin.package:\n        name: nginx\n        state: present"
+],
+"tip": "Say name every task and push logic into roles."
+},
+{
+"tag": "playbooks",
+"q": "How do handlers work and what are the pitfalls?",
+"a": "Handlers are tasks that run only when notified by another task that reported a change, typically to restart or reload a service after its configuration file changed. Multiple notifications of the same handler result in a single run, and handlers run at the end of the play by default, in the order they are defined, not the order they were notified. This design avoids restarting a service several times. Pitfalls include a handler not running because the notifying task failed before the end of the play, since by default a failure stops the flow and skips handlers unless force_handlers is set. Another is needing the restart earlier, in the middle of a play, which you handle with the meta flush_handlers task. Handlers also only fire on change, so a first run that fails halfway can leave a changed file with no restart on the next run, and listen topics allow one notification to trigger several handlers.",
+"f": [
+"Why might a handler not run after a failure?",
+"How do you force a handler to run mid-play?"
+],
+"p": "Handlers run once at the end of a play when notified by changed tasks, in definition order. Use meta flush_handlers to run earlier, force_handlers to run after failures, and listen to group handlers.",
+"cmds": [
+"- name: Update config\n  ansible.builtin.template:\n    src: app.conf.j2\n    dest: /etc/app.conf\n  notify: Restart app",
+"- ansible.builtin.meta: flush_handlers"
+],
+"tip": "Mention flush_handlers and the failed-play pitfall."
+},
+{
+"tag": "playbooks",
+"q": "How do loops work in Ansible, and when should you avoid them?",
+"a": "The loop keyword repeats a task over a list, exposing each element as the item variable, which can be renamed with loop_control and loop_var. Loops can iterate over simple lists, lists of dictionaries, dictionaries converted with the dict2items filter, or results from lookups and filters such as subelements and product. You can add labels to keep output readable, a pause for rate limits, and an index variable. Older with_ keywords still work but loop is preferred. I avoid loops when the module already accepts a list, for example the package module accepts many names in one call, which is much faster since it runs once rather than once per item. Another problem is loops with register, which return a results list, and large loops over big data in Jinja, which are slow. Also nested loops in included tasks need loop_var set to avoid clashes with the outer item.",
+"f": [
+"Why does loop_var matter in nested includes?",
+"How do you loop over a dictionary?"
+],
+"p": "Use loop with item, loop_control for labels and renamed variables, dict2items for dictionaries. Avoid loops where a module accepts a list, such as package, since one call is faster than many.",
+"cmds": [
+"- name: Create users\n  ansible.builtin.user:\n    name: \"{{ item.name }}\"\n    groups: \"{{ item.groups }}\"\n  loop: \"{{ users }}\"\n  loop_control:\n    label: \"{{ item.name }}\""
+],
+"tip": "Say pass a list to the module instead of looping where possible."
+},
+{
+"tag": "playbooks",
+"q": "How do conditionals with when and failed_when and changed_when work?",
+"a": "The when keyword runs a task only if a Jinja2 expression is true, written without double curly braces, for example when ansible_os_family equals Debian, or when a registered variable is defined or contains a string. Conditions can combine with and, or and not, and a list of conditions means all must be true. On loops, when is evaluated per item. The failed_when keyword overrides what counts as a failure, useful when a command returns a nonzero code that is acceptable or prints an error message with a zero exit code. Similarly changed_when controls whether the task reports a change, which is essential for making command and shell tasks idempotent and for accurate handler notification. Common mistakes include comparing strings and booleans loosely, forgetting that variables from the command line are strings, and using when with an undefined variable without the default filter. I also use the is defined, is changed and is failed tests for clarity.",
+"f": [
+"How do you treat a registered result as failed on certain output?",
+"Why do command-line booleans cause problems?"
+],
+"p": "when runs a task on a true expression; failed_when and changed_when redefine failure and change for tasks such as command. Use defaults for undefined variables and watch for string versus boolean types.",
+"cmds": [
+"- ansible.builtin.command: /usr/local/bin/check_app\n  register: r\n  failed_when: \"'CRITICAL' in r.stdout\"\n  changed_when: false"
+],
+"tip": "Say changed_when false for read-only commands."
+},
+{
+"tag": "playbooks",
+"q": "How do you handle errors with block, rescue and always, and ignore_errors?",
+"a": "A block groups tasks so they share conditions, privilege settings and error handling. The rescue section runs if any task in the block fails, similar to catch, and the always section runs regardless, similar to finally. The pattern lets you attempt a risky operation, such as a deployment, roll back in rescue, and always send a notification or clean up in always. After a successful rescue the play continues for that host and the host is not marked failed, though the failure is shown in the output. The ignore_errors keyword simply continues past a failing task but hides real problems, so I use it sparingly and prefer targeted failed_when conditions. Related controls are any_errors_fatal to stop all hosts on a failure, max_fail_percentage for rolling deployments, and ignore_unreachable. Inside rescue, the ansible_failed_task and ansible_failed_result variables describe what failed, which helps with diagnostics.",
+"f": [
+"What variables are available inside rescue?",
+"When would you use any_errors_fatal?"
+],
+"p": "block groups tasks; rescue handles failures and always runs regardless, like try, catch and finally. Prefer this and targeted failed_when over ignore_errors, and use any_errors_fatal or max_fail_percentage for rolling changes.",
+"cmds": [
+"- block:\n    - ansible.builtin.include_role: {name: deploy}\n  rescue:\n    - ansible.builtin.include_role: {name: rollback}\n  always:\n    - ansible.builtin.debug: {msg: \"done\"}"
+],
+"tip": "Say rescue for rollback, always for cleanup."
+},
+{
+"tag": "playbooks",
+"q": "How are tags used, and what are the best practices?",
+"a": "Tags label tasks, blocks, roles and plays so you can run or skip a subset of a playbook with the tags and skip-tags options, for example only configuration changes or only the deployment step. Special tags include always, which runs unless skipped explicitly, and never, plus tagged, untagged and all. Tags applied to a role or an include are inherited by the contained tasks differently depending on whether it is a static import or dynamic include, which is a frequent source of confusion: with include_role you need the apply keyword to pass tags to the inner tasks. Best practice is a small, documented vocabulary such as packages, config, deploy and security, rather than ad-hoc tags, and using list-tags to document them. I do not rely on tags for safety, because a partial run may leave things inconsistent, and full runs in CI remain the source of truth. Tags are great for fast iteration during development.",
+"f": [
+"How do tags behave with include_role?",
+"What does the always tag do?"
+],
+"p": "Tags let you run or skip subsets with --tags and --skip-tags. Imports inherit tags, dynamic includes need apply. Keep a small documented tag vocabulary and rely on full runs in CI.",
+"cmds": [
+"ansible-playbook site.yml --tags config --skip-tags deploy",
+"ansible-playbook site.yml --list-tags"
+],
+"tip": "Mention the import versus include difference."
+},
+{
+"tag": "playbooks",
+"q": "What do delegate_to, run_once and local_action do, and when do you use them?",
+"a": "The delegate_to keyword runs a task on a different host than the one being iterated, while still using the original host's variables. It is used for actions that must happen elsewhere: removing a host from a load balancer from the control node before updating it, updating a DNS record through an API, or registering with a monitoring server. With delegate_to localhost, tasks run on the control node, and local_action is a shorthand for that. The run_once keyword executes a task a single time for the whole play, on the first host in the batch, for example one database migration or sending one notification, and the result is shared with all hosts. Cautions are that run_once with serial applies per batch, that delegated tasks use facts of the original host unless delegate_facts is set, and that connection and become settings apply to the delegate target, so credentials must work there.",
+"f": [
+"How does run_once behave with serial?",
+"What is delegate_facts?"
+],
+"p": "delegate_to runs a task on another host while keeping the current host's variables, for load balancer, DNS or monitoring calls. run_once executes a task once per play or batch. Watch serial interactions and delegated credentials.",
+"cmds": [
+"- name: Drain from LB\n  ansible.builtin.uri:\n    url: \"https://lb/api/drain/{{ inventory_hostname }}\"\n    method: POST\n  delegate_to: localhost"
+],
+"tip": "Say run_once applies per serial batch."
+},
+{
+"tag": "playbooks",
+"q": "How do check mode and diff mode work, and what are their limits?",
+"a": "Check mode, enabled with the check option, simulates a run: modules that support it report what would change without changing anything. Diff mode, enabled with the diff option, shows a before and after comparison for files and templates. Together they give a dry run for review, useful in change approval and in pull request pipelines. The limits are important: modules that do not support check mode are skipped or report nothing, command and shell tasks are skipped by default unless a check_mode override is set, and later tasks that depend on earlier changes or registered output may fail or show misleading results because the earlier change never happened. You can mark a task with check_mode true or false to force behaviour, for example to run a read-only command even in check mode. So check mode is a strong signal rather than a guarantee, and I still verify in a staging environment before production.",
+"f": [
+"Why do some tasks fail only in check mode?",
+"How do you force a command to run in check mode?"
+],
+"p": "Check mode simulates changes and diff mode shows file differences, giving a reviewable dry run. Limits include modules without support, skipped command tasks and dependent tasks, so treat it as a signal, not a guarantee.",
+"cmds": [
+"ansible-playbook site.yml --check --diff -l staging",
+"- ansible.builtin.command: cat /etc/app.conf\n  check_mode: false\n  changed_when: false"
+],
+"tip": "Say dry-run is advisory; staging remains the proof."
+},
+{
+"tag": "playbooks",
+"q": "What is the difference between command, shell, raw and script modules?",
+"a": "The command module runs a command without a shell, so pipes, redirects, environment expansion and operators do not work, which also makes it safer against injection. The shell module runs through a shell, supporting pipes and redirects, with more risk if variables contain untrusted input. The raw module sends the command straight over SSH without needing Python on the target, useful for bootstrapping a host that lacks Python or for network devices. The script module copies a local script to the target and runs it there. None of them is idempotent by default, so each always reports changed unless you use creates or removes, changed_when or failed_when. My order of preference is: a dedicated module first, then command, then shell only when a shell feature is truly required, and then I quote variables carefully with the quote filter. Raw is used only for bootstrap, such as installing Python.",
+"f": [
+"When is raw appropriate?",
+"How do you protect shell tasks from injection?"
+],
+"p": "command runs without a shell and is safer; shell allows pipes but risks injection; raw needs no Python and suits bootstrapping; script copies and runs a local script. Prefer proper modules and make these idempotent with creates, removes and changed_when.",
+"cmds": [
+"- ansible.builtin.command: /opt/app/migrate\n  args:\n    creates: /var/lib/app/.migrated",
+"- ansible.builtin.shell: \"ps aux | grep {{ name | quote }}\""
+],
+"tip": "Say a module first, then command, shell last."
+},
+{
+"tag": "playbooks",
+"q": "What is the difference between include and import for tasks and roles?",
+"a": "Imports are static: the import_tasks and import_role statements are processed when the playbook is parsed, so the content is pre-loaded, tags and conditionals are applied to every contained task, and you can list all tasks with list-tasks. Includes are dynamic: include_tasks and include_role are processed when execution reaches them, so file names and loops can use runtime variables, and the included content is not visible to list-tasks. When a condition is attached, with an import it is copied to each inner task, with an include it is evaluated once and gates the whole include. Tags behave differently too: tags on an include apply to the include itself unless you use apply. I use imports for fixed structure because they are predictable, and includes when the file or role depends on facts, loops or conditions known only at run time. Mixing them without understanding this causes skipped tasks and tag surprises.",
+"f": [
+"Which one supports looping?",
+"Why might tags seem to be ignored on an include?"
+],
+"p": "Import is static, processed at parse time, applying tags and conditions to inner tasks. Include is dynamic, evaluated at run time, so it supports loops and variable file names. Use imports for fixed structure and includes for runtime decisions.",
+"cmds": [
+"- ansible.builtin.import_tasks: common.yml",
+"- ansible.builtin.include_tasks: \"{{ ansible_os_family }}.yml\""
+],
+"tip": "Say static for structure, dynamic for runtime choices."
+},
+{
+"tag": "roles",
+"q": "What is the structure of an Ansible role and why use roles?",
+"a": "A role is a standard directory layout for reusable automation. Key directories are tasks with main.yml as the entry point, handlers, defaults for low-precedence variables meant to be overridden, vars for high-precedence internal values, templates for Jinja2 files, files for static files, meta for dependencies and metadata, and optionally library, module_utils and tests. Roles let you package one capability, such as an nginx setup or a hardening baseline, and reuse it across playbooks, teams and environments with different variables. They improve readability because playbooks become short lists of roles, enable testing in isolation with Molecule, and can be shared through collections or Galaxy. Good practice is one role per clear responsibility, a documented README with variables, defaults for everything configurable, prefixing variable names with the role name to avoid collisions, no hidden dependencies, and idempotent, platform-aware tasks.",
+"f": [
+"Why prefix variables with the role name?",
+"What belongs in defaults versus vars?"
+],
+"p": "A role has tasks, handlers, defaults, vars, templates, files and meta. It packages one capability for reuse and isolated testing. Keep one responsibility, document variables, prefix names and put overridable values in defaults.",
+"cmds": [
+"ansible-galaxy role init nginx",
+"tree roles/nginx"
+],
+"tip": "Say prefix variables to avoid collisions."
+},
+{
+"tag": "roles",
+"q": "How do role dependencies work and what are their pitfalls?",
+"a": "Dependencies are declared in the role's meta main file as a list of other roles that must run first, optionally with parameters. When the playbook applies the role, Ansible executes the dependencies before it, and by default each dependency runs only once even if several roles list it, unless allow_duplicates is set. They are useful for shared prerequisites such as a common baseline or a repository setup role. Pitfalls include hidden coupling that makes a role harder to understand and test alone, ordering surprises when dependencies pull in tasks the playbook author did not expect, variable precedence changes because dependency parameters are applied as role variables, and difficulty when a dependency comes from another collection. Many teams prefer explicit composition: the playbook lists roles in order, or a higher-level role uses include_role, so the flow is visible. I keep dependencies minimal, documented and version-pinned in requirements.yml.",
+"f": [
+"What does allow_duplicates do?",
+"Why prefer explicit role ordering in the playbook?"
+],
+"p": "Dependencies in meta main run before a role and execute once by default unless allow_duplicates is set. They hide coupling and affect variable precedence, so keep them minimal and often compose roles explicitly in the playbook.",
+"cmds": [
+"# roles/app/meta/main.yml\ndependencies:\n  - role: common\n  - role: nginx\n    vars:\n      nginx_port: 8080"
+],
+"tip": "Say explicit composition is clearer than hidden dependencies."
+},
+{
+"tag": "roles",
+"q": "What are Ansible collections and how do you use and publish them?",
+"a": "A collection is a versioned package that can contain modules, plugins, roles, playbooks and docs under a namespace dot name identifier. Users install them with ansible-galaxy collection install, from Galaxy, Red Hat Automation Hub, a private Automation Hub or a Git repository, and list them in requirements.yml with version constraints. In playbooks you call content by its fully qualified collection name, or declare a collections search path. To publish, you create the skeleton with ansible-galaxy collection init, write a galaxy.yml with the namespace, name, version and dependencies, build with ansible-galaxy collection build, and publish the tarball with an API token. Teams often host internal collections in a private registry to share company roles, modules and filter plugins. I use semantic versioning, changelogs, sanity tests with ansible-test, and CI to build and release, and I pin consumers to a version range to avoid surprise breakages.",
+"f": [
+"What goes in galaxy.yml?",
+"How do you host a private collection?"
+],
+"p": "A collection bundles modules, plugins and roles under a namespace and version. Install from Galaxy or a private hub via requirements.yml, call by fully qualified name, and publish with galaxy.yml, ansible-galaxy build and publish, with ansible-test in CI.",
+"cmds": [
+"ansible-galaxy collection init myorg.platform",
+"ansible-galaxy collection build && ansible-galaxy collection publish myorg-platform-1.2.0.tar.gz"
+],
+"tip": "Say semantic versions and a pinned requirements file."
+},
+{
+"tag": "roles",
+"q": "How do you use Galaxy and requirements.yml to manage dependencies reproducibly?",
+"a": "The requirements.yml file lists the roles and collections a project needs, with sources and versions, so anyone can install exactly the same content. For collections you give a name and a version constraint, and optionally a source or server, and for roles you can reference Galaxy names or Git URLs with a tag or commit. Installing is one command, and I set the collections and roles paths in ansible.cfg to a project-local directory, so nothing depends on what happens to be installed globally. For reproducibility I pin exact versions or narrow ranges, avoid tracking a moving branch in production, and use a private Automation Hub or mirror so builds do not depend on public availability. In CI, I install from the file in a clean environment before linting and testing. For enterprise setups, the same requirements file feeds ansible-builder to create an execution environment image, so the controller uses identical content.",
+"f": [
+"Why avoid pinning to a branch?",
+"How does requirements.yml feed an execution environment?"
+],
+"p": "requirements.yml pins the roles and collections a project needs. Install into a project-local path, pin versions or commits, use a private mirror, and reuse the file to build execution environment images so every environment matches.",
+"cmds": [
+"ansible-galaxy install -r requirements.yml -p ./roles",
+"collections:\n  - name: kubernetes.core\n    version: \">=3.0,<4.0\""
+],
+"tip": "Say pin versions and mirror privately for reproducibility."
+},
+{
+"tag": "roles",
+"q": "When should logic be a role, a collection or a custom module?",
+"a": "I choose by what the reuse looks like. A role is the right unit to reuse a sequence of tasks that configures something, such as installing and configuring a service. A collection is the packaging and distribution layer: when I have several related roles, plugins or modules, or content shared across teams, I put them in a collection with versioning. A custom module is appropriate when the work needs real programming logic or an API that existing modules do not cover, or when a complex task in YAML becomes unreadable and not idempotent. Modules written in Python give structured arguments, check mode support, proper change detection and documentation, while a long chain of shell commands does not. Before writing anything new, I search existing collections, because maintained modules beat custom code. If I do write one, I test with ansible-test and unit tests and keep it small and well documented.",
+"f": [
+"What makes a custom module better than a shell chain?",
+"What does a module need to support check mode?"
+],
+"p": "Use a role for reusable task sequences, a collection to package and version related content, and a custom module when you need real logic, an uncovered API, or proper idempotency and check mode. Search existing collections first.",
+"cmds": [
+"ansible-doc -l | grep -i grafana",
+"ansible-test sanity --docker default"
+],
+"tip": "Say look for an existing module before writing one."
+},
+{
+"tag": "roles",
+"q": "Why use fully qualified collection names, and how do you migrate old playbooks?",
+"a": "Fully qualified collection names, such as ansible.builtin.copy or amazon.aws.ec2_instance, remove ambiguity about which module runs. Without them, Ansible searches namespaces, and a collection added later could shadow a module of the same short name, changing behaviour silently. They also make it obvious where documentation and fixes live and which collection must be installed. Migration is mostly mechanical: ansible-lint has a fqcn rule that detects short names and can auto-fix many of them, and tools like the ansible-core migration notes list the mapping of old module names to collections. I update playbooks and roles, add the needed collections to requirements.yml with versions, run lint and Molecule, and test on a staging inventory. The effort is worth it because pinned, qualified content makes runs reproducible and upgrades of ansible-core much less risky. If the interviewer pushes further, I would explain how I would test this in a staging environment before touching production.",
+"f": [
+"What can happen without FQCN when a new collection is installed?",
+"How does ansible-lint help migrate?"
+],
+"p": "FQCNs such as ansible.builtin.copy remove ambiguity and shadowing risk and show which collection is required. Migrate with ansible-lint fqcn rule, add collections to requirements.yml and test in staging.",
+"cmds": [
+"ansible-lint --fix=fqcn site.yml",
+"ansible-doc ansible.builtin.service"
+],
+"tip": "Say lint can auto-fix most short names."
+},
+{
+"tag": "roles",
+"q": "How do you write a custom Ansible module, and what makes it good?",
+"a": "A custom module is usually a Python file placed in a library directory next to a playbook or role, or inside a collection. It uses the AnsibleModule helper to declare an argument specification with types, required flags, choices and defaults, reads the parameters, does the work, and exits with exit_json including changed and any result data, or fail_json with a message. A good module is idempotent: it checks the current state, compares to the desired state and changes only if needed. It supports check mode by declaring that and not applying changes, it never prints secrets, marks sensitive parameters with no_log, handles errors with clear messages, and includes documentation in the DOCUMENTATION, EXAMPLES and RETURN strings so ansible-doc works. I test with ansible-test sanity and units, and mock external calls. Module code runs on the target, so dependencies must be available there, otherwise consider an action plugin or a lookup running locally.",
+"f": [
+"How do you support check mode?",
+"How do you hide secret parameters?"
+],
+"p": "Write a Python file using AnsibleModule with an argument spec, compute current versus desired state, return exit_json with changed, support check mode, use no_log for secrets, and document with DOCUMENTATION, EXAMPLES and RETURN. Test with ansible-test.",
+"cmds": [
+"module = AnsibleModule(argument_spec=dict(name=dict(type='str', required=True)), supports_check_mode=True)",
+"module.exit_json(changed=changed, msg='ok')"
+],
+"tip": "Say idempotent, check-mode aware and documented."
+},
+{
+"tag": "roles",
+"q": "What is the difference between role defaults and role vars, and how should you design role variables?",
+"a": "Role defaults, in defaults main, have the lowest precedence of all variables, so anything else can override them, inventory, play vars or the command line. They are meant for the public interface of the role: the knobs that users are expected to change, with sensible values. Role vars, in vars main, have high precedence and are hard to override, so they suit internal constants such as package names per operating system, which the user should not change. A good design puts every configurable setting in defaults, documents each in the README, prefixes names with the role name, such as nginx_worker_processes, and uses vars only for internal data or for values loaded per platform with include_vars. I avoid using vars for things users may need to override, because it frustrates them and leads to extra vars hacks. I also validate inputs with the assert module or an argument specification in the role meta, so mistakes fail early with a clear message.",
+"f": [
+"What is an argument spec in role meta?",
+"Why is overriding a role var difficult?"
+],
+"p": "Defaults are lowest precedence and form the role's public, overridable interface. Vars are high precedence internals such as per-OS package names. Prefix names, document defaults and validate inputs with assert or an argument spec.",
+"cmds": [
+"# roles/nginx/defaults/main.yml\nnginx_worker_processes: auto\nnginx_port: 80",
+"- ansible.builtin.assert:\n    that: nginx_port | int > 0"
+],
+"tip": "Say defaults are the API, vars are the internals."
+},
+{
+"tag": "roles",
+"q": "How do you write custom filter and lookup plugins, and when are they worthwhile?",
+"a": "Plugins extend what you can do in expressions and data lookups. A filter plugin is a Python file in a filter_plugins directory, or inside a collection, with a FilterModule class that returns a dictionary mapping filter names to functions, which you then use in Jinja2 like any built-in filter. A lookup plugin is a LookupModule class with a run method that receives terms and returns a list, running on the control node, so it can read local files, call APIs or query a secrets store. They are worthwhile when the same transformation or data fetch appears in many places and doing it in Jinja2 makes templates unreadable, for example normalising a CIDR list, parsing a vendor format, or retrieving a secret. Keep them small, pure where possible, documented and unit tested. Remember lookups run on the controller, not on the target, which affects file paths and credentials.",
+"f": [
+"Where do lookup plugins execute?",
+"Why keep filters pure?"
+],
+"p": "A filter plugin is a Python class mapping names to functions used in Jinja2; a lookup plugin returns data from the control node. Use them to replace repeated or unreadable template logic, keep them small, tested and documented.",
+"cmds": [
+"class FilterModule(object):\n    def filters(self):\n        return {'cidr_hosts': cidr_hosts}",
+"{{ lookup('ansible.builtin.env', 'HOME') }}"
+],
+"tip": "Say lookups run on the controller, not on the target."
+},
+{
+"tag": "roles",
+"q": "What are the ways to apply a role, and how do roles, import_role and include_role differ?",
+"a": "There are three ways. The roles keyword in a play applies roles statically before the play's tasks, in order, after pre_tasks. The import_role task statement is also static but lets you place the role anywhere among tasks, with tags and conditions applied to inner tasks at parse time. The include_role task statement is dynamic: it is evaluated when execution reaches it, so you can loop over it, pass variables computed at run time, or choose the role name from a variable, but tags need apply and the role contents are not visible in list-tasks. I use the roles keyword for the common simple case, import_role when I need ordering mixed with tasks, and include_role when the decision depends on facts or loops. I also use public true on include_role if I need its variables exposed to later tasks, since by default a dynamically included role's variables stay private.",
+"f": [
+"When would you loop over include_role?",
+"What does public true do?"
+],
+"p": "The roles keyword applies roles statically before tasks; import_role is static anywhere in tasks; include_role is dynamic with loops and runtime names. Use public true to expose its variables.",
+"cmds": [
+"- ansible.builtin.include_role:\n    name: \"{{ item }}\"\n  loop: \"{{ enabled_roles }}\"",
+"- hosts: web\n  roles: [common, nginx]"
+],
+"tip": "Say choose static for predictability, dynamic for runtime decisions."
+},
+{
+"tag": "vars",
+"q": "Explain Ansible variable precedence and how to avoid surprises.",
+"a": "Ansible merges variables from many sources, and a defined order decides which wins. From lowest to highest, roughly: role defaults, inventory group variables, then host variables, playbook group_vars and host_vars, facts and registered variables, play vars and vars files, role vars, block and task vars, include parameters, set_fact, and finally extra vars passed with the e option, which beat everything. The documentation lists about twenty-two levels, and the key mental model is that more specific and more explicit sources win. To avoid surprises I keep variables in few places: role defaults for knobs, group_vars and host_vars for environment data, and extra vars only for exceptional overrides or CI parameters. I prefix names with the role, avoid reusing names across layers, and avoid set_fact for configuration because it overrides most things. When debugging, the debug module with var set to the name, or the vars magic variable and the ansible-inventory host output, shows the final value.",
+"f": [
+"Why do extra vars beat everything?",
+"How do you find where a variable value came from?"
+],
+"p": "Variables merge from defaults, inventory, group and host vars, facts, play vars, role vars, task vars, set_fact and extra vars, with more specific and explicit sources winning. Keep variables in few places, prefix names and debug with ansible-inventory and the debug module.",
+"cmds": [
+"ansible-inventory -i inventory --host web01",
+"ansible web01 -m debug -a 'var=nginx_port' -i inventory"
+],
+"tip": "Say defaults for knobs, group_vars for environments, extra vars for exceptions."
+},
+{
+"tag": "vars",
+"q": "How do you organise group_vars and host_vars for multiple environments?",
+"a": "I lay out the inventory so environments are separate and shared data is not duplicated. A common structure is one inventory directory per environment, such as production and staging, each with its own hosts file or dynamic source and its own group_vars and host_vars directories, plus an all group file for global values. Within group_vars I create a directory per group containing several small files, for example vars.yml for ordinary values and vault.yml for encrypted ones, which keeps secrets separate and diffs readable. Roles hold defaults, groups such as webservers and databases hold role-specific settings, and environment directories hold environment-specific settings like endpoints and sizes. I avoid duplicating the same value across environments by placing it in a shared group, and I avoid very deep group hierarchies since precedence between sibling groups at the same level is by alphabetical order, which is fragile. A prefix convention helps with the vault variables and their plain references.",
+"f": [
+"Why split vars.yml and vault.yml?",
+"What decides precedence between two groups at the same depth?"
+],
+"p": "Use one inventory directory per environment with group_vars and host_vars, a group directory with vars.yml and vault.yml, shared values in an all group, and avoid deep hierarchies where precedence is fragile.",
+"cmds": [
+"inventories/\n  production/\n    hosts.yml\n    group_vars/all/vars.yml\n    group_vars/db/vault.yml\n  staging/",
+"ansible-playbook -i inventories/staging site.yml"
+],
+"tip": "Say separate plain and vault files per group."
+},
+{
+"tag": "vars",
+"q": "How do Jinja2 templates work in Ansible and what are good practices?",
+"a": "The template module renders a Jinja2 file on the control node using the host's variables and copies the result to the target. Jinja2 provides expressions in double curly braces, statements such as for loops and if conditions in curly percent tags, filters, tests and comments. Templates are used to generate configuration files such as nginx, systemd units or application properties. Good practices: keep logic simple in templates and compute complex data in tasks or filters; add a managed-by header with the ansible_managed variable so people know not to edit by hand; use validate to check syntax with the service's own tool before replacing the file; set owner, group and mode; use trim_blocks and lstrip_blocks to control whitespace; use the default filter and the mandatory filter to handle missing values deliberately; and never put secrets in templated files that are logged or diffed, using no_log. Test rendering with check and diff.",
+"f": [
+"What does the validate parameter do?",
+"How do you control whitespace in templates?"
+],
+"p": "The template module renders Jinja2 on the controller with host variables. Keep logic simple, add an ansible_managed header, use validate before replacing, set mode and owner, use defaults and mandatory deliberately, and avoid exposing secrets.",
+"cmds": [
+"- ansible.builtin.template:\n    src: nginx.conf.j2\n    dest: /etc/nginx/nginx.conf\n    mode: '0644'\n    validate: 'nginx -t -c %s'"
+],
+"tip": "Say validate and ansible_managed."
+},
+{
+"tag": "vars",
+"q": "Which Jinja2 filters do you use most in Ansible, and for what?",
+"a": "A few filters cover most needs. The default filter provides a fallback when a variable is undefined, and with true as a second argument also for empty values. The mandatory filter fails loudly if a value is missing. For data shaping, I use map and select with attribute to extract fields from lists of dictionaries, selectattr and rejectattr to filter, join, split, unique, sort, flatten and zip. The combine filter merges dictionaries, optionally recursively, dict2items and items2dict convert between formats, and json_query uses JMESPath for nested queries. For strings and security, regex_replace and regex_search, b64encode, password_hash and the quote filter for shell safety. For networking, the ansible.utils ipaddr and ipaddr style filters handle addresses and subnets. Type filters like int, bool and list handle strings coming from the command line. I keep expressions short, and when a filter chain becomes long I compute it in a set_fact or a custom filter for readability.",
+"f": [
+"How do you merge two dictionaries?",
+"What does selectattr do?"
+],
+"p": "Key filters: default and mandatory, map, select, selectattr, join, unique, combine, dict2items, json_query, regex_replace, quote and type conversions. Keep chains short and move complex logic into set_fact or a custom filter.",
+"cmds": [
+"{{ users | selectattr('active') | map(attribute='name') | list }}",
+"{{ defaults | combine(overrides, recursive=True) }}"
+],
+"tip": "Say default, mandatory, combine and selectattr are the workhorses."
+},
+{
+"tag": "vars",
+"q": "How do register, set_fact and magic variables like hostvars work together?",
+"a": "The register keyword saves a task's result into a variable, containing fields such as stdout, rc, changed and, for loops, a results list. The set_fact module creates or updates a variable for the current host at run time, which persists for the rest of the play, and can be cached across plays if fact caching is enabled. Magic variables are provided by Ansible: inventory_hostname, group_names, groups, play_hosts, ansible_play_batch, and hostvars, a dictionary giving access to variables and facts of any other host in the inventory. Together they let one host's play use data from others, for example a web server reading the database host's address from hostvars of the first host in the db group. Cautions: hostvars facts exist only if that host has already been contacted in the run, set_fact has high precedence, which can mask configuration, and registered variables from skipped tasks still exist with a skipped flag, so check before using the output.",
+"f": [
+"When does hostvars not contain facts for another host?",
+"Why is set_fact risky for configuration?"
+],
+"p": "register captures task output, set_fact defines run-time variables per host, and magic variables like hostvars, groups and inventory_hostname expose inventory and other hosts. Beware hostvars before facts are gathered, set_fact precedence and skipped registered results.",
+"cmds": [
+"- ansible.builtin.command: hostname -f\n  register: fqdn\n- ansible.builtin.set_fact:\n    db_host: \"{{ hostvars[groups['db'][0]].ansible_default_ipv4.address }}\""
+],
+"tip": "Say hostvars needs facts already gathered for that host."
+},
+{
+"tag": "vars",
+"q": "What are lookup plugins and how do you use them safely?",
+"a": "Lookups retrieve data from external sources during templating and run on the control node, not on the target. Common ones read files, environment variables, URLs, DNS records, CSV or INI files, password generation, and secret stores such as HashiCorp Vault, AWS Secrets Manager and 1Password through collections. They are called with the lookup function, or the query function, which always returns a list. Safe use means remembering the controller location, for example a file lookup reads from the machine running Ansible, not the target. For secrets, I prefer a lookup against a dedicated secrets manager with short-lived credentials over storing values in vars files, and I set no_log on tasks that use them so the value is not printed. Because lookups run at each evaluation of a variable, an expensive one used in many places can slow down a play, so I register the result once or wrap it in set_fact. I also handle missing items with the default or errors ignore options.",
+"f": [
+"What is the difference between lookup and query?",
+"Why might a lookup be slow in a template?"
+],
+"p": "Lookups fetch data on the control node from files, env, URLs, DNS or secret stores. Use query for lists, protect output with no_log, and evaluate expensive lookups once with set_fact. Remember paths are controller paths.",
+"cmds": [
+"{{ lookup('ansible.builtin.file', 'files/key.pub') }}",
+"{{ lookup('community.hashi_vault.hashi_vault', 'secret/data/app:password') }}"
+],
+"tip": "Say lookups run on the controller and should be no_log when secret."
+},
+{
+"tag": "vars",
+"q": "How do you generate configuration from structured data using loops in templates?",
+"a": "I model the data as variables in YAML, for example a list of virtual hosts or a dictionary of upstreams, then render with a for loop in the template. Inside Jinja2 a for loop can iterate lists and dictionary items, with loop.index, loop.first and loop.last helpers for commas or separators, and conditional blocks for optional settings. For cleaner output I use trim_blocks and lstrip_blocks, and I avoid putting complicated logic in the template by preparing data with filters in the task, for example sorting, grouping or merging defaults with overrides using combine. For files that are one resource per file, I loop at the task level with the template module and set the destination from the item, which makes handlers and permissions simpler. Testing is by rendering with check and diff, and by validating the output with the service's own syntax checker. Keeping the data model separate from the template means non-experts can add a host by editing YAML.",
+"f": [
+"When would you loop in the task instead of the template?",
+"How do you avoid trailing commas in generated files?"
+],
+"p": "Model data as YAML, loop in Jinja2 with loop.first and loop.last helpers, prepare data with filters or combine, and use task-level loops for one-file-per-item cases. Validate generated files with the service's checker.",
+"cmds": [
+"{% for v in vhosts %}\nserver_name {{ v.name }};\n{% endfor %}",
+"- ansible.builtin.template:\n    src: vhost.j2\n    dest: \"/etc/nginx/conf.d/{{ item.name }}.conf\"\n  loop: \"{{ vhosts }}\""
+],
+"tip": "Say separate the data model from the template."
+},
+{
+"tag": "vars",
+"q": "How do you merge default and override dictionaries, and what are the pitfalls?",
+"a": "The combine filter merges dictionaries, with the right side winning on key conflicts. By default it is shallow, so a nested dictionary on the right replaces the entire nested dictionary on the left. With recursive true it merges nested keys, and the list_merge option controls what happens with lists: replace, append, prepend or keep. A typical pattern is a role default dictionary, such as app_config_defaults, combined with a user-supplied app_config_overrides, into a final value in a task or template. Pitfalls include accidental shallow merges that drop nested defaults, ordering mistakes where the wrong side wins, lists that are replaced rather than extended, and variable precedence, since a dictionary defined at multiple levels is replaced, not merged, unless hash_behaviour merge is enabled, which is discouraged and deprecated. I therefore use explicit combine in code with documented variable names, rather than relying on global merge behaviour.",
+"f": [
+"Why is hash_behaviour merge discouraged?",
+"How do you append lists when merging?"
+],
+"p": "Use combine, with recursive true for nested dictionaries and list_merge to control lists. Keep defaults and overrides as separate variables, and avoid global hash_behaviour merge since precedence otherwise replaces whole dictionaries.",
+"cmds": [
+"{{ app_defaults | combine(app_overrides | default({}), recursive=True, list_merge='append') }}"
+],
+"tip": "Say variables replace by default, so combine explicitly."
+},
+{
+"tag": "vault",
+"q": "What is Ansible Vault and how do you use it?",
+"a": "Ansible Vault encrypts sensitive data, such as passwords, keys and tokens, so it can be stored in version control. You can encrypt a whole file with ansible-vault encrypt, create one with create, edit with edit, and view with view. Alternatively, you can encrypt a single value with encrypt_string, which produces a vault tag inline in a YAML file, so the rest of the file stays readable in diffs. Playbooks decrypt transparently at run time when you provide a password through a prompt, a file, or a script with the vault-password-file option or the ANSIBLE_VAULT_PASSWORD_FILE variable. It uses AES-256 with a key derived from the password. Practices: keep encrypted variables in a separate vault.yml and reference them from plain variables named with a vault prefix so people can grep names; never commit the password file; rotate with rekey; and for larger organisations use an external secrets manager so that rotation and auditing are handled centrally.",
+"f": [
+"Whole-file versus inline encryption: which do you prefer?",
+"How do you rotate the vault password?"
+],
+"p": "Vault encrypts files or single strings with AES-256 so secrets can live in git. Supply the password through a file or script, keep encrypted variables in a separate vault.yml referenced by plain names, rekey to rotate, and consider an external secrets manager at scale.",
+"cmds": [
+"ansible-vault encrypt group_vars/prod/vault.yml",
+"ansible-vault encrypt_string 's3cr3t' --name 'db_password'",
+"ansible-playbook site.yml --vault-password-file ~/.vault_pass"
+],
+"tip": "Say never commit the password file."
+},
+{
+"tag": "vault",
+"q": "How do vault IDs work and how do you use multiple vault passwords?",
+"a": "Vault IDs label encrypted content so you can use different passwords for different environments or teams, for example dev, prod and shared. When encrypting, you pass vault-id with a label and a source, such as prod at a prompt, a file, or a script. The label is stored in the vault header. At run time you can supply several vault-id options, each with its own source, and Ansible tries the matching label first, then others. This allows developers to hold the dev password while only the pipeline or a few engineers hold the production one, so a developer can run against staging without being able to decrypt production secrets. A script as the source can fetch the password from a secrets manager or a keychain, which avoids files on disk. Pitfalls: the label is a hint, not a security boundary by itself, so access control to the actual passwords is what matters, and rotating requires rekeying each ID.",
+"f": [
+"What does the label in the header do?",
+"How would a script supply the password?"
+],
+"p": "Vault IDs label encrypted content, so different environments use different passwords. Provide several vault-id sources at run time; Ansible matches the label. Use scripts to fetch passwords from a secrets manager and limit who holds the production one.",
+"cmds": [
+"ansible-vault encrypt --vault-id prod@prompt group_vars/prod/vault.yml",
+"ansible-playbook site.yml --vault-id dev@~/.vault_dev --vault-id prod@scripts/get_prod_pass.sh"
+],
+"tip": "Say the label is not a security boundary; password access is."
+},
+{
+"tag": "vault",
+"q": "How do you integrate Ansible with HashiCorp Vault or cloud secret managers instead of using Ansible Vault?",
+"a": "For larger environments, a dedicated secrets manager gives central access control, audit, rotation and dynamic short-lived credentials, which file-based Vault cannot. Ansible integrates through lookup plugins, for instance the hashi_vault lookup in the community.hashi_vault collection, the aws_secret lookup in amazon.aws, or equivalents for Azure Key Vault and GCP Secret Manager. The control node, or the AWX execution environment, authenticates with a short-lived method: AppRole, Kubernetes auth, OIDC or cloud instance identity, rather than a static token. Lookups fetch values at run time, and tasks that use them set no_log true. In AWX or Ansible Automation Platform, credential types can inject secrets from an external credential source so job templates never store the secret. Considerations: the lookup runs on the controller, so network access to the secrets manager is needed there, failures should stop the run clearly, and values should not be cached in facts or written to logs.",
+"f": [
+"Why prefer short-lived authentication methods?",
+"Where does a lookup run in AWX?"
+],
+"p": "Use lookup plugins for HashiCorp Vault, AWS, Azure or GCP secret managers, authenticate with short-lived identities such as AppRole, OIDC or instance identity, set no_log, and in AWX use external credential sources so secrets are not stored in job templates.",
+"cmds": [
+"{{ lookup('amazon.aws.aws_secret', 'prod/db/password', region='us-east-1') }}",
+"vault write auth/approle/login role_id=$ROLE secret_id=$SECRET"
+],
+"tip": "Say no static tokens and no_log on the task."
+},
+{
+"tag": "vault",
+"q": "What does no_log do, and how else do you keep secrets out of logs and output?",
+"a": "Setting no_log true on a task or play hides its arguments and results from output, logs and callbacks, replacing them with a notice, which prevents passwords and tokens from appearing in the console, in AWX job output or in CI logs. It also hides useful debugging information, so I enable it only on tasks that handle secrets, and keep it off in a debug build with a variable. Other protections: mark module parameters as no_log in custom modules, avoid passing secrets on command lines where they show in process lists, use environment variables or files with strict permissions, avoid the debug module on secret variables, be careful with verbose flags since they can reveal data, and exclude secrets from check and diff output with diff false on tasks that template secret files. Callback plugins and external logging should be reviewed, and CI systems should mask variables. Also remember that registered results can contain secrets, so avoid printing them.",
+"f": [
+"How can a secret leak through diff mode?",
+"Why avoid secrets on command lines?"
+],
+"p": "no_log hides task arguments and results from output and logs. Use it only where needed, avoid command-line secrets, disable diff on secret templates, mask CI variables and avoid printing registered results.",
+"cmds": [
+"- ansible.builtin.uri:\n    url: https://api/login\n    body: {password: \"{{ api_pass }}\"}\n  no_log: true",
+"- ansible.builtin.template:\n    src: secrets.j2\n    dest: /etc/app/secrets\n    diff: false"
+],
+"tip": "Say no_log hides debugging too, so scope it."
+},
+{
+"tag": "vault",
+"q": "How do you secure SSH access and key management for Ansible?",
+"a": "Ansible's security is largely SSH security. I use a dedicated automation account on the targets, key-based authentication only, with passwords disabled, and a key per environment or per controller rather than a shared personal key. Keys are held in an agent or a secrets manager, not copied around, and protected with passphrases where a human is involved. On targets, the authorized key can be restricted with options such as from, command or no-port-forwarding when feasible, and sudo is limited through a sudoers file to what is required. Better still, use short-lived SSH certificates issued by a certificate authority such as Vault's SSH secrets engine, so there are no long-lived keys to rotate. Host key checking stays enabled, with known hosts populated by trusted means, not disabled globally, which would allow man-in-the-middle attacks. Access to private networks goes through a hardened bastion with ProxyJump or ProxyCommand and audit logging.",
+"f": [
+"Why not disable host key checking?",
+"What is an SSH certificate and why use one?"
+],
+"p": "Use a dedicated automation account with key-only auth, per-environment keys or short-lived SSH certificates, restricted sudo, host key checking enabled and a hardened, audited bastion for private networks.",
+"cmds": [
+"ansible_ssh_common_args='-o ProxyJump=bastion'",
+"ssh-keygen -s ca_key -I ansible-ctl -n ansible -V +1h id_ed25519.pub"
+],
+"tip": "Say short-lived SSH certificates beat long-lived keys."
+},
+{
+"tag": "vault",
+"q": "How do you use Ansible for security hardening and compliance, such as CIS benchmarks?",
+"a": "Ansible suits hardening because it applies and verifies a desired baseline consistently. I start from maintained content, such as the community dev-sec hardening collection or the CIS and DISA STIG roles, and adapt them rather than writing every control by hand. Controls cover SSH configuration, password and account policy, file permissions, kernel parameters, services disabled, auditd and logging, firewall rules and package updates. Each control gets a tag and a variable to enable or exempt it, with documented justifications for exceptions. I run in check mode with diff for an assessment, then in apply mode in stages, starting with staging and a canary group, since some hardening, like restricting SSH or mounting options, can lock people out or break applications. After applying, scanners such as OpenSCAP or InSpec verify compliance and produce reports for auditors. Results are scheduled to detect drift, with the playbook run from AWX on a timer.",
+"f": [
+"How do you avoid locking yourself out?",
+"How do you prove compliance to auditors?"
+],
+"p": "Start from maintained hardening roles, make controls tagged and toggleable with documented exceptions, assess in check mode, apply in stages with a canary group, verify with OpenSCAP or InSpec, and schedule runs to catch drift.",
+"cmds": [
+"ansible-galaxy collection install devsec.hardening",
+"ansible-playbook harden.yml --check --diff -l canary"
+],
+"tip": "Say staged rollout, verification scan and exceptions with reasons."
+},
+{
+"tag": "vault",
+"q": "How do you design privilege escalation and sudo policy for automation accounts?",
+"a": "The aim is that automation can do what it needs and nothing more. I create a dedicated automation user per purpose and per environment, with key-based login, and grant it sudo through a file in the sudoers directory, validated with visudo. The broadest option is passwordless sudo for all commands, which is convenient but means that compromise of the controller equals root everywhere. A tighter policy limits sudo to specific commands, or uses separate accounts for specific roles, for example an application deployment account that may restart one service. Where full root is required, I protect the controller strongly: restricted access, audit logging, short-lived credentials and network segmentation. In playbooks I apply become only to the tasks that need it, and use become_user with an application account for file ownership. Sudo logging and session auditing record what was run. I review these policies regularly and test that playbooks still work under the restricted policy in staging.",
+"f": [
+"What is the risk of passwordless sudo ALL?",
+"How do you validate a sudoers file safely?"
+],
+"p": "Use dedicated automation accounts with key login and sudoers entries validated by visudo. Prefer command-limited sudo where practical, protect the controller strongly if root is needed, apply become only to needed tasks and audit sudo activity.",
+"cmds": [
+"- ansible.builtin.copy:\n    dest: /etc/sudoers.d/ansible\n    content: \"ansible ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart app\\n\"\n    validate: 'visudo -cf %s'\n    mode: '0440'"
+],
+"tip": "Say the controller becomes the crown jewel if sudo is broad."
+},
+{
+"tag": "vault",
+"q": "How do you handle secrets in CI/CD pipelines that run Ansible?",
+"a": "The pipeline needs secrets, but they should be short-lived, scoped and never printed. I store the vault password or the cloud credentials in the CI system's secret store, expose them only to protected branches and environments, and have the job write the vault password to a temporary file with strict permissions or pass it through a script, removing it afterwards. Better, the job authenticates to a secrets manager with an OIDC identity from the CI provider, retrieving short-lived credentials at run time, which avoids stored long-lived secrets. SSH keys are loaded into an agent for the job's duration only. Logs are protected with masking and no_log, and verbosity is not enabled on production runs. For pull requests from forks, secrets are not exposed. Production runs need approvals, and the same pipeline uses a separate credential set per environment. Finally, audit logs show who triggered what, and credentials are rotated on a schedule.",
+"f": [
+"How does OIDC avoid stored secrets in CI?",
+"Why not expose secrets to fork pull requests?"
+],
+"p": "Keep secrets in the CI secret store scoped to protected branches, prefer OIDC to fetch short-lived credentials, write vault passwords to temporary files and remove them, load SSH keys into an agent only per job, mask logs and require approval for production.",
+"cmds": [
+"echo \"$VAULT_PASS\" > .vp && chmod 600 .vp && ansible-playbook site.yml --vault-password-file .vp; rm -f .vp",
+"ssh-add - <<< \"$DEPLOY_KEY\""
+],
+"tip": "Say OIDC short-lived credentials beat stored secrets."
+},
+{
+"tag": "vault",
+"q": "How do you audit and review Ansible code for security problems?",
+"a": "I treat playbooks as code that can change production, so they get review and automated checks. ansible-lint runs in CI with a profile such as production, catching risky patterns: use of shell where a module exists, missing no_log, world-writable file modes, plain-text passwords, unpinned package versions and missing FQCNs. Secret scanning tools like gitleaks or trufflehog check commits for credentials. Code review focuses on privilege, on tasks that download and execute remote content, disabled certificate validation, disabled host key checking, and templates that embed secrets. Branch protection requires approval for production playbooks, with separate reviewers for sensitive roles. At run time, AWX or the platform provides audit logs of who ran which job template with which inputs, and I forward them to the central logging system. Dependencies are scanned too, as roles and collections from public sources can be compromised, so I pin versions and mirror trusted content.",
+"f": [
+"Which lint rules catch security problems?",
+"How do you protect against malicious Galaxy content?"
+],
+"p": "Run ansible-lint with a strict profile and secret scanning in CI, review privilege, downloads, disabled validation and secrets, protect production branches, keep AWX audit logs centrally, and pin and mirror third-party roles and collections.",
+"cmds": [
+"ansible-lint --profile production",
+"gitleaks detect --source ."
+],
+"tip": "Say pin and mirror third-party content."
+},
+{
+"tag": "vars",
+"q": "How do extra vars, vars_files and include_vars differ, and when do you use each?",
+"a": "Extra vars, passed with the e option on the command line or from a file, have the highest precedence and override everything else, so I use them for run-specific parameters from a pipeline or an operator, such as a version to deploy or a target environment, and never for ordinary configuration. A vars_files entry in a play loads variables from listed files when the play starts, handy for a fixed set of environment data. The include_vars module loads a file or directory dynamically during execution, so the file name can depend on facts, for example an OS-specific variables file per distribution, with the loaded values taking task-level precedence. I use include_vars with first_found to select a file such as the OS family and falling back to a default. Care points: extra vars arrive as strings, so booleans and numbers need type conversion; large extra vars from untrusted users can be dangerous, so I restrict them in AWX with surveys and validation.",
+"f": [
+"Why do extra vars arrive as strings?",
+"How would you load OS-specific variables?"
+],
+"p": "Extra vars have the highest precedence and suit run-time parameters; vars_files loads fixed files at play start; include_vars loads dynamically, for example per OS with first_found. Convert types and restrict inputs in AWX surveys.",
+"cmds": [
+"ansible-playbook deploy.yml -e version=1.4.2 -e @env/prod.yml",
+"- ansible.builtin.include_vars: \"{{ lookup('ansible.builtin.first_found', ['{{ ansible_distribution }}.yml','default.yml']) }}\""
+],
+"tip": "Say extra vars for parameters, not for configuration."
+},
+{
+"tag": "vars",
+"q": "How do you validate inputs and variables so a playbook fails early with clear messages?",
+"a": "Failing early saves time and prevents half-applied changes. Within a play I use the assert module at the start with conditions and custom fail messages, for example checking that a required variable is defined, a port is in range, a version string matches a pattern, or a list is not empty. The mandatory filter and the default filter used carefully also catch missing values. For roles, the argument_specs file in the role meta directory defines types, required flags, choices and defaults for each entry point, and Ansible validates inputs before the role runs, producing a clear error and doubling as documentation. At the boundary with users, AWX surveys can restrict choices and types. I also run pre-flight checks for connectivity, disk space and package repository access in pre_tasks, so problems are found before changes start. This makes failures cheap, predictable and easy to understand for the person who ran the job.",
+"f": [
+"What does argument_specs give you?",
+"What belongs in a pre-flight check?"
+],
+"p": "Use assert with clear messages, the mandatory filter, role argument_specs for typed validation, AWX surveys and pre-flight tasks for connectivity and capacity, so a bad input fails before any change.",
+"cmds": [
+"- ansible.builtin.assert:\n    that:\n      - app_version is match('^[0-9]+\\\\.[0-9]+\\\\.[0-9]+$')\n      - app_port | int in range(1024, 65536)\n    fail_msg: 'Invalid app_version or app_port'"
+],
+"tip": "Say fail early with a human-readable message."
+},
+{
+"tag": "vault",
+"q": "How do you rotate secrets and the vault password with minimal disruption?",
+"a": "Rotation should be routine, not an emergency. For Ansible Vault content, the rekey command re-encrypts files with a new password, and with vault IDs you can rotate one environment at a time. The process is: generate the new password in the secrets manager, rekey all encrypted files in a branch, update the pipeline and the controller's secret to the new value, merge, and then revoke the old one, ideally keeping a short overlap during which both work. For application secrets stored in vault files, rotation means changing the secret at the source, such as the database user, and then updating the encrypted value and redeploying, which can be automated with a playbook that updates both ends in a safe order, avoiding downtime by supporting two credentials during the transition. Moving the application secrets to an external secrets manager with dynamic credentials reduces the manual work. I record rotation dates and test the process regularly, including recovery.",
+"f": [
+"How do you rekey many files at once?",
+"How do you avoid downtime during a database password change?"
+],
+"p": "Rekey vault files with ansible-vault rekey, rotate per vault ID, update pipeline secrets and revoke the old password after an overlap. For application secrets, rotate at the source, support two credentials during transition and consider a secrets manager with dynamic credentials.",
+"cmds": [
+"ansible-vault rekey --vault-id prod@old_pass --new-vault-id prod@new_pass group_vars/prod/vault.yml",
+"grep -rl '$ANSIBLE_VAULT' . | xargs ansible-vault rekey --new-vault-password-file new_pass"
+],
+"tip": "Say plan an overlap, then revoke the old secret."
+},
+{
+"tag": "scale",
+"q": "How do forks affect performance, and how do you tune them?",
+"a": "The forks setting controls how many hosts Ansible works on in parallel for each task, defaulting to five, which is conservative. Raising it speeds up runs across large inventories, since more hosts are contacted at once, but it consumes more memory and CPU on the control node and more simultaneous SSH connections, so there is a limit set by the controller's resources and by the targets and any jump hosts or bastions, which may have connection limits. I tune by measuring: increase forks in steps, such as 20, 50 and 100, watch controller load and memory, and the task timings, and stop where improvement flattens. Forks apply per task across the current batch, so with the serial keyword the effective parallelism is limited to the batch size. Other settings interact: SSH pipelining, ControlPersist, fact gathering, and the strategy. For very large fleets, I also distribute the work across several controllers or AWX execution nodes instead of one big machine.",
+"f": [
+"What limits forks in practice?",
+"How does serial interact with forks?"
+],
+"p": "Forks sets parallel hosts per task, default five. Raise it stepwise while watching controller CPU, memory and bastion limits, remember serial caps batch size, and for very large fleets spread work across multiple execution nodes.",
+"cmds": [
+"ansible-playbook site.yml -f 50",
+"[defaults]\nforks = 50"
+],
+"tip": "Say measure, increase gradually and watch the controller."
+},
+{
+"tag": "scale",
+"q": "What are the linear, free and other strategies, and when do you use them?",
+"a": "A strategy decides how tasks are scheduled across hosts. The default linear strategy runs each task on all hosts in the batch and waits for the slowest before starting the next task, which keeps hosts in lockstep and is predictable. The free strategy lets each host proceed through the tasks as fast as it can without waiting, which shortens total time when hosts differ in speed, but output is interleaved and ordering assumptions between hosts, such as one host depending on another having finished a step, break. The host_pinned strategy is similar to free but keeps a worker on a host. The debug strategy drops into an interactive debugger on failure. I use linear for coordinated rollouts and anything with cross-host dependencies, and free for independent work such as patching or package installation across many unrelated servers. The strategy is set per play, and I combine it with serial for rolling control.",
+"f": [
+"Why can free break dependencies between hosts?",
+"What does the debug strategy do?"
+],
+"p": "Linear keeps hosts in lockstep and is predictable; free lets each host run ahead for speed when tasks are independent; host_pinned and debug are variants. Use linear for coordinated changes and free for independent bulk work.",
+"cmds": [
+"- hosts: all\n  strategy: free\n  tasks: []",
+"ANSIBLE_STRATEGY=linux ansible-playbook site.yml"
+],
+"tip": "Say free is faster but loses ordering guarantees."
+},
+{
+"tag": "scale",
+"q": "How do you do rolling updates with serial, and control failures during them?",
+"a": "The serial keyword limits how many hosts a play works on at a time, so the whole play, all tasks, finishes for one batch before the next batch starts. It can be a number, a percentage or a list that grows, such as 1, then 5, then 20, which gives a canary pattern: one host first, then more. Combined with max_fail_percentage and any_errors_fatal it stops the rollout if too many hosts fail, protecting the remaining healthy servers. Typical flow for a web tier: remove a host from the load balancer with a delegated task, update, run health checks, return it to service, then move to the next batch. I add a wait_for or uri check after each update, so a bad host fails the batch immediately. Note that with serial, run_once applies per batch, and that variable max_fail_percentage applies to each batch. Set batches so capacity remains sufficient while hosts are out.",
+"f": [
+"What is a growing serial list?",
+"How do you pick a safe batch size?"
+],
+"p": "serial limits a play to batches, which gives rolling updates and canary patterns with a growing list. Add max_fail_percentage or any_errors_fatal and health checks so a failing batch stops the rollout; keep enough capacity while batches are out.",
+"cmds": [
+"- hosts: web\n  serial: [1, 5, '25%']\n  max_fail_percentage: 10\n  tasks: []"
+],
+"tip": "Say canary first batch plus health checks and a failure threshold."
+},
+{
+"tag": "scale",
+"q": "How do SSH pipelining, ControlPersist and Mitogen speed up Ansible?",
+"a": "By default Ansible opens a connection and runs several SSH operations per task, such as creating a temporary directory, copying the module, executing it and cleaning up. Enabling ControlPersist, which is on by default with OpenSSH, keeps a master connection open and reuses it, avoiding repeated handshakes. Enabling pipelining in ansible.cfg sends the module code over the existing SSH session rather than writing a temporary file first, cutting the number of round trips substantially, with one caveat: it requires that requiretty is not set in sudoers on targets. ControlPath length can also cause issues on long hostnames. Mitogen for Ansible is a third-party strategy plugin that replaces the connection and execution layer with a persistent, multiplexed process, which can give large speedups, but it lags behind newer ansible-core releases and is not supported in managed platforms, so it is a decision with trade-offs. I measure with the profile_tasks callback before and after changes.",
+"f": [
+"What does pipelining require on the target?",
+"How do you measure which tasks are slow?"
+],
+"p": "ControlPersist reuses SSH connections and pipelining sends modules over the existing session, cutting round trips, provided requiretty is off. Mitogen can speed things further but has compatibility trade-offs. Measure with profile_tasks.",
+"cmds": [
+"[ssh_connection]\npipelining = True\nssh_args = -o ControlMaster=auto -o ControlPersist=60s",
+"ANSIBLE_CALLBACKS_ENABLED=ansible.posix.profile_tasks ansible-playbook site.yml"
+],
+"tip": "Say measure with profile_tasks before and after."
+},
+{
+"tag": "scale",
+"q": "How do fact caching and limiting fact gathering help at scale?",
+"a": "Gathering facts runs the setup module on every host at the start of each play, which for thousands of hosts and several plays costs a lot of time. I reduce this in layers. First, disable gathering in plays that do not need facts. Second, use gather_subset to collect only needed categories, such as min. Third, enable a fact cache with the smart gathering policy and a backend such as Redis, memcached or JSON files, with a timeout, so facts from a recent run are reused and not recomputed. With caching, other hosts' facts remain available through hostvars even when a play targets only a subset, which helps cross-host templating. The cost is staleness: facts can be old, so the timeout should match how quickly the data changes, and tasks that need fresh values, such as disk usage, should refresh explicitly or avoid the cache. Redis gives shared caching for several controllers.",
+"f": [
+"What does the smart gathering policy do?",
+"What data should not come from a cache?"
+],
+"p": "Disable or subset fact gathering, and enable a fact cache such as Redis or JSON with smart gathering and a timeout so recent facts are reused. Watch staleness and refresh volatile facts explicitly.",
+"cmds": [
+"[defaults]\ngathering = smart\nfact_caching = redis\nfact_caching_timeout = 3600\nfact_caching_connection = redis01:6379:0"
+],
+"tip": "Say pick a timeout matching how fast facts change."
+},
+{
+"tag": "scale",
+"q": "How do async and poll work, and when do you use them for long-running tasks?",
+"a": "By default Ansible holds an SSH connection open until a task finishes, which can time out on long operations such as large package upgrades, database dumps or reboots. With async you set a maximum runtime in seconds, and poll sets how often Ansible checks. With a poll interval greater than zero, Ansible still waits but uses a background job and polling, avoiding connection timeouts. With poll set to zero it starts the job and moves on immediately, which lets you fire a task on many hosts, run other work, and later collect the results with the async_status module and the job id from the registered variable. This is useful for parallelising slow tasks, for starting several long jobs across hosts and checking them afterwards. Caveats: you must handle failures when collecting, async tasks cannot use some features like check mode in the usual way, and cleanup of job files may be needed, so I set the retries and delay values in the status check loop.",
+"f": [
+"How do you collect results of poll zero tasks?",
+"What problem does async solve for slow tasks?"
+],
+"p": "async sets a maximum run time and poll sets how often to check, avoiding connection timeouts; poll zero fires and forgets, and async_status collects results later in a retry loop. Handle failures when collecting.",
+"cmds": [
+"- ansible.builtin.command: /usr/local/bin/backup.sh\n  async: 3600\n  poll: 0\n  register: job",
+"- ansible.builtin.async_status:\n    jid: \"{{ job.ansible_job_id }}\"\n  register: r\n  until: r.finished\n  retries: 60\n  delay: 30"
+],
+"tip": "Say poll 0 plus async_status lets tasks overlap."
+},
+{
+"tag": "scale",
+"q": "How do you manage very large or fast-changing inventories?",
+"a": "For thousands of hosts, I make the inventory a derived view of a source of truth rather than a hand-edited file. Inventory plugins pull from cloud APIs, VMware, a CMDB or a database, and use caching with a sensible timeout so a run does not hammer the API each time. Keyed groups and filters create groups from tags, regions and roles, and compose maps cloud attributes to Ansible variables such as the connection address. I limit the scope with the limit option or the inventory's own filters, so a run touches only the relevant slice. Group structure is kept shallow and consistent, with environment and role as the main axes. Variables live in group_vars, not per host, to avoid thousands of files. For performance, I use fact caching, higher forks, and, if needed, partitioning the fleet across several controllers or AWX instance groups. Validation scripts check that every host belongs to the expected groups.",
+"f": [
+"Why cache dynamic inventory results?",
+"How do instance groups help in AWX?"
+],
+"p": "Make the inventory a view over a source of truth with plugins, caching, keyed groups and filters, keep group structure shallow, put variables in groups, limit runs to slices, and spread work over several controllers or instance groups.",
+"cmds": [
+"ansible-inventory -i aws_ec2.yml --list --yaml | head",
+"plugin: amazon.aws.aws_ec2\ncache: true\ncache_timeout: 300\nkeyed_groups:\n  - key: tags.Role\n    prefix: role"
+],
+"tip": "Say the inventory is derived from truth, never hand-maintained."
+},
+{
+"tag": "scale",
+"q": "How would you patch thousands of Linux servers safely with Ansible?",
+"a": "I treat patching as a controlled rollout. First, define groups by criticality and redundancy, and a maintenance window with approval. Pre-checks confirm free disk space, repository access, backups or snapshots, and that the cluster has quorum or spare capacity. Then patch in batches with serial, starting with a canary group, and for each host: drain from the load balancer or put in maintenance mode, apply updates with the package module, reboot only if needed, detected through needs-restarting or the presence of reboot-required, wait for the host to come back with wait_for_connection, run health checks, and return it to service. Set max_fail_percentage so the rollout stops if too many hosts fail. Strategies like free can speed independent fleets, while clustered services use strict serial one at a time. Output is recorded to a report, and the process is scheduled in AWX with notifications. I also keep an easy exclusion list for packages that need coordinated upgrades, such as kernel or database versions.",
+"f": [
+"How do you detect that a reboot is required?",
+"What do you do when a canary fails?"
+],
+"p": "Group by criticality, pre-check capacity and backups, patch in serial batches starting with a canary, drain and return from the load balancer, reboot only when required, health-check each host, stop on a failure threshold and report results.",
+"cmds": [
+"- ansible.builtin.reboot:\n    reboot_timeout: 900\n  when: reboot_required.stat.exists",
+"ansible-playbook patch.yml -l canary --check --diff"
+],
+"tip": "Say canary, batch, health check, stop threshold."
+},
+{
+"tag": "trouble",
+"q": "A host shows UNREACHABLE. How do you troubleshoot it?",
+"a": "UNREACHABLE means Ansible could not establish a connection, as opposed to a task failing. I move from the outside in. First, verify basic reachability with ping and the port with nc or a simple ssh attempt using the same user, key and options Ansible uses, which I see with the verbose flag: triple or quadruple v shows the exact SSH command. Common causes are DNS or the wrong address in inventory, a security group or firewall blocking port 22, the host being down or rebooting, a wrong remote user or key, host key mismatches in known hosts, too many connection attempts hitting MaxStartups, a bastion not configured, a stale ControlPersist socket, or a Windows host with WinRM disabled. I also check the SSH daemon logs on the target for authentication errors. Once SSH works manually, I rerun the ping module. For intermittent cases, I look at network quality, timeouts and the connection retries setting.",
+"f": [
+"How do you see the exact SSH command Ansible runs?",
+"What does a stale ControlPersist socket look like?"
+],
+"p": "UNREACHABLE means no connection. Reproduce with the same SSH command using -vvv, then check address, DNS, firewall, user, key, host keys, sshd logs and bastion settings. Once SSH works manually, retest with the ping module.",
+"cmds": [
+"ansible web01 -m ping -vvvv",
+"ssh -vvv -i ~/.ssh/ansible ansible@10.0.1.12"
+],
+"tip": "Say replicate the exact SSH command with -vvvv first."
+},
+{
+"tag": "trouble",
+"q": "A playbook is slow. How do you find out why and speed it up?",
+"a": "I measure first. I enable the profile_tasks and timer callbacks to see the slowest tasks and total time, and optionally profile_roles. Then I look for the usual causes. Fact gathering across many hosts: disable or subset it or use caching. Low forks leaving the controller idle. SSH overhead: enable pipelining and ControlPersist. Many small tasks in loops that could be a single call, for example installing packages one by one. Package cache updates on every run, which cache_valid_time avoids. Tasks that wait on timeouts, such as unreachable hosts or slow DNS. Expensive templating or lookups evaluated repeatedly. Linear strategy waiting on a single slow host: consider free. Serial settings making batches tiny. Slow API-based modules calling cloud services without batching. After changes, I rerun and compare the timing, aiming at the top few tasks, since they usually account for most of the time.",
+"f": [
+"What does cache_valid_time do?",
+"Why can a loop be much slower than a list?"
+],
+"p": "Profile with profile_tasks to find the slowest tasks, then fix the cause: fact gathering, low forks, SSH overhead, per-item loops, repeated package cache updates, slow lookups or the linear strategy waiting on one host. Re-measure after each change.",
+"cmds": [
+"ANSIBLE_CALLBACKS_ENABLED=ansible.posix.profile_tasks,ansible.posix.timer ansible-playbook site.yml",
+"- ansible.builtin.apt:\n    update_cache: true\n    cache_valid_time: 3600"
+],
+"tip": "Say measure with profile_tasks, then change one thing at a time."
+},
+{
+"tag": "trouble",
+"q": "How do you debug a failing playbook: verbosity, the debug module and the debugger?",
+"a": "I use increasing levels of detail. The v flags raise verbosity: one shows task results, two adds input, three shows connection details and four shows the SSH commands and the full communication. The debug module prints variables or messages, for example var set to a registered result, helping me see what a task returned or what a variable contains. For interactive investigation, the strategy debug or the debugger keyword on a task or play opens a prompt on failure, where I can print the task arguments, update variables, redo the task or continue. Additional tools: the step option to confirm each task, start-at-task to resume from a specific task, the syntax-check option for parse errors, list-tasks and list-hosts to confirm what will run, and ansible-inventory host to inspect variables. I also run a single task as an ad-hoc command with the same arguments to isolate module behaviour. In production runs, I avoid leaving verbose output enabled because it can reveal secrets.",
+"f": [
+"How do you resume from a given task?",
+"What does the debugger let you do?"
+],
+"p": "Raise verbosity with -v to -vvvv, use the debug module to inspect variables and results, use the debugger keyword or debug strategy for interactive failures, and use step, start-at-task, syntax-check, list-tasks and ansible-inventory --host to narrow down.",
+"cmds": [
+"ansible-playbook site.yml -vvv --start-at-task 'Install nginx'",
+"- hosts: web\n  debugger: on_failed",
+"ansible-playbook site.yml --syntax-check"
+],
+"tip": "Say -vvvv for connection issues and debugger for logic issues."
+},
+{
+"tag": "trouble",
+"q": "A task reports changed on every run. How do you track it down?",
+"a": "A task that always changes breaks idempotency and triggers handlers needlessly. The usual culprits are command, shell and raw tasks that have no changed_when, and fixes include creates, removes or a check command with a changed_when condition. Other causes: templates containing a timestamp, random value or ordering of dictionary keys that differs between runs; a file or lineinfile task with a regular expression that does not match what it writes, so it keeps adding the line; modules that compare numeric strings and quoted values differently, such as mode written as 644 instead of '0644'; services started with an unstable restart; and package versions set to latest. To investigate I run the play twice with diff mode to see the actual differences, look at the registered output to see what changed, and use the verbose flag. After fixing, I add a run-twice test in CI that fails if the second run reports any changes.",
+"f": [
+"Why does mode as a number cause changes?",
+"How would you add a CI check for idempotency?"
+],
+"p": "Always-changed tasks usually are command or shell without changed_when, unstable templates, regexes that do not match their own output, mode written as a number, or latest versions. Run twice with diff, fix, and add a CI check that the second run has zero changes.",
+"cmds": [
+"ansible-playbook site.yml --diff | grep -A5 'changed:'",
+"- ansible.builtin.file:\n    path: /etc/app\n    mode: '0755'"
+],
+"tip": "Say quote file modes and use changed_when on commands."
+},
+{
+"tag": "trouble",
+"q": "You get an 'undefined variable' error or a templating failure. What is your approach?",
+"a": "First I read the message carefully, since Ansible names the variable and the task. Then I confirm where the variable should come from: the inventory, group_vars, a role default, a registered result or a fact. I run the debug module with var for the name on the failing host, and ansible-inventory with the host option to see inventory-level variables. Common causes: a typo or different naming between role and playbook; the variable defined only for a different group; a registered variable from a task that was skipped or failed earlier; facts not gathered because gather_facts is off or limited; precedence causing an override with an empty value; a nested key missing from a dictionary; and quoting issues where a value starting with a curly brace is parsed as a template. Fixes include defining the variable, using default where optional, using mandatory with a message where it must exist, and adding assert checks near the top so problems are caught early.",
+"f": [
+"Why must a YAML value starting with braces be quoted?",
+"How does a skipped task affect registered variables?"
+],
+"p": "Read the error for the variable and task, check where it should be defined, inspect with debug and ansible-inventory --host, and look for typos, wrong groups, skipped registers, missing facts, precedence or YAML quoting problems. Then fix with defaults, mandatory and early asserts.",
+"cmds": [
+"ansible web01 -m debug -a 'var=hostvars[inventory_hostname]' -i inventory",
+"ansible-inventory -i inventory --host web01 | jq ."
+],
+"tip": "Say add an assert so the next failure is clearer."
+},
+{
+"tag": "trouble",
+"q": "How do you troubleshoot privilege escalation failures, such as a missing sudo password?",
+"a": "Typical errors are 'Missing sudo password', 'Authentication failure' when using become, or a timeout waiting for the privilege escalation prompt. I first test manually: ssh to the host with the same user and run sudo -n true, which shows whether passwordless sudo works. Common causes: the user is not in sudoers or the entry has a restrictive command list, so the temporary Python invocation is not allowed; requiretty is set in sudoers, which also breaks pipelining; the become method is wrong, for example su needed rather than sudo; the become password variable is missing or in the wrong scope; a different become_user lacks permission to read the temporary files in the remote directory, which needs the acl package or a world-readable temporary directory setting; or a PAM or shell profile prints text that interferes with the prompt. Fixes include correcting sudoers with visudo, setting become variables, and adjusting the allow_world_readable_tmpfiles setting only when necessary.",
+"f": [
+"What does sudo -n true tell you?",
+"Why does become to an unprivileged user need acl?"
+],
+"p": "Reproduce with ssh and sudo -n true. Check sudoers entries, requiretty, the become method and variables, whether become_user can read temporary files (needs acl), and noisy shell profiles. Fix sudoers with visudo and set become settings explicitly.",
+"cmds": [
+"ssh ansible@host 'sudo -n true && echo ok'",
+"ansible web01 -m ping -b -vvv"
+],
+"tip": "Say test sudo manually before touching Ansible."
+},
+{
+"tag": "trouble",
+"q": "What causes 'module not found', Python interpreter and dependency errors on targets?",
+"a": "Many modules need Python on the target, and some need extra Python libraries. If the interpreter is missing or at a nonstandard path, Ansible reports an interpreter discovery warning or failure. I set ansible_python_interpreter in inventory for those hosts, or use interpreter_python auto, and install Python with the raw module for bootstrapping. Errors like 'No module named boto3' or 'Failed to import the required Python library' mean the library is missing on the host that runs the module: for cloud and API modules that run on the control node via delegate or connection local, it is the controller's Python environment, not the target, which often differs from the Python that ansible-playbook uses when installed in a virtual environment. I install requirements in the right environment, ideally in an execution environment image, pin them in a requirements file, and use ansible --version to check which Python and which module paths are active. 'Module not found' for a collection module means the collection is missing or not on the collections path.",
+"f": [
+"Where do cloud modules run and which Python do they use?",
+"How do you bootstrap Python on a minimal host?"
+],
+"p": "Interpreter or library errors come from missing Python or packages on the host running the module, which for cloud modules is usually the controller. Set ansible_python_interpreter, install requirements in the right environment or execution environment, and install missing collections.",
+"cmds": [
+"ansible --version",
+"ansible newhost -m raw -a 'apt-get install -y python3' -b",
+"pip install boto3 botocore"
+],
+"tip": "Say know which Python runs the module: controller or target."
+},
+{
+"tag": "trouble",
+"q": "A handler did not run, or ran at the wrong time. Why?",
+"a": "Handlers run only when notified by a task that actually reported a change, so if the notifying task showed ok instead of changed, nothing fires, which is expected behaviour and often the cause when someone expects a restart after a manual config change. Other reasons: a failure before the end of the play stops execution before handlers run unless force_handlers is true; the handler name does not match the notify string exactly, including case and spaces; the handler lives in a role but the notify is outside it, or vice versa, or the handler is defined in an included file that is not loaded; with serial, handlers run at the end of each batch; and with imported versus included roles, handler visibility differs. Timing problems occur when a later task needs the restarted service, which needs a flush_handlers meta task. To diagnose, I run with verbose output to see notifications, check the names, and use list-tasks or the debug module to confirm what is loaded. The listen keyword helps decouple names.",
+"f": [
+"What does force_handlers change?",
+"How does the listen keyword help?"
+],
+"p": "Handlers run only on a changed notify, after the play, in definition order. They can be skipped by earlier failures unless force_handlers is set, by name mismatches or by scope. Use flush_handlers for mid-play restarts and listen to decouple names.",
+"cmds": [
+"- hosts: web\n  force_handlers: true\n  tasks:\n    - ansible.builtin.meta: flush_handlers"
+],
+"tip": "Say changed is the trigger, and failures can skip handlers."
+},
+{
+"tag": "trouble",
+"q": "A playbook fails to parse because of YAML or syntax errors. How do you find and avoid them?",
+"a": "I start with ansible-playbook syntax-check, which reports the file and line, and then yamllint or ansible-lint for style and structural problems. Frequent causes: wrong indentation or tabs instead of spaces; an unquoted value containing a colon followed by a space, or starting with a special character like a curly brace, percent sign or asterisk; boolean surprises where yes, no, on and off are converted to booleans, so a value like no for Norway becomes false; duplicate keys, where the later one silently wins; strings that need quotes such as version numbers like 1.10 becoming 1.1; and mixing list and dictionary syntax. Jinja2 errors appear at run time, including unmatched braces or filters that do not exist. To avoid them, I use an editor with YAML and Ansible schema validation, enable lint in a pre-commit hook and CI, quote strings consistently, and prefer true and false for booleans.",
+"f": [
+"Why does the version 1.10 become 1.1?",
+"What does yamllint add beyond syntax-check?"
+],
+"p": "Run syntax-check, then yamllint and ansible-lint. Typical errors are indentation, unquoted colons or braces, yes and no becoming booleans, duplicate keys and numeric versions. Use editor schema validation, pre-commit hooks and quote strings.",
+"cmds": [
+"ansible-playbook site.yml --syntax-check",
+"yamllint . && ansible-lint"
+],
+"tip": "Say quote versions and use true or false for booleans."
+},
+{
+"tag": "trouble",
+"q": "Vault decryption fails with 'Decryption failed' or a missing password. How do you resolve it?",
+"a": "I first identify which file and which vault ID are involved from the error message. Common causes: the wrong password is supplied, or the right password but for a different vault ID than the file's header label; no password source is configured so Ansible cannot decrypt anything, for example when running from a different user, a cron job or AWX without the credential attached; the file was edited manually and the vault header or line wrapping was corrupted; the password file contains a trailing newline issue or different encoding, although Ansible strips newlines; or mixed encrypted content from several passwords where only one is provided. I test with ansible-vault view on the file with the intended password source to separate configuration problems from content problems. Fixes are supplying the correct vault-id, attaching the vault credential in AWX, restoring the file from version control, or rekeying. To prevent trouble, document the vault IDs, store passwords in a manager, and add a CI check that decrypts all vault files.",
+"f": [
+"How do you tell a wrong password from a corrupted file?",
+"How would a CI check validate every vault file?"
+],
+"p": "Identify the file and vault ID, test with ansible-vault view, and check for wrong or missing password sources, mismatched labels, corrupted headers or an unattached AWX credential. Restore or rekey as needed, and add a CI check decrypting every vault file.",
+"cmds": [
+"ansible-vault view group_vars/prod/vault.yml --vault-id prod@scripts/get_pass.sh",
+"head -1 group_vars/prod/vault.yml"
+],
+"tip": "Say test decryption alone with ansible-vault view."
+},
+{
+"tag": "scale",
+"q": "When would you use ansible-pull instead of the usual push model?",
+"a": "In the push model a control node connects to each host. With ansible-pull, each managed host runs a scheduled job, typically cron or a systemd timer, that fetches a playbook repository from Git and applies it locally against itself. This inverts scaling: instead of one controller opening thousands of connections, every host does its own work, so it scales almost without limit, works for machines behind NAT, in edge locations or intermittently connected, and enforces desired state continuously like an agent-based tool. Typical uses are large fleets, laptops, kiosks, autoscaling instances that configure themselves at boot, and edge or retail sites. The costs: you lose central orchestration and ordering across hosts, it is harder to get a central view of results, each host needs Git access and Ansible installed, and credentials for secrets must be present on every machine. I use pull for baseline convergence and self-configuring nodes, and push or AWX for coordinated operations such as rolling deployments and patching.",
+"f": [
+"How do you report results from pull-based hosts?",
+"Why is orchestration harder with pull?"
+],
+"p": "ansible-pull makes each host fetch a Git repo and apply it locally on a schedule. It scales widely and suits NAT, edge and autoscaled hosts, but loses central orchestration and visibility, so combine it with push for coordinated changes.",
+"cmds": [
+"ansible-pull -U https://git.example.com/infra.git -i localhost, local.yml",
+"*/15 * * * * root ansible-pull -o -U $REPO local.yml >> /var/log/ansible-pull.log"
+],
+"tip": "Say pull for convergence at scale, push for orchestration."
+},
+{
+"tag": "scale",
+"q": "How do you protect rate-limited APIs and shared systems when automation runs in parallel?",
+"a": "Running tasks across many hosts at once can overwhelm a shared dependency, such as a cloud API, a package repository, a load balancer or a database. I control concurrency in layers. The throttle keyword on a task or block limits how many hosts execute that task at the same time, regardless of forks, which is ideal for a call to a rate-limited API or an artifact server. The serial keyword limits batch sizes for the whole play, and forks limits global parallelism. For retries on throttling errors, I use until, retries and delay loops with backoff, and many cloud modules have their own retry options. Delegating calls to a single host through run_once and delegate_to avoids many duplicate requests. Mirrors and caches for package and image downloads reduce external load. I also monitor the dependency during a run and keep a conservative default that can be raised.",
+"f": [
+"What is the difference between throttle and serial?",
+"How do you retry on a 429 response?"
+],
+"p": "Use throttle to limit concurrent executions of a task, serial for batch size and forks for global parallelism, add retries with delay on throttling errors, use run_once for single calls, and mirror downloads to reduce external load.",
+"cmds": [
+"- ansible.builtin.uri:\n    url: https://api.example.com/register\n  throttle: 3\n  register: r\n  until: r.status == 200\n  retries: 5\n  delay: 10"
+],
+"tip": "Say throttle protects the dependency, not the controller."
+},
+{
+"tag": "awx",
+"q": "What is the difference between AWX, Ansible Automation Platform and Ansible Tower?",
+"a": "Tower was the original commercial product from Ansible, offering a web UI, role-based access control, scheduling, credentials management, an API and logging around playbooks. When Red Hat open sourced the upstream project, it became AWX, a community project with frequent releases and no support guarantees. Red Hat's supported product is now Ansible Automation Platform, abbreviated AAP, which includes the automation controller, which is the successor of Tower and is derived from AWX, plus Automation Hub for certified and private collections, execution environments, Event-Driven Ansible, automation mesh and analytics, with enterprise support and security patches. In practice: AWX suits labs, learning and teams comfortable with upstream stability risks, while AAP is chosen when support, certification and long-term stability matter. Upgrading AWX across many versions can be tricky, so I plan carefully. The concepts, such as projects, inventories, credentials and job templates, are the same across them, which makes skills transferable.",
+"f": [
+"Which components does AAP add beyond the controller?",
+"Why is AWX upgrading sometimes risky?"
+],
+"p": "Tower was the original commercial product, AWX is the open source upstream, and AAP is Red Hat's supported platform with the automation controller, Automation Hub, execution environments, Event-Driven Ansible and mesh. The concepts transfer across all three.",
+"cmds": [
+"kubectl get awx -n awx",
+"curl -s -u admin:$PASS https://awx.example.com/api/v2/ping/"
+],
+"tip": "Say AWX is upstream, AAP is supported, same concepts."
+},
+{
+"tag": "awx",
+"q": "Explain projects, inventories, credentials and job templates in AWX or the controller.",
+"a": "These are the building blocks. A project points to a source of playbooks, usually a Git repository with a branch or tag, and the controller syncs it, optionally updating on launch. An inventory holds hosts and groups, either static, imported from a source, or synced dynamically from cloud and virtualisation systems, with variables. A credential stores secrets such as machine SSH keys, cloud API keys, vault passwords or source control tokens, encrypted at rest and never shown after saving, and injected into jobs at run time. A job template ties these together: it combines a project and playbook, an inventory, credentials, extra variables, limits, tags, verbosity and execution environment, plus options such as prompt on launch, surveys, concurrent runs and timeouts. Running it creates a job with a full log of results. Teams then get permission to use templates without seeing the secrets, which is the main value: delegated, audited execution of approved automation.",
+"f": [
+"How can a user run a job without seeing the credential?",
+"What does prompt on launch allow?"
+],
+"p": "Projects pull playbooks from Git, inventories hold hosts, credentials store encrypted secrets injected at run time, and job templates combine them with variables, limits and options. Users get permission to run templates without seeing secrets.",
+"cmds": [
+"awx job_templates launch 12 --extra_vars '{\"version\":\"1.4.2\"}' --monitor",
+"awx projects update 5 --monitor"
+],
+"tip": "Say delegated, audited execution without exposing secrets."
+},
+{
+"tag": "awx",
+"q": "How does role-based access control work in AWX and the automation controller?",
+"a": "The model has organisations at the top, containing users, teams and resources such as projects, inventories, credentials and templates. Permissions are granted through roles on specific objects: for a job template, roles include admin, execute and read; for an inventory, admin, update, use and ad hoc; for a credential, admin, use and read; and organisation-level roles such as admin, auditor and member. Roles can be given to individual users or, better, to teams, and teams can be synced from an identity provider using LDAP, SAML or OIDC mappings, so access follows group membership in the company directory. A typical pattern: developers get execute on a deployment template and use on the staging credential, but not on production ones, while a release team has production access. System auditors get read-only visibility. I follow least privilege, separate credentials per environment, review access regularly, and use the activity stream, which records who changed what, to support audits.",
+"f": [
+"Why assign roles to teams rather than users?",
+"What does the use role on a credential permit?"
+],
+"p": "Organisations contain teams, users and resources; roles such as admin, execute, use and read are granted on objects, best through teams mapped from LDAP, SAML or OIDC. Apply least privilege, separate credentials per environment and audit via the activity stream.",
+"cmds": [
+"awx roles grant --team 3 --resource-type job_template --resource 12 --role execute",
+"awx teams list"
+],
+"tip": "Say teams mapped from the identity provider."
+},
+{
+"tag": "awx",
+"q": "What are workflow templates in AWX and how do you use approvals and conditional paths?",
+"a": "A workflow template chains job templates, project or inventory syncs, other workflows and approval nodes into a directed graph, where each edge is conditioned on success, failure or always. This lets you model a release process: run a pre-check, provision, configure, test, and if the test fails, run a rollback and notify. Nodes can pass data forward through set_stats in a playbook, so a later node can use values produced earlier, such as a build identifier. Approval nodes pause the workflow until a user or team approves or denies, with a timeout, which gives change control for production steps. Workflows can use convergence nodes that wait for several parallel branches, and different inventories or limits per node. Benefits are reuse of small, well-tested templates, a visual representation, one audit trail, and consistent permissions. Keep workflows reasonably small and keep logic inside playbooks where possible, since complex graphs are harder to maintain.",
+"f": [
+"How does set_stats pass data between nodes?",
+"How do approval timeouts behave?"
+],
+"p": "Workflows chain job templates, syncs and approval nodes with success, failure and always paths. Use set_stats to pass data, approvals for production gates and convergence for parallel branches, keeping complex logic in playbooks.",
+"cmds": [
+"- ansible.builtin.set_stats:\n    data:\n      build_id: \"{{ build_id }}\"\n    per_host: false",
+"awx workflow_job_templates launch 7 --monitor"
+],
+"tip": "Say approvals and rollback paths make a release workflow."
+},
+{
+"tag": "awx",
+"q": "What are execution environments and how do you build and manage them?",
+"a": "An execution environment, or EE, is a container image that packages ansible-core or ansible-runner together with collections, Python libraries and system packages needed by playbooks, so jobs run in a consistent, isolated environment, instead of whatever is installed on the controller. They replace the older Python virtual environments on Tower. You define the contents in an execution-environment.yml for ansible-builder, listing base image, collections requirements, Python requirements and system packages through bindep, then build the image, push it to a registry and register it in the controller, assigning it to a project or job template. The same image can run locally with ansible-navigator, which gives developers parity with production. Benefits: reproducibility, no dependency conflicts between teams, easy version pinning and rollbacks by tag, and supply chain control by building from approved bases and scanning images. I version images semantically, rebuild regularly for security patches and test them in CI.",
+"f": [
+"What does ansible-builder take as input?",
+"How do developers run an EE locally?"
+],
+"p": "An execution environment is a container image with ansible-core, collections and dependencies. Build with ansible-builder from a definition file, push to a registry, assign it to job templates, and use ansible-navigator locally for parity. Version, scan and rebuild regularly.",
+"cmds": [
+"ansible-builder build -t registry.example.com/ee-platform:1.3 -f execution-environment.yml",
+"ansible-navigator run site.yml --eei registry.example.com/ee-platform:1.3 -m stdout"
+],
+"tip": "Say the EE makes laptop, CI and controller identical."
+},
+{
+"tag": "awx",
+"q": "How do instance groups and automation mesh help scale and isolate execution?",
+"a": "Instance groups are pools of execution capacity that jobs are assigned to, and automation mesh, built on Receptor, connects control, hybrid, execution and hop nodes into an overlay network. The control plane schedules and tracks jobs, while execution nodes actually run playbooks, and they can be placed close to the targets: in a remote data centre, a secured network segment, a cloud region or behind a firewall, where hop nodes bridge networks. This reduces latency, avoids opening wide inbound access to the central controller, and lets you scale capacity by adding nodes rather than enlarging one machine. You can bind inventories, organisations or job templates to instance groups, for example a PCI network group that only runs approved workloads. Containerised groups launch each job in its own pod on a Kubernetes cluster, giving elastic capacity and isolation. Capacity is measured by forks and memory, so I size nodes accordingly and monitor queue times and failed jobs.",
+"f": [
+"What does a hop node do?",
+"How is capacity measured for a node?"
+],
+"p": "Instance groups pool execution capacity, and automation mesh via Receptor links control, execution and hop nodes across networks. Place execution nodes near targets, bind inventories or templates to groups, scale by adding nodes, and use container groups for elastic per-job pods.",
+"cmds": [
+"awx instance_groups list",
+"kubectl get pods -n awx -l app.kubernetes.io/name=awx-task"
+],
+"tip": "Say execution near the targets, control plane in the centre."
+},
+{
+"tag": "awx",
+"q": "How do you integrate AWX with CI/CD, webhooks, surveys and notifications?",
+"a": "Everything in the controller is available through a REST API, and the awx CLI and the awx collection wrap it, so a pipeline can launch a job template, wait for completion and fail if the job fails, with extra variables such as the version to deploy. Webhook integration lets GitHub or GitLab trigger a template on a push or a merge, with a secret to authenticate the call. Surveys add a form to a template where users answer questions with validated types, choices and defaults, which turns a playbook into a self-service request with safe inputs and avoids free-form extra vars. Notification templates send job results to email, Slack, Teams, PagerDuty or a webhook on start, success or failure, at template, workflow or organisation level. Schedules run templates regularly, for example nightly compliance checks. I authenticate automation using OAuth tokens scoped to a service account with only the rights needed, and rotate them.",
+"f": [
+"Why use surveys instead of free extra vars?",
+"How do you authenticate a pipeline to the controller?"
+],
+"p": "Use the REST API, awx CLI or collection to launch templates from CI, webhooks for repository events, surveys for validated self-service inputs, notification templates for results and schedules for recurring jobs. Use scoped OAuth tokens for service accounts.",
+"cmds": [
+"awx job_templates launch deploy-app --extra_vars '{\"version\":\"1.4.2\"}' --monitor --timeout 1800",
+"curl -H \"Authorization: Bearer $TOKEN\" -X POST https://awx.example.com/api/v2/job_templates/12/launch/"
+],
+"tip": "Say a scoped service account token and validated surveys."
+},
+{
+"tag": "awx",
+"q": "How do you deploy, size and make AWX highly available on Kubernetes?",
+"a": "AWX is deployed with the AWX operator, which watches an AWX custom resource and creates the web, task and other deployments, services and ingress. The database is PostgreSQL, either a managed external service or one the operator creates, and for production I prefer an external, highly available database with backups, since it holds all state. Redis is a local component. High availability comes from running multiple replicas of the web and task pods across nodes and zones with anti-affinity, using an ingress or load balancer, and from separating execution capacity into container groups or execution nodes so job load does not starve the control plane. Sizing depends on forks and concurrent jobs: each job needs memory for the runner and CPU, so I set resource requests and limits and monitor queue wait times. Projects use persistent storage. I use external secrets for credentials, TLS on ingress, and configure logging aggregation to send job events to the central log system.",
+"f": [
+"Why use an external PostgreSQL for production?",
+"How does the operator manage upgrades?"
+],
+"p": "Deploy with the AWX operator and an AWX custom resource, use an external highly available PostgreSQL, run multiple web and task replicas with anti-affinity, separate execution into container groups, size by forks and monitor queue times.",
+"cmds": [
+"kubectl apply -k github.com/ansible/awx-operator/config/default?ref=2.19.0",
+"kubectl get awx,pods -n awx"
+],
+"tip": "Say external database and separated execution capacity."
+},
+{
+"tag": "awx",
+"q": "What is Event-Driven Ansible and where does it fit?",
+"a": "Event-Driven Ansible, or EDA, lets automation react to events instead of being started by a person or a schedule. You write rulebooks in YAML, each with sources, rules and actions. Sources are event plugins that listen to systems such as webhooks, Kafka, Prometheus Alertmanager, cloud events or log streams. Rules match conditions on the event data, and actions run a playbook, a job template on the controller, a module or set a fact. Examples include restarting a service when an alert fires, opening a ticket and gathering diagnostics on a failure, or quarantining a host when a security tool reports a compromise. It fits self-healing and auto-remediation, with the usual need for safety: restrict actions to well-understood, idempotent remediations, add rate limits and conditions to avoid loops where an action triggers more events, require approvals for risky steps, and log every decision. EDA runs through the rulebook engine, ansible-rulebook, or the EDA controller in AAP.",
+"f": [
+"How would you prevent remediation loops?",
+"What is a rulebook source?"
+],
+"p": "EDA runs automation in response to events through rulebooks with sources such as webhooks, Kafka or Alertmanager, rules that match conditions and actions that run playbooks. Restrict to safe idempotent remediations with rate limits, approvals and logging.",
+"cmds": [
+"ansible-rulebook --rulebook alerts.yml -i inventory.yml --verbose",
+"- name: restart on alert\n  condition: event.alert.labels.alertname == 'ServiceDown'\n  action:\n    run_job_template:\n      name: restart-service"
+],
+"tip": "Say auto-remediation needs guardrails against loops."
+},
+{
+"tag": "awx",
+"q": "How do you back up, upgrade and recover the automation controller?",
+"a": "State lives in the database, the projects and the configuration secrets, such as the secret key that encrypts credentials, so a recoverable backup includes all of them. For AWX on Kubernetes, the operator provides an AWXBackup custom resource that saves the database and secrets to a persistent volume, and an AWXRestore resource to restore into a new deployment. For an external PostgreSQL, I also use the database's own point-in-time recovery. Backups are copied offsite and restore is tested regularly. Upgrades: read the release notes, back up first, upgrade the operator and then the AWX version one supported step at a time, check migrations, and verify with a test job. For AAP, the installer provides backup and restore playbooks. I keep configuration as code, using the awx collection or the controller configuration collection, so job templates, credentials and inventories can be recreated from Git even in a disaster. I document the recovery procedure and its time objective.",
+"f": [
+"Why does the secret key matter in a restore?",
+"What is configuration as code for the controller?"
+],
+"p": "Back up the database, projects and secrets including the credential encryption key, using AWXBackup or the installer and database PITR. Upgrade stepwise after a backup and verify with a test job. Keep controller configuration as code and test restores.",
+"cmds": [
+"kubectl apply -f awxbackup.yaml",
+"kubectl get awxbackup -n awx"
+],
+"tip": "Say test the restore and keep config as code."
+},
+{
+"tag": "infra",
+"q": "How do you combine Terraform and Ansible in one workflow?",
+"a": "They cover different layers. Terraform creates and manages infrastructure resources, such as networks, instances, load balancers and managed services, tracking them in state, and Ansible configures what runs on the machines and operates them. A handoff is needed: Terraform outputs the addresses or identifiers, and Ansible consumes them. Options include a dynamic inventory from the cloud provider filtered by tags that Terraform applied, which is robust because inventory follows reality; the cloud.terraform collection and its inventory plugin, which reads the Terraform state directly; or generating an inventory file from outputs. Another approach is for Terraform to call Ansible from a provisioner or through a pipeline step, though provisioners are discouraged because failures leave inconsistent state. I prefer a pipeline: apply Terraform, wait for hosts to be reachable, then run Ansible, with each stage idempotent and retryable. Immutable images built with Packer and Ansible reduce the amount of runtime configuration needed.",
+"f": [
+"Why are Terraform provisioners discouraged?",
+"How does the cloud.terraform inventory work?"
+],
+"p": "Terraform creates infrastructure and Ansible configures it. Hand off through a tag-based dynamic inventory or the cloud.terraform inventory plugin, in a pipeline of Terraform apply, wait for connectivity, then Ansible. Prefer pipelines to provisioners.",
+"cmds": [
+"terraform apply -auto-approve && ansible-playbook -i terraform.yml configure.yml",
+"plugin: cloud.terraform.terraform_provider\nproject_path: ./infra"
+],
+"tip": "Say tags from Terraform drive the Ansible inventory."
+},
+{
+"tag": "infra",
+"q": "How do you use Ansible with AWS: dynamic inventory, SSM and common modules?",
+"a": "The amazon.aws collection provides modules for EC2, VPC, S3, IAM and more, along with the aws_ec2 inventory plugin, which discovers instances and builds groups from tags, regions, instance types and VPCs, with compose to choose the connection address, for example a private IP when running inside the VPC. Credentials come from the standard AWS chain, preferably an instance role or OIDC-assumed role, not static keys. For connectivity without SSH, the aws_ssm connection plugin runs tasks through Systems Manager Session Manager, which needs no inbound ports and no SSH keys, and uses an S3 bucket for module transfer, giving IAM-based access control and audit logs. Typical tasks include configuring hosts, creating resources for small setups, and operational runbooks such as snapshots or AMI updates. For infrastructure lifecycle at scale I still prefer Terraform or CloudFormation, with Ansible for configuration. Boto3 and botocore must be installed in the controller's Python environment or the execution environment.",
+"f": [
+"What are the advantages of SSM over SSH?",
+"Which Python libraries do the AWS modules need?"
+],
+"p": "Use amazon.aws with the aws_ec2 inventory plugin and tag-based groups, authenticate with roles or OIDC, and use the aws_ssm connection for access without inbound ports or keys. Install boto3 in the controller environment, and use Terraform for lifecycle at scale.",
+"cmds": [
+"ansible-inventory -i aws_ec2.yml --graph",
+"ansible_connection: community.aws.aws_ssm\nansible_aws_ssm_bucket_name: ansible-ssm-transfer"
+],
+"tip": "Say SSM removes SSH keys and inbound ports."
+},
+{
+"tag": "infra",
+"q": "How do you manage Kubernetes resources with Ansible, and when is it appropriate?",
+"a": "The kubernetes.core collection provides the k8s module to apply manifests or inline definitions, k8s_info to query resources, helm and helm_info for charts, and a kubectl-based connection and inventory plugin. Authentication uses a kubeconfig or in-cluster service account, and the controller needs the kubernetes Python library. Ansible is appropriate for bootstrapping clusters, creating namespaces, quotas and RBAC across many clusters, installing a base set of Helm charts, and for orchestrating steps that mix systems, such as updating DNS, a database and a deployment in order. It is less suited to continuous reconciliation of application state, where GitOps tools like Argo CD or Flux run controllers that detect drift constantly, and Ansible only acts when run. I therefore use Ansible to prepare clusters and platform components, and GitOps for application delivery. Practical points: use the apply option to behave like kubectl apply, wait for conditions with wait and wait_condition, and keep manifests as templates or files in Git.",
+"f": [
+"Why does GitOps handle drift better?",
+"How do you wait for a rollout in a playbook?"
+],
+"p": "kubernetes.core provides k8s, k8s_info and helm modules. Use Ansible for cluster bootstrap, namespaces, RBAC, base charts and cross-system orchestration, and GitOps controllers for continuous reconciliation of applications. Use wait conditions in playbooks.",
+"cmds": [
+"- kubernetes.core.k8s:\n    state: present\n    src: manifests/namespace.yaml\n    apply: true\n    wait: true",
+"pip install kubernetes"
+],
+"tip": "Say Ansible bootstraps clusters; GitOps reconciles apps."
+},
+{
+"tag": "infra",
+"q": "How is Ansible used for network device automation?",
+"a": "Ansible can configure switches, routers and firewalls without agents because most devices are managed through their CLI or an API. Collections exist per vendor and platform, such as cisco.ios, arista.eos, junipernetworks.junos and others, plus ansible.netcommon and ansible.utils for common functions. Connections use network_cli over SSH, netconf, httpapi or the platform's API, and tasks run on the control node, which logs in to the device. Modules come in two kinds: resource modules manage a configuration area, such as interfaces or VLANs, declaratively with states like merged, replaced, overridden, deleted, gathered and rendered, and command or config modules for raw lines. Good practice includes gathering and backing up the running config before changes, using check mode and diff where supported, templating configuration from data models in Jinja2, validating with parsed command output, rolling out in small batches, and keeping the source of truth in Git. Idempotent resource modules reduce the risk of unintended changes.",
+"f": [
+"What do merged, replaced and overridden mean?",
+"How do you back up device configs with Ansible?"
+],
+"p": "Vendor collections provide network modules over network_cli, netconf or httpapi from the controller. Prefer idempotent resource modules with states like merged and replaced, back up configs first, template from data models, check and roll out gradually.",
+"cmds": [
+"- cisco.ios.ios_vlans:\n    config:\n      - vlan_id: 100\n        name: app\n    state: merged",
+"- cisco.ios.ios_config:\n    backup: true"
+],
+"tip": "Say resource modules with states, plus a config backup first."
+},
+{
+"tag": "infra",
+"q": "How do you manage Windows hosts with Ansible?",
+"a": "Windows hosts are managed from a Linux or macOS control node. The connection is WinRM by default, or SSH with the OpenSSH server on newer Windows, and the ansible.windows and community.windows collections provide modules such as win_feature, win_package, win_service, win_user, win_registry and win_shell, which run PowerShell. WinRM needs setting up the listener, usually over HTTPS with a certificate, and an authentication method: Kerberos for domain environments, which is preferred, NTLM or CredSSP when needed, and basic only over HTTPS for local accounts. Variables set the connection type, port, transport and the certificate validation behaviour. Practices include using the dedicated modules instead of win_shell so that tasks are idempotent, careful handling of reboots with the win_reboot module, using become with runas for elevated or different-user tasks, and long-running tasks with async. Common issues are WinRM firewall rules, time skew in Kerberos, double-hop authentication and execution policy settings.",
+"f": [
+"Why prefer Kerberos for domain machines?",
+"What is the double-hop problem?"
+],
+"p": "Use WinRM over HTTPS or SSH with the ansible.windows collections, Kerberos for domain hosts, dedicated modules for idempotency, win_reboot for restarts and become runas for elevation. Watch for firewall, time skew and double-hop issues.",
+"cmds": [
+"ansible_connection: winrm\nansible_winrm_transport: kerberos\nansible_port: 5986",
+"- ansible.windows.win_feature:\n    name: Web-Server\n    state: present"
+],
+"tip": "Say Kerberos over HTTPS and real modules, not win_shell."
+},
+{
+"tag": "infra",
+"q": "How do you use Ansible to configure OpenStack or VMware infrastructure and virtual machines?",
+"a": "For OpenStack, the openstack.cloud collection provides modules for servers, networks, subnets, security groups, volumes, images and projects, authenticating through clouds.yaml, with an inventory plugin that builds groups from server metadata. For VMware, community.vmware and vmware.vmware offer modules for creating VMs from templates, cloning, snapshots, customisation and vCenter operations, with the vmware_vm_inventory plugin. These are suitable for repeatable provisioning of lab and tenant environments, standard onboarding tasks and operations like snapshots before patching. For large or long-lived cloud definitions I still prefer Terraform, which tracks state and handles dependencies and destruction better, while Ansible fills in what happens inside the machine, such as joining a domain, installing agents and configuring services. Care points: modules need the SDK libraries on the controller, API rate limits, waiting for operations to finish with the wait options, and tagging resources so that dynamic inventory groups are accurate. Kolla-Ansible itself is an example of Ansible deploying OpenStack.",
+"f": [
+"Which tool tracks lifecycle better: Terraform or Ansible?",
+"How do you authenticate to OpenStack from a playbook?"
+],
+"p": "Use openstack.cloud with clouds.yaml, and community.vmware for vCenter, for provisioning, snapshots and operations, with inventory plugins for dynamic groups. Prefer Terraform for long-lived resource state and Ansible for in-guest configuration. Install SDKs and handle waits and tags.",
+"cmds": [
+"- openstack.cloud.server:\n    cloud: prod\n    name: app01\n    image: ubuntu-22.04\n    flavor: m1.medium\n    network: tenant-net\n    wait: true",
+"ansible-galaxy collection install openstack.cloud community.vmware"
+],
+"tip": "Say Ansible configures the guest, Terraform holds lifecycle state."
+},
+{
+"tag": "infra",
+"q": "How do you build golden images with Packer and Ansible?",
+"a": "Packer builds machine images for clouds and hypervisors, and its Ansible provisioner runs a playbook inside a temporary build instance, so the image contains the baseline configuration. The flow is: Packer starts a base image, connects, runs the playbook, which installs packages, applies hardening, configures agents and removes secrets and caches, then Packer shuts down the instance and saves the image. The benefits of this immutable approach are speed at boot because nothing needs configuring, consistency across the fleet, and smaller drift, with updates done by building a new image and replacing instances rather than patching in place. I reuse the same roles for image baking and for any runtime changes, so there is one source of truth, and test the image in CI by launching it and running checks such as InSpec or Testinfra. Details to handle: clean up SSH keys and machine IDs, avoid baking secrets, version and tag images, scan them for vulnerabilities, and schedule regular rebuilds to pick up security patches.",
+"f": [
+"What must be cleaned before saving an image?",
+"How do you test a baked image?"
+],
+"p": "Packer launches a build instance, runs an Ansible playbook with its provisioner, cleans secrets and caches and saves the image. Reuse roles, test with InSpec or Testinfra, version and scan images and rebuild regularly for patches.",
+"cmds": [
+"provisioner \"ansible\" {\n  playbook_file = \"playbooks/baseline.yml\"\n}",
+"packer build -var-file=prod.pkrvars.hcl image.pkr.hcl"
+],
+"tip": "Say bake once, replace instead of patching."
+},
+{
+"tag": "infra",
+"q": "How do you deploy and configure monitoring and logging agents consistently across a fleet?",
+"a": "I package this as a role per agent, such as node exporter, a log shipper or a vendor agent, with defaults for versions, ports and endpoints and templates for configuration. The role installs from a trusted package repository or downloads a pinned release with a checksum, creates a dedicated system user, installs a systemd unit, opens required firewall ports, and starts and enables the service, with a handler for reload on configuration change. Inventory groups determine which configuration applies, for example different scrape labels per environment, and secrets such as API keys come from vault or a secrets manager. For Prometheus, file-based service discovery files can be generated from the inventory, so new hosts appear in monitoring automatically. After deployment, the playbook verifies the agent by hitting its local endpoint with the uri module and fails if it does not respond. Updates roll out in batches with serial. The same roles are included in image builds, so new instances come up monitored.",
+"f": [
+"How do you verify an agent after install?",
+"How do you generate Prometheus targets from the inventory?"
+],
+"p": "Create a role per agent with pinned, checksummed downloads, a dedicated user, systemd unit, templated config, handlers and a health check, apply by inventory group, keep secrets in vault, generate scrape targets from inventory and roll out in batches.",
+"cmds": [
+"- ansible.builtin.uri:\n    url: http://localhost:9100/metrics\n    status_code: 200\n  retries: 5\n  delay: 3",
+"- ansible.builtin.get_url:\n    url: \"{{ node_exporter_url }}\"\n    checksum: \"sha256:{{ node_exporter_sha }}\"\n    dest: /tmp/ne.tgz"
+],
+"tip": "Say verify the agent after install and roll out in batches."
+},
+{
+"tag": "infra",
+"q": "How would you automate a zero-downtime application deployment with Ansible?",
+"a": "I design it around load balancer control and health checks. The play targets the app servers with serial, so only a small batch is out at a time, and max_fail_percentage stops the rollout if failures appear. For each host: delegate a call to the load balancer or service discovery to drain the host and wait for connections to finish; stop or deregister the app; deploy the new version by unpacking a release into a versioned directory and switching a symlink, or pulling a container image and restarting it; run database migrations once with run_once, ideally backward compatible so old and new code can coexist; start the service; wait for the port and a health endpoint to respond with the uri module and retries; then add the host back to the load balancer. A rescue block rolls back to the previous release on failure. Keep several previous releases on disk for fast rollback, record the deployed version, and notify on completion. The first batch acts as a canary.",
+"f": [
+"Why must migrations be backward compatible?",
+"How does a symlink-based release help rollback?"
+],
+"p": "Use serial batches, drain each host from the load balancer with a delegated task, deploy a versioned release and switch a symlink or image, run migrations once, wait for health checks, return the host, and use rescue for rollback with a canary first batch.",
+"cmds": [
+"- ansible.builtin.file:\n    src: \"/opt/app/releases/{{ version }}\"\n    dest: /opt/app/current\n    state: link",
+"- ansible.builtin.uri:\n    url: http://localhost:8080/health\n  register: h\n  until: h.status == 200\n  retries: 20\n  delay: 3"
+],
+"tip": "Say drain, deploy, health check, return, with a rollback path."
+},
+{
+"tag": "infra",
+"q": "When would you choose Ansible over Helm, Kubernetes operators or GitOps tools?",
+"a": "I choose by what is being managed and how state should be reconciled. For workloads inside Kubernetes, Helm packages and versions applications, operators encode domain knowledge for stateful software, and GitOps controllers such as Argo CD or Flux continuously reconcile the cluster with Git, detecting and correcting drift. Ansible does not run as a continuous controller, so it is weaker at that job. Ansible is the better choice for what is outside the cluster or crosses system boundaries: configuring the operating system of nodes, bootstrapping clusters, managing network devices, databases, DNS, certificates and load balancers, orchestrating ordered multi-system procedures like failover or upgrades, and gluing together tools in runbooks. Often they combine: Ansible bootstraps the cluster and installs the GitOps controller, then Git takes over the applications. Where a team already has strong Ansible skills and few clusters, kubernetes.core can handle simple deployments, but I avoid recreating a reconciliation loop by cron.",
+"f": [
+"What does continuous reconciliation provide that Ansible lacks?",
+"How would Ansible and Argo CD split responsibilities?"
+],
+"p": "Use Helm, operators and GitOps controllers for continuous reconciliation of in-cluster applications. Use Ansible for node OS, cluster bootstrap, network devices, databases and ordered multi-system procedures, often handing off to GitOps after bootstrap.",
+"cmds": [
+"ansible-playbook bootstrap-cluster.yml",
+"kubectl -n argocd get applications"
+],
+"tip": "Say Ansible for the outside and orchestration, GitOps for in-cluster state."
+},
+{
+"tag": "cicd",
+"q": "How do you use ansible-lint and what does it catch?",
+"a": "Ansible-lint analyses playbooks, roles and collections for correctness, style and risky patterns, and it is a core quality gate. It checks YAML structure, naming and fully qualified collection names, uses of command or shell where a module exists, missing changed_when on commands, task names missing, tasks that are not idempotent, deprecated syntax, risky file permissions, missing no_log on secret handling, unquoted octal modes, and more, with rule identifiers you can reference. Profiles such as min, basic, moderate, safety, shared and production group rules in increasing strictness, so teams can adopt progressively. Configuration in a lint config file selects the profile, skips or warns on selected rules with justification, and excludes paths. Many findings can be auto-fixed with the fix option. I run it in a pre-commit hook for fast feedback and in CI as a required check on pull requests, along with yamllint. I record exceptions in comments or the config file, so skipped rules are deliberate and reviewed.",
+"f": [
+"What is a lint profile?",
+"How do you skip a rule responsibly?"
+],
+"p": "ansible-lint catches style, naming, FQCN, risky command and shell use, missing changed_when, permissions, deprecated syntax and secret handling issues. Choose a profile, auto-fix where possible, run it in pre-commit and CI, and document any skipped rules.",
+"cmds": [
+"ansible-lint --profile production playbooks/",
+"ansible-lint --fix"
+],
+"tip": "Say adopt profiles progressively and make it a required CI check."
+},
+{
+"tag": "cicd",
+"q": "How does Molecule test Ansible roles, and what does a good test cover?",
+"a": "Molecule is a framework for testing roles and collections in disposable environments. A scenario defines the platforms to create, usually containers via Podman or Docker, or VMs through Vagrant or a cloud driver, the converge playbook that applies the role, an optional prepare step, and the verify playbook that asserts results. The default sequence is create, prepare, converge, idempotence, verify and destroy. The idempotence step runs converge again and fails if anything changes, which directly enforces idempotency. Verification can be written in Ansible itself with assert tasks or with Testinfra or InSpec. A good test covers the supported operating systems through a platform matrix, default variables and a few important variable combinations, upgrades from a previous state, service state and listening ports, file contents and permissions, and failure paths. Tests should be fast, so I use lightweight containers where systemd is not required, and VMs only when kernel or init behaviour matters. Molecule runs in CI on every pull request.",
+"f": [
+"What does the idempotence step check?",
+"When do containers not suffice for role testing?"
+],
+"p": "Molecule runs scenarios that create disposable platforms, converge the role, check idempotence, verify with Ansible assertions, Testinfra or InSpec and destroy. Test the OS matrix, variable combinations, upgrades and failure paths, and run it in CI.",
+"cmds": [
+"molecule init scenario default -r nginx -d podman",
+"molecule test"
+],
+"tip": "Say the idempotence step makes the check automatic."
+},
+{
+"tag": "cicd",
+"q": "What does a CI/CD pipeline for Ansible code look like?",
+"a": "The pipeline moves changes through increasing confidence. On every pull request: install pinned dependencies from requirements files or the execution environment image, run yamllint and ansible-lint, syntax-check playbooks, run Molecule for changed roles, scan for secrets, and run a check-mode and diff run against a staging inventory, posting the output to the pull request for reviewers. After merge, the pipeline runs against staging for real, executes smoke tests, and then promotes to production behind an approval, ideally by launching a job template in AWX or the controller using the same code revision, so that credentials stay in the controller. Versioning uses tags or release branches, and collections and roles are published to a private hub. The pipeline records artifacts such as lint reports and run logs. Failures notify the team. Protective measures include branch protection, required reviews for production roles, separate credentials per environment, and avoiding secrets in logs.",
+"f": [
+"Why run check mode against staging in a pull request?",
+"How do you promote the same revision to production?"
+],
+"p": "On pull requests run lint, syntax checks, Molecule, secret scans and check mode with diff against staging. After merge deploy to staging, smoke test, then promote the same revision to production behind approval via the controller, with branch protection and separate credentials.",
+"cmds": [
+"ansible-lint && ansible-playbook site.yml --syntax-check",
+"ansible-playbook -i inventories/staging site.yml --check --diff"
+],
+"tip": "Say promote the same revision through environments."
+},
+{
+"tag": "cicd",
+"q": "How do you structure an Ansible repository for multiple teams and environments?",
+"a": "I aim for clarity and separation of concerns. A common layout has a top-level ansible.cfg and requirements.yml, an inventories directory with one subdirectory per environment holding hosts or dynamic sources and group_vars, a playbooks directory with small entry-point playbooks per purpose, a roles directory for local roles or, better, roles packaged into versioned collections, and tests and documentation. Playbooks stay thin, listing roles and variables, while roles contain logic. Environment differences live in inventory variables only, never in branches, so the same code runs everywhere. Shared roles used by several teams are published as collections in a private hub, with semantic versions, so consumers upgrade deliberately. A monorepo works for a small team and eases changes across layers, while separate repositories per collection suit larger organisations with independent release cycles. I add CODEOWNERS to route reviews, a README with run instructions, and a consistent naming convention for roles, variables and tags.",
+"f": [
+"Why avoid branches per environment?",
+"When do you prefer separate repos per collection?"
+],
+"p": "Use a top-level config and requirements, an inventory directory per environment with group_vars, thin playbooks, logic in roles or versioned collections, and environment differences only in variables. Use CODEOWNERS and conventions, and split into repos when teams need independent releases.",
+"cmds": [
+"tree -L 2\n.\n├── ansible.cfg\n├── requirements.yml\n├── inventories/{prod,staging}\n├── playbooks/\n└── collections/",
+"git log --oneline -- roles/nginx"
+],
+"tip": "Say one code base, environment differences in inventory only."
+},
+{
+"tag": "cicd",
+"q": "How do you build and use ansible-navigator and a local development workflow that matches production?",
+"a": "The goal is that what works on my laptop works in the pipeline and on the controller. I containerise the toolchain: define an execution environment with ansible-builder containing the exact ansible-core, collections, Python libraries and system packages, then run playbooks locally with ansible-navigator, which launches the playbook inside that image, with options to mount the project and credentials. Navigator offers an interactive text UI to explore plays, tasks and results, a stdout mode for scripts, and replay of previous runs from saved artifacts, which helps debugging. The same image is used in CI and registered in the controller, so version drift disappears. Locally I add pre-commit hooks for lint, run Molecule for roles, and use a staging inventory or containers for quick trials. For editors, the Ansible extension provides schema validation and completion. Developers pull the latest image regularly, and the image tag is recorded in the repository, so a change in dependencies is reviewed like any other change.",
+"f": [
+"What does ansible-navigator replay do?",
+"How does a shared image prevent works-on-my-machine issues?"
+],
+"p": "Build an execution environment, run locally with ansible-navigator against it, reuse the same image in CI and the controller, add pre-commit lint and Molecule, and record the image tag in the repository.",
+"cmds": [
+"ansible-navigator run site.yml -i inventories/staging --eei registry.example.com/ee-platform:1.3 --mode stdout",
+"ansible-navigator replay artifact.json"
+],
+"tip": "Say the same image everywhere removes drift."
+},
+{
+"tag": "cicd",
+"q": "How do you promote changes across environments and roll back safely?",
+"a": "Promotion uses the same code revision with different inventory, so the only difference between environments is data. A change moves dev, staging, then production, each with automated checks, and production with approvals, change windows and a limited first batch. For rollback, I prepare in advance because Ansible does not have a built-in undo. Options: redeploy the previous tag of the playbooks and variables, which works when tasks are idempotent and converge to the old desired state; keep previous artefact versions on the host, such as release directories with a symlink, so rollback is switching back; use block with rescue to automatically revert on a failed deployment; and take snapshots or backups before risky changes such as database schema or kernel updates. Changes should be backward compatible where possible. I rehearse rollback in staging and keep it as a documented, tested playbook with its own tag, since a rollback that has never been run tends to fail when needed. All runs are logged with the revision identifier.",
+"f": [
+"Why does Ansible not have a built-in undo?",
+"What makes a change safe to roll back by redeploying?"
+],
+"p": "Promote one revision through environments by changing only the inventory, with approvals in production. Prepare rollback with previous tags, release directories and symlinks, rescue blocks and snapshots, rehearse it in staging and record the revision per run.",
+"cmds": [
+"git checkout v1.4.1 && ansible-playbook -i inventories/prod deploy.yml -e version=1.4.1",
+"ansible-playbook rollback.yml --tags rollback"
+],
+"tip": "Say rehearse the rollback; untested rollbacks fail."
+},
+{
+"tag": "cicd",
+"q": "How do you detect and handle configuration drift with Ansible?",
+"a": "Drift is when real systems diverge from the desired state, through manual changes, failed runs or other tools. Ansible detects it by running the same playbooks in check mode with diff and reporting changes: any task that would change something indicates drift. I schedule this regularly from the controller, for example nightly, publish the results to a dashboard or ticket, and alert on unexpected changes in critical files or services. Because it relies on tasks that support check mode and are idempotent, I keep the roles clean and avoid always-changed tasks, which would make the report noisy. The response depends on policy: for low-risk settings, enforce automatically by running in apply mode on a schedule, perhaps with ansible-pull; for sensitive systems, require review so unexpected changes, which might be incidents, are investigated first. The most effective remedy is preventing manual changes through access control and audit, so drift becomes the exception and each case is understood.",
+"f": [
+"Why must roles be idempotent for drift reports?",
+"When would you not auto-correct drift?"
+],
+"p": "Schedule check-mode and diff runs from the controller and report any would-change tasks as drift. Keep roles idempotent to avoid noise, auto-enforce low-risk settings, review drift on sensitive systems, and reduce manual changes through access control.",
+"cmds": [
+"ansible-playbook site.yml --check --diff -i inventories/prod | tee drift-$(date +%F).log",
+"awx job_templates launch drift-check --monitor"
+],
+"tip": "Say drift reports need idempotent roles to be trustworthy."
+},
+{
+"tag": "cicd",
+"q": "How do you migrate shell scripts and manual runbooks into Ansible?",
+"a": "I migrate incrementally and keep the behaviour the same at first. Start by listing what the script does and what state it assumes. Then, step by step, replace commands with modules that express the desired state: package, user, file, template, service, lineinfile or blockinfile and others, which gives idempotency and check mode. Where a command has no module, wrap it with creates, removes, changed_when and failed_when. Move hard-coded values to variables, and secrets to vault or a secrets manager. Break the result into roles when logic is reusable, and add handlers for restarts. Test equivalence by running the old script and the new playbook against test machines and comparing resulting state, then in staging. Add Molecule tests or smoke checks, put the code under version control with review, and document how to run it, preferably through the controller with RBAC and logging. Finally, retire the script to avoid two sources of truth. The result is repeatable, visible and safer than ad-hoc commands.",
+"f": [
+"How do you verify the playbook matches the script's result?",
+"When is a command task acceptable?"
+],
+"p": "Inventory what the script does, replace commands with state-based modules, wrap leftovers with creates and changed_when, move values to variables and secrets to vault, test equivalence in staging, add tests and review, run through the controller and retire the script.",
+"cmds": [
+"ansible-playbook migrate.yml --check --diff -l test01",
+"diff <(ssh old 'rpm -qa | sort') <(ssh new 'rpm -qa | sort')"
+],
+"tip": "Say compare end states, then retire the script."
+},
+{
+"tag": "cicd",
+"q": "How do you test playbooks end to end, beyond role-level Molecule tests?",
+"a": "Roles tested in isolation do not prove that the whole system works, so I add integration tests that exercise playbooks the way production does. The pipeline creates an ephemeral environment that resembles production, using containers, VMs or a short-lived cloud account provisioned by Terraform, applies the full site playbook against an inventory that mirrors real groups, and then runs verification. Verification includes assertion tasks within the playbook, such as checking service status, listening ports and HTTP responses with the uri module, and external tools like Testinfra, InSpec or Goss for state checks, plus a functional smoke test of the application. The idempotence check runs the playbook a second time and expects zero changes. For risky operations, such as upgrades or failover, I test the procedure on a copy and measure how long it takes. After tests, the environment is destroyed to control cost. Results and logs are kept as pipeline artifacts, and flaky tests are fixed quickly, because ignored failures destroy trust in the pipeline.",
+"f": [
+"What do you verify besides service status?",
+"How do you keep ephemeral test environments cheap?"
+],
+"p": "Create an ephemeral production-like environment, apply the full playbook against a mirrored inventory, verify with assertions, Testinfra, InSpec or Goss and a smoke test, re-run to check idempotence, test risky procedures, destroy the environment and keep artifacts.",
+"cmds": [
+"ansible-playbook -i inventories/ci site.yml && ansible-playbook -i inventories/ci site.yml | grep -q 'changed=0'",
+"goss -g goss.yaml validate"
+],
+"tip": "Say test the whole playbook, not just the roles."
+},
+{
+"tag": "cicd",
+"q": "How do you version, release and document roles and collections for other teams?",
+"a": "Treat shared automation like a product. Each collection or role has a semantic version: patch for fixes, minor for backward compatible features and major for breaking changes such as renamed variables, and a changelog generated from fragments, for example with antsibull-changelog, so consumers know what changed. Releases are cut from tags by the pipeline, which builds the artefact with ansible-galaxy collection build and publishes it to the private Automation Hub or Galaxy server after tests pass. Consumers pin version ranges in requirements.yml and upgrade deliberately, with a deprecation policy that announces removals one or two releases ahead. Documentation includes a README with purpose, supported platforms, variables and examples, module and plugin docs written in the documentation strings so ansible-doc works, and sample playbooks. I add argument specs for role inputs, which both validate and document them. Ownership is clear through CODEOWNERS, and a channel or issue tracker handles questions. Regular security updates keep dependencies current.",
+"f": [
+"What counts as a breaking change in a role?",
+"How do you announce deprecations?"
+],
+"p": "Use semantic versions, changelog fragments, tagged releases built and published to a private hub by the pipeline, version-range pinning by consumers, a deprecation policy, documentation in READMEs and argument specs, and clear ownership.",
+"cmds": [
+"antsibull-changelog release --version 1.3.0",
+"ansible-galaxy collection build && ansible-galaxy collection publish *.tar.gz --server private_hub"
+],
+"tip": "Say semver, changelog, pinned consumers, deprecation notice."
+}
+]

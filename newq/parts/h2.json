@@ -1,0 +1,281 @@
+[
+ {
+  "tag": "values",
+  "q": "How are Helm values merged, and what is the order of precedence?",
+  "a": "Helm builds the final values from several sources with a defined order, where later sources override earlier ones. The base is the chart's own values.yaml. For subcharts, the parent chart's values under the subchart's name override the subchart defaults. Then files supplied with the values flag are applied in the order given, so a later file overrides an earlier one. Finally, individual overrides from the set, set-string and set-file flags win over everything. Maps are merged recursively key by key, so overriding one nested key leaves siblings intact, but lists are replaced entirely, not merged, which surprises people when overriding a single container argument or host entry. Setting a key to null removes the default. On upgrades, the reuse-values flag takes the previous release values as the base, while reset-values returns to chart defaults, and mixing them causes drift, so I prefer to pass a complete set of values files on every run, kept in version control. The values that were actually applied can be inspected afterwards with the get values command and the all flag.",
+  "f": [
+   "Are lists merged or replaced?",
+   "What does setting a key to null do?"
+  ],
+  "p": "Order is chart values.yaml, parent overrides for subcharts, values files in sequence, then set flags. Maps merge recursively but lists are replaced; null deletes a default. Prefer complete values files in Git over reuse-values.",
+  "cmds": [
+   "helm upgrade --install app ./chart -f base.yaml -f prod.yaml --set image.tag=1.4.2",
+   "helm get values app --all"
+  ],
+  "tip": "Say maps merge, lists replace."
+ },
+ {
+  "tag": "values",
+  "q": "How do you organise values files for multiple environments?",
+  "a": "A common structure is a base values file holding shared settings plus one small overlay file per environment containing only the differences, applied in order so the environment file overrides the base. Per-region or per-cluster layers can be added the same way, giving a layered model such as defaults, environment, then cluster. Keeping files small and focused reduces duplication and makes reviews show only meaningful differences. The files live in version control beside the pipeline or in a GitOps repository, with the chart version pinned separately so a values change and a chart upgrade are distinct, reviewable events. Secrets are not stored in plain text there; they come from encrypted files, an external secrets operator or the pipeline. Naming conventions make the layering obvious. In GitOps tools such as Argo CD or Flux, the application definition lists the value files or inline values for each environment. A values schema validates all layers in CI, and a diff of rendered manifests between environments helps confirm that only expected differences exist before promotion.",
+  "f": [
+   "Why keep chart version and values changes separate?",
+   "How do you validate every environment's values?"
+  ],
+  "p": "Use a shared base values file plus small per-environment, region or cluster overlays applied in order, keep them in Git with the chart version pinned separately, store secrets elsewhere and validate all layers with a schema and rendered diffs in CI.",
+  "cmds": [
+   "helm upgrade --install app ./chart -f values/base.yaml -f values/prod.yaml -f values/prod-eu.yaml",
+   "diff <(helm template app ./chart -f values/base.yaml -f values/stg.yaml) <(helm template app ./chart -f values/base.yaml -f values/prod.yaml)"
+  ],
+  "tip": "Say base plus thin overlays, secrets elsewhere."
+ },
+ {
+  "tag": "values",
+  "q": "What is values.schema.json and why should every chart have one?",
+  "a": "A values schema is a JSON Schema file placed at the root of the chart. Helm validates the merged values against it during install, upgrade, lint and template, and fails with a precise message if something violates it. It documents the expected structure, types, allowed enumerations, ranges, patterns and required properties, and it can set additionalProperties to false to catch typos in key names, which otherwise silently do nothing. Benefits include catching mistakes before anything reaches the cluster, giving users clear errors instead of confusing template failures, enabling editor auto-completion and validation, and serving as living documentation. Schemas apply to subcharts too, validated separately. Care is needed so the schema is not too strict, as that can break legitimate overrides, and it must be updated whenever values change. Tools such as helm-schema or generators can produce a first version from values.yaml and comments. Combined with the required function for cross-field rules that a schema cannot express, it makes charts much more robust for consumers.",
+  "f": [
+   "What does additionalProperties false catch?",
+   "When does Helm validate against the schema?"
+  ],
+  "p": "A values.schema.json defines types, enums, required fields and patterns; Helm validates merged values on install, upgrade, lint and template, catching typos and bad input early and documenting options. Keep it in sync with values.yaml.",
+  "cmds": [
+   "{\n \"$schema\": \"https://json-schema.org/draft-07/schema#\",\n \"type\": \"object\",\n \"required\": [\"image\"],\n \"properties\": {\"replicaCount\": {\"type\": \"integer\", \"minimum\": 1}}\n}"
+  ],
+  "tip": "Say schema fails fast with a clear message."
+ },
+ {
+  "tag": "values",
+  "q": "What are the differences between --set, --set-string, --set-file and --set-json?",
+  "a": "The set flag assigns a value using dotted paths, and Helm infers types, so a value that looks like a number or boolean becomes one, and commas separate multiple pairs. Lists use index or brace syntax, and special characters must be escaped, which makes complex values awkward and error-prone. The set-string flag forces a string, which is needed when something like an image tag of 1.20 or an identifier of all digits would otherwise be converted into a number and lose meaning, or a true that must be text. The set-file flag reads the value from a file's content, useful for certificates or scripts. The set-json flag takes a JSON expression, handy for lists and nested structures without escaping troubles. For anything beyond simple scalars I prefer values files, which are reviewable, diffable and version-controlled, and keep set only for a few dynamic values injected by the pipeline such as the image tag. Never pass secrets through set in logs-visible commands, since they appear in process lists and CI output, and are stored in the release record anyway.",
+  "f": [
+   "When do you need set-string?",
+   "Why prefer values files over many set flags?"
+  ],
+  "p": "Set infers types; set-string forces strings for tag-like values; set-file loads file content; set-json passes structured JSON. Prefer values files for reviewability and reserve set for a few dynamic values like image tags, and never for secrets.",
+  "cmds": [
+   "helm upgrade app ./chart --set-string image.tag=1.20 --set-file tls.crt=./tls.crt --set-json 'tolerations=[{\"key\":\"gpu\",\"operator\":\"Exists\"}]'"
+  ],
+  "tip": "Say set-string stops 1.20 becoming 1.2."
+ },
+ {
+  "tag": "values",
+  "q": "How do you design a good values.yaml for a chart others will consume?",
+  "a": "A good values file is the chart's public interface, so I design it deliberately. Structure is logical and grouped by component or concern, such as image, service, ingress, resources, autoscaling and persistence, with consistent naming in camel case and flat enough to be convenient but nested where it helps. Every option has a safe default so the chart installs with no overrides in a development setting, and production-sensitive settings such as replicas, resources and persistence are easy to find. Comments document each key, with the helm-docs format generating a README table automatically. Booleans use an enabled convention for optional components. I expose standard hooks: extra environment variables, annotations, labels, volumes, node selectors, tolerations, affinity and security context, so users rarely need to fork. Secrets are referenced by existing secret name rather than embedded. I avoid exposing every field of every object, avoid deep nesting, keep names stable across versions as breaking changes need a major version, and add a schema. Examples of common production overrides are included.",
+  "f": [
+   "How does helm-docs help?",
+   "Why reference existing secrets instead of embedding?"
+  ],
+  "p": "Group values logically with consistent names, safe defaults, documented comments and helm-docs, enabled flags for optional parts, standard extension points like annotations and tolerations, secret references, stable names across versions and a schema.",
+  "cmds": [
+   "image:\n  repository: nginx\n  tag: \"\"\nresources: {}\nautoscaling:\n  enabled: false",
+   "helm-docs --chart-search-root ."
+  ],
+  "tip": "Say values are the chart's API; version them like one."
+ },
+ {
+  "tag": "values",
+  "q": "How do global values work, and how do values flow to subcharts?",
+  "a": "A subchart is a dependency chart stored in the charts directory, and it has its own values. A parent chart overrides a subchart's values by placing them in its own values file under a key equal to the subchart's name or alias; those settings are passed down and take precedence over the subchart defaults. The reverse is not true: a subchart cannot see the parent's values, which keeps charts independent. The exception is the special global key. Anything under global in the parent is made available to the parent and to every subchart, accessed as .Values.global, which suits shared settings such as image registry, environment name, storage class or domain. The import-values mechanism in the dependency definition can also pull selected values from a subchart up to the parent. Subcharts should work standalone, and global values should be optional with defaults. Overuse of global creates hidden coupling, so I keep it for genuinely cross-cutting settings and document it. Dependency conditions and tags enable or disable entire subcharts from values.",
+  "f": [
+   "Can a subchart read parent values?",
+   "What are conditions and tags for dependencies?"
+  ],
+  "p": "Parents override subchart values under the subchart's name or alias; subcharts cannot read parent values except those under the global key, shared with all. Use import-values for the reverse, conditions and tags to toggle subcharts, and keep global small.",
+  "cmds": [
+   "postgresql:\n  auth:\n    database: app\nglobal:\n  imageRegistry: registry.example.com"
+  ],
+  "tip": "Say down by name, shared by global."
+ },
+ {
+  "tag": "values",
+  "q": "How do you handle sensitive values in Helm without committing them in plain text?",
+  "a": "Values files are stored in Git and in release records, so plain secrets there are a risk. Options start with avoiding the need: reference existing Kubernetes secrets by name and let a separate process create them, using the External Secrets Operator or the Secrets Store CSI driver to sync from Vault or a cloud secrets manager, so the chart never contains the secret. If values must carry secrets, encrypt the values files with SOPS using KMS, age or PGP keys, decrypted only at deploy time by the helm-secrets plugin or the GitOps tool, such as Flux's native SOPS support. Sealed Secrets lets you commit an encrypted secret that only the cluster can decrypt. In pipelines, secrets can be injected from the CI secret store at run time, though anything passed to Helm still ends up in the release secret in the cluster, so access to those must be restricted and encryption at rest enabled. Rotate credentials, never print values in logs, and scan repositories for leaked secrets.",
+  "f": [
+   "Why is the release secret still a concern?",
+   "What do External Secrets do?"
+  ],
+  "p": "Prefer referencing secrets created by External Secrets, CSI drivers or Sealed Secrets; otherwise encrypt values with SOPS and helm-secrets. Remember release records contain values, so restrict access, enable encryption at rest, rotate and scan for leaks.",
+  "cmds": [
+   "sops --encrypt --age $AGE_PUB values-secret.yaml > values-secret.enc.yaml",
+   "helm secrets upgrade --install app ./chart -f values-secret.enc.yaml"
+  ],
+  "tip": "Say reference secrets, don't embed them."
+ },
+ {
+  "tag": "values",
+  "q": "What are the problems with --reuse-values and how do you avoid configuration drift?",
+  "a": "Reuse-values makes an upgrade start from the values of the previous release instead of the new chart's defaults, then apply any new overrides. The trap is that new keys added to the chart's values.yaml in a later chart version are not picked up, because the old computed values are reused, so templates may see missing values and fail or behave differently, and defaults changes are silently ignored. Over time the release's effective configuration diverges from what is in Git, and nobody can say precisely what is deployed. The remedy is a declarative approach: supply the full set of values files on every upgrade, treating Git as the source of truth, so the result is reproducible and an upgrade is deterministic. The reset-then-reuse-values option can reapply the stored values on top of new defaults when needed. Auditing is done with get values and the all flag, and diff plugin output compared with the repository. GitOps controllers enforce this by continuously reconciling from Git, removing manual drift.",
+  "f": [
+   "Why are new chart defaults missed with reuse-values?",
+   "How does GitOps remove drift?"
+  ],
+  "p": "Reuse-values keeps old computed values so new chart defaults are ignored and the release drifts from Git. Pass full values files every time, treat Git as truth, audit with get values and use GitOps reconciliation.",
+  "cmds": [
+   "helm get values app --all -o yaml > live.yaml",
+   "helm upgrade app ./chart -f values/base.yaml -f values/prod.yaml"
+  ],
+  "tip": "Say Git is the truth; avoid reuse-values."
+ },
+ {
+  "tag": "values",
+  "q": "How do you pass complex structures such as lists of maps, multiline strings and typed numbers through values?",
+  "a": "Complex data is easiest and safest in values files using native YAML, which supports lists, maps and block scalars with pipe for multiline text and keeps indentation visible. In templates, toYaml renders these structures into manifests, and tpl can evaluate a multiline string that contains template expressions when the author deliberately allows it. On the command line, the set syntax handles lists and nested maps awkwardly, with index brackets, braces and escaped commas and dots, so set-json is cleaner for structured input. Type issues are common: a version such as 1.20 becomes a float, a value like 0123 or yes may be reinterpreted, and large integers can become floating point and print in scientific notation. To avoid this, quote strings in values, use set-string, and apply the quote function in templates, or print integers with int64 conversions. For files embedded in config maps, the Files object and set-file load content, with the chart's files directory using glob patterns to include many at once. Testing the rendered output with edge-case inputs and schema types prevents surprises.",
+  "f": [
+   "Why does 1.20 become 1.2?",
+   "How do you embed whole files in a ConfigMap?"
+  ],
+  "p": "Use values files with native YAML and block scalars, render with toYaml and quote, use set-json or set-string on the command line, watch float and boolean coercion, and embed files with the Files object or set-file.",
+  "cmds": [
+   "config: |\n  log_level: info\n  retries: 3",
+   "data:\n  app.conf: |-\n    {{- .Values.config | nindent 4 }}\n  {{- (.Files.Glob \"files/*\").AsConfig | nindent 2 }}"
+  ],
+  "tip": "Say quote versions; large ints go wrong."
+ },
+ {
+  "tag": "values",
+  "q": "How would you validate and test values and rendered output before deploying?",
+  "a": "I use several layers. First, schema validation in lint and template catches wrong types and missing required values. Second, helm lint with the strict flag finds chart problems. Third, helm template renders manifests, which I pipe into kubeconform or kubeval to validate against Kubernetes API schemas for the target version, including custom resource schemas, and into policy tools like conftest with OPA or Kyverno CLI to enforce rules such as resource limits, no latest tags, required labels and non-root users. Fourth, helm install with dry-run against a real cluster validates admission and server-side checks, and the diff plugin shows changes against the live state. For templates themselves, helm-unittest runs unit tests with assertions on rendered documents for different value inputs, and chart-testing, the ct tool, lints and installs changed charts in a kind cluster with test values. Snapshots of rendered output across environments reveal unintended differences in review. All of this runs in continuous integration for every pull request, and the same rendered manifests are what gets deployed.",
+  "f": [
+   "What does kubeconform validate?",
+   "How does helm-unittest work?"
+  ],
+  "p": "Layer schema validation, helm lint --strict, rendering to kubeconform and policy checks with conftest or Kyverno, server-side dry-run and helm diff, helm-unittest assertions, and chart-testing installs in kind, all in CI.",
+  "cmds": [
+   "helm lint ./chart --strict -f values/prod.yaml",
+   "helm template app ./chart -f values/prod.yaml | kubeconform -strict -kubernetes-version 1.29.0",
+   "helm unittest ./chart"
+  ],
+  "tip": "Say lint, schema, policy, dry-run, diff, install test."
+ },
+ {
+  "tag": "charts",
+  "q": "How do you provide sensible defaults for resources, replicas and autoscaling in a reusable chart?",
+  "a": "Defaults should let the chart run safely for evaluation yet make production tuning obvious. For resources, I either set modest requests and limits or leave the block empty with a comment, but a published chart should avoid silently running without limits in shared clusters, so many charts ship small defaults that users override. Replicas default to one for development with guidance to raise it, and when the autoscaling option is enabled the template must omit the replicas field from the deployment, otherwise every upgrade resets the horizontal autoscaler's scaled count. A pod disruption budget option, anti-affinity or topology spread constraints, and probes are exposed so availability can be configured. Resources are rendered with toYaml so users can set any combination. I give example production values in the documentation, for instance requests based on observed usage, and I base numbers on measurement rather than guessing. Presets such as small, medium and large can simplify choices, mapped to resource blocks in a helper while still allowing explicit override. Defaults are reviewed on each major version, since changing them affects existing users.",
+  "f": [
+   "Why omit replicas when autoscaling is enabled?",
+   "What should a chart do about limits by default?"
+  ],
+  "p": "Ship safe modest defaults or documented empty blocks, render resources with toYaml, omit replicas when HPA is enabled to avoid upgrade resets, expose PDB, spread and probes, offer size presets and give measured production examples.",
+  "cmds": [
+   "{{- if not .Values.autoscaling.enabled }}\nreplicas: {{ .Values.replicaCount }}\n{{- end }}"
+  ],
+  "tip": "Say omit replicas when the HPA owns scaling."
+ },
+ {
+  "tag": "charts",
+  "q": "What is the structure of a Helm chart and what does each part do?",
+  "a": "A chart is a directory with a defined layout. Chart.yaml holds metadata: API version, name, chart version, application version, description, type, dependencies in version 2, keywords, maintainers and the supported Kubernetes version constraint. Values.yaml contains default configuration, and an optional values.schema.json validates it. The templates directory holds the manifest templates, helper templates in an underscore file, a notes text file displayed after install, and a tests subdirectory with test pod definitions run by the helm test command. The charts directory contains dependency subcharts, either vendored or downloaded by the dependency update command. The crds directory holds custom resource definitions that are installed before templates but never upgraded or removed by Helm. A chart lock file records exact resolved dependency versions. A helmignore file excludes files from packaging. A readme and license document the chart, and an optional files directory carries extra files that templates load. The helm create command generates this skeleton with a sample deployment, service, ingress, service account, autoscaler and helpers, which makes a good starting point after trimming.",
+  "f": [
+   "What goes in the crds directory?",
+   "What is Chart.lock for?"
+  ],
+  "p": "Chart.yaml has metadata and dependencies, values.yaml and optional schema hold configuration, templates contains manifests, helpers, notes and tests, charts holds subcharts, crds holds CRDs, Chart.lock pins dependencies and .helmignore excludes files.",
+  "cmds": [
+   "helm create mychart && tree mychart"
+  ],
+  "tip": "Say Chart.yaml, values, templates, charts, crds."
+ },
+ {
+  "tag": "charts",
+  "q": "What is the difference between chart version and appVersion, and how should you version charts?",
+  "a": "The chart version in Chart.yaml identifies the packaging, templates and defaults, and must follow semantic versioning, since Helm uses it for dependency resolution, repository indexing and upgrade comparison. The appVersion describes the version of the application being deployed, such as the container image tag, and is informational for Helm: it is shown in listings and commonly used as the default image tag in templates. They change independently. A new application release with no template changes bumps appVersion and, because the packaged chart content changed, should also bump the chart version, since repositories require a new chart version for every published change. Template or values changes bump the chart version by their impact: patch for fixes, minor for backwards-compatible features and a major bump for breaking changes such as renamed values, removed options or changed selectors. Release notes or a changelog list upgrade steps. Automating version bumps in the release pipeline, and using chart-releaser or similar to publish, avoids human error. Never overwrite a published version; publish a new one.",
+  "f": [
+   "Does Helm interpret appVersion?",
+   "When is a major chart bump needed?"
+  ],
+  "p": "Chart version is semver for the package and is used by Helm for resolution and upgrades; appVersion is informational, often the default image tag. Bump the chart version with every change, major for breaking changes, and never overwrite a published version.",
+  "cmds": [
+   "apiVersion: v2\nname: myapp\nversion: 2.3.0\nappVersion: \"1.18.4\"",
+   "helm package ./myapp --version 2.3.1 --app-version 1.18.5"
+  ],
+  "tip": "Say chart version is the package; appVersion is the app."
+ },
+ {
+  "tag": "charts",
+  "q": "How do chart dependencies and subcharts work?",
+  "a": "Dependencies are declared in Chart.yaml under the dependencies list, each with a name, version constraint, repository location and optional alias, condition, tags and import-values. Running helm dependency update resolves the constraints, downloads the packaged subcharts into the charts directory and writes Chart.lock with exact versions and a digest, while dependency build restores exactly the locked versions, which is what CI should use for reproducibility. The same chart can appear several times using aliases, each with its own values. Conditions tie a dependency to a boolean in values, for example installing an embedded database only when enabled, and tags group dependencies to toggle together. Subcharts render as part of the parent release, share the release name and namespace, and cannot reference parent values apart from globals. Drawbacks include tight coupling, version pinning work and the temptation to embed stateful databases that deserve independent lifecycle, so for production I often prefer managing such components as separate releases or operators, with the dependency used for development convenience. Vendoring subchart archives into Git offers repeatable builds.",
+  "f": [
+   "Difference between dependency update and build?",
+   "Why avoid embedding production databases as subcharts?"
+  ],
+  "p": "Declare dependencies in Chart.yaml with versions, aliases, conditions and tags; dependency update resolves and writes Chart.lock, dependency build restores it for reproducible CI. Subcharts share the release but are isolated by values, and stateful ones are often better as separate releases.",
+  "cmds": [
+   "dependencies:\n  - name: postgresql\n    version: 15.x.x\n    repository: oci://registry-1.docker.io/bitnamicharts\n    condition: postgresql.enabled",
+   "helm dependency build ./chart"
+  ],
+  "tip": "Say lock file plus dependency build for reproducibility."
+ },
+ {
+  "tag": "charts",
+  "q": "What are library charts and when are they useful?",
+  "a": "A library chart has type library in Chart.yaml. It contains only named templates and helpers and cannot be installed, because it produces no manifests of its own. Other charts declare it as a dependency and call its templates with include, so organisations can share common patterns such as standard labels, a baseline deployment, service, ingress, config map or pod security settings, implemented once. Application charts then become thin: they provide a small values file and call the library's templates, which leads to consistent behaviour, fewer copies of the same boilerplate and a single place to fix problems or roll out a policy change. Trade-offs include indirection that makes debugging harder, tight coupling to the library's version so upgrades must be coordinated, and the need for good documentation and tests of the library, since a mistake affects all consumers. Versioning follows semantic versioning with careful change management. Alternatively, a single generic chart parameterised for many applications can serve similar goals. Library charts shine in platform teams standardising many services.",
+  "f": [
+   "Can a library chart be installed?",
+   "What is the risk of a shared library?"
+  ],
+  "p": "A library chart of type library contains only named templates and is consumed as a dependency via include, centralising labels, deployments and policies for many services. Benefits are consistency and less boilerplate; risks are indirection and wide blast radius, so version and test it carefully.",
+  "cmds": [
+   "type: library",
+   "{{ include \"common.deployment\" (dict \"root\" . \"name\" \"web\") }}"
+  ],
+  "tip": "Say library charts share templates, not manifests."
+ },
+ {
+  "tag": "charts",
+  "q": "How do Helm hooks work and what are typical uses?",
+  "a": "Hooks are ordinary manifests, usually jobs or pods, with an annotation that tells Helm to run them at a specific point in the release lifecycle: pre-install, post-install, pre-upgrade, post-upgrade, pre-delete, post-delete, pre-rollback, post-rollback and the test hook. Helm creates the hook resources at that stage, waits for jobs and pods to complete before proceeding, and a failure fails the operation. The weight annotation orders several hooks of the same kind, and the delete policy annotation controls cleanup, such as deleting before the next creation, on success, or on failure. Typical uses are database schema migrations before an upgrade, seeding data after install, taking a backup before deletion, or running smoke tests. Caveats are that hook resources are not part of the release's tracked manifest, so they are not removed by uninstall unless a policy deletes them; hooks block the rollout and need timeouts; migrations should be idempotent and backward compatible, because a rollback does not undo them; and in GitOps tools hooks map to their own sync hook concepts, so behaviour can differ.",
+  "f": [
+   "Which annotation controls hook cleanup?",
+   "Why are migration hooks risky?"
+  ],
+  "p": "Hooks are annotated jobs or pods that run at lifecycle points such as pre-upgrade or post-install, ordered by weight and cleaned by delete policy. Use for migrations, backups and tests, but make them idempotent, set timeouts and remember rollbacks do not undo them.",
+  "cmds": [
+   "metadata:\n  annotations:\n    \"helm.sh/hook\": pre-upgrade\n    \"helm.sh/hook-weight\": \"0\"\n    \"helm.sh/hook-delete-policy\": before-hook-creation,hook-succeeded"
+  ],
+  "tip": "Say hooks run jobs at lifecycle points; clean them up."
+ },
+ {
+  "tag": "charts",
+  "q": "How do you manage Custom Resource Definitions with Helm?",
+  "a": "Helm treats CRDs specially. Files in the chart's crds directory are installed before the templates, as plain YAML without templating, and Helm skips them if they already exist. It never upgrades or deletes them, because changing or removing a CRD can destroy custom resources and data across the cluster. This leads to the well-known problem that CRD updates in a newer chart version are not applied on helm upgrade. Strategies include applying CRDs separately with kubectl or a GitOps step before upgrading the chart, publishing a second chart that contains only the CRDs with its own lifecycle, or placing CRDs in the templates directory with a keep resource policy and a flag to toggle installation, which allows templating and upgrades but loses the safety, and requires care with ordering and with the first install when resources need the CRD already present. Many projects document a manual CRD upgrade step. Whichever approach, I treat CRDs as cluster-level, version them carefully, make conversions backward compatible, and test upgrades on a staging cluster.",
+  "f": [
+   "Why does helm upgrade not update CRDs in the crds folder?",
+   "What is the separate CRD chart approach?"
+  ],
+  "p": "Files in crds install first without templating and are never upgraded or deleted by Helm. Manage updates with a separate CRD chart, a kubectl or GitOps step, or templated CRDs with a keep policy, and test upgrades because removal destroys custom resources.",
+  "cmds": [
+   "kubectl apply --server-side -f https://example.com/crds-v2.yaml",
+   "helm upgrade --install app ./chart --skip-crds"
+  ],
+  "tip": "Say Helm installs CRDs once and never touches them again."
+ },
+ {
+  "tag": "charts",
+  "q": "How do you write and run Helm tests?",
+  "a": "Helm tests are manifests, typically pods or jobs, placed in the templates tests directory and annotated with the test hook. They are not run during install or upgrade. After a release exists, running helm test creates those pods, waits for them to finish and reports pass if each exits with zero, failing otherwise, and logs can be printed with the logs flag. A test commonly checks that the service responds, for instance a pod running curl or wget against the service's cluster address and expecting a success status, or verifying database connectivity or a login flow. Tests should be fast, read-only or self-cleaning, use minimal images, and have unique names and delete policies so reruns do not collide. They give a basic post-deploy smoke check usable in pipelines after an upgrade, with a failure triggering rollback. They are not a replacement for unit tests of templates, with helm-unittest, or end-to-end testing. The chart-testing tool can run install plus test in a throwaway kind cluster for each pull request, making chart quality checkable automatically.",
+  "f": [
+   "When do Helm tests run?",
+   "How do you clean up test pods?"
+  ],
+  "p": "Test manifests in templates/tests carry the helm.sh/hook: test annotation and run only on helm test, passing on exit code zero. Use them as smoke checks in pipelines with cleanup policies, alongside unit tests and chart-testing in kind.",
+  "cmds": [
+   "metadata:\n  annotations:\n    \"helm.sh/hook\": test\nspec:\n  containers:\n    - name: probe\n      image: curlimages/curl\n      command: [\"curl\", \"-fsS\", \"http://{{ include \\\"mychart.fullname\\\" . }}:80/healthz\"]",
+   "helm test app --logs"
+  ],
+  "tip": "Say helm test is a post-deploy smoke test."
+ },
+ {
+  "tag": "charts",
+  "q": "How do you package and structure charts for many microservices: one chart per service, umbrella charts or a shared generic chart?",
+  "a": "There are three common models. One chart per service gives each team independent versioning, release cadence and flexibility, at the cost of duplicated boilerplate unless a library chart supplies shared templates. An umbrella chart bundles many services as dependencies and deploys them together as one release, simple for a small product that always ships as a unit, but it couples versions, creates large blast radius, slows upgrades, and makes independent rollback of one service impossible. A shared generic chart, parameterised by values for each service, centralises best practice, and teams only supply values, ideal for platform teams with uniform workloads, though it can become over-configurable and awkward for unusual services. Many organisations combine a library chart for common helpers with a thin chart per service, or a generic application chart with per-service values in GitOps. I weigh team autonomy against consistency, release coupling and operational complexity. Whatever the choice, charts are versioned, published to a registry, tested in CI and documented, and rollouts happen per service.",
+  "f": [
+   "Why are umbrella charts risky for independent services?",
+   "What is the benefit of a generic chart?"
+  ],
+  "p": "One chart per service gives independence, umbrella charts couple services into one release, and a shared generic chart centralises practice. Often a library chart plus thin per-service charts, or generic chart with per-service values, balances consistency and autonomy.",
+  "cmds": [
+   "helm upgrade --install orders oci://registry/charts/generic-app --version 3.2.0 -f services/orders/values.yaml"
+  ],
+  "tip": "Say balance autonomy against consistency."
+ }
+]

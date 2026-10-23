@@ -11,9 +11,10 @@ import { B } from './docs_catalog_b.mjs';
 import { C } from './docs_catalog_c.mjs';
 import { D } from './docs_catalog_d.mjs';
 import { E } from './docs_catalog_e.mjs';
+import { F } from './docs_catalog_f.mjs';
 
 const MAX = 3;
-const CATALOG = [...A, ...B, ...C, ...D, ...E].map(([label, url, re, guides]) => ({ label, url, re, guides: guides ? new Set(guides.split(',')) : null }));
+const CATALOG = [...A, ...B, ...C, ...D, ...E, ...F].map(([label, url, re, guides]) => ({ label, url, re, guides: guides ? new Set(guides.split(',')) : null }));
 const GENERIC = /(documentation|user guide|developer guide|manual|overview|reference|\bdocs)$|^(Python Documentation|Azure Kubernetes Service \(AKS\)|Amazon EKS: User guide|Kubernetes: Workloads|Kubernetes: Pods)$/i;
 const keyOf = f => f.replace(/\.html$/, '').replace(/_interview_guide$|_guide$/, '');
 
@@ -37,6 +38,11 @@ const HOME = {
   behavioral_star: ['Amazon Leadership Principles', 'https://www.amazon.jobs/en/principles'],
   sre_devops_scenarios: ['Google SRE Book: Effective Troubleshooting', 'https://sre.google/sre-book/effective-troubleshooting/'],
   architecture_tradeoffs: ['Google Cloud Architecture Framework', 'https://cloud.google.com/architecture/framework'],
+  openstack: ['OpenStack documentation', 'https://docs.openstack.org/'],
+  ai: ['Hugging Face documentation', 'https://huggingface.co/docs'],
+  ansible: ['Ansible documentation', 'https://docs.ansible.com/ansible/latest/'],
+  python_sre: ['Python documentation', 'https://docs.python.org/3/'],
+  helm: ['Helm documentation', 'https://helm.sh/docs/'],
   system_design: ['Azure Architecture Center: cloud design patterns', 'https://learn.microsoft.com/en-us/azure/architecture/patterns/'],
 };
 

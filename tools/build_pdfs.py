@@ -17,7 +17,7 @@ want = set(sys.argv[1:])
 key = lambda f: re.sub(r'(_interview)?_guide\.html$', '', os.path.basename(f))
 
 footer = ('<div style="width:100%;font-size:7.5px;color:#666;padding:0 14mm;display:flex;justify-content:space-between;font-family:Arial,sans-serif">'
-          '<span>EknathaLabs &middot; interviewhub.eknathalabs.com</span>'
+          '<span>InterviewHub &middot; interviewhub.eknathalabs.com</span>'
           '<span><span class="title"></span> &middot; page <span class="pageNumber"></span> / <span class="totalPages"></span></span></div>')
 
 with sync_playwright() as p:

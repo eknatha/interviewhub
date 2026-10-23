@@ -77,7 +77,7 @@ const half = Math.floor(items.length / 2);
 const added = []; let coreAdded = 0, scenAdded = 0;
 items.forEach((it, i) => {
   if (!it.tag || !it.q || !it.a) throw new Error(`item ${i + 1}: tag, q and a are required (${it.q || ''})`);
-  if (!qs.some(x => x.tag === it.tag)) throw new Error(`item ${i + 1}: unknown tag '${it.tag}'`);
+  if (!qs.some(x => x.tag === it.tag) && !html.includes(`setFilter('${it.tag}',this)`)) throw new Error(`item ${i + 1}: unknown tag '${it.tag}'`);
   const wordsA = it.a.trim().split(/\s+/).length;
   const ex = qs.findIndex(x => (x.q || '').replace(/\s+/g, ' ').trim() === it.q.trim());
   const entry = { n: ex >= 0 ? qs[ex].n : qs.length + 1, tag: it.tag, q: it.q.trim(), body: body(it) };
