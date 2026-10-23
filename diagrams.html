@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture diagrams — InterviewHub</title>
+<meta name="description" content="Browse every InterviewHub architecture diagram in one place: OpenStack, Kubernetes, Terraform, AWS, Azure, GCP, networking, AI, Ansible, Python, Helm and more. Works offline.">
+<link rel="canonical" href="https://interviewhub.eknathalabs.com/diagrams.html">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f5f0;--surface:#fff;--border:#e4e4dc;--text:#1a1a1a;--muted:#666;--accent:#1D9E75;--accent-bg:#E1F5EE;--accent-dk:#0F6E56;--info:#185FA5}
+body.dark{--bg:#111314;--surface:#1a1d1f;--border:#2e3235;--text:#e8eaec;--muted:#8a9099;--accent-bg:#0d2a20;--accent-dk:#4dd4a8;--info:#7ab0ec}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:.8rem 1.25rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:10}
+header a.back{font-size:12px;font-weight:600;color:var(--info);text-decoration:none;border:1px solid var(--border);border-radius:7px;padding:4px 10px}
+header h1{font-size:16px;font-weight:700;flex:1;min-width:160px}
+.btn{font:inherit;font-size:13px;font-weight:600;padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer}
+.btn:hover{border-color:var(--accent)}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{max-width:1100px;margin:0 auto;padding:1.25rem}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:.8rem}
+.bar input{flex:1 1 260px;font:inherit;font-size:16px;padding:11px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text)}
+.bar select{font:inherit;font-size:14px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);max-width:100%}
+.meta{font-size:13px;color:var(--muted);margin-bottom:.8rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.dc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.8rem 1rem;min-width:0;display:flex;flex-direction:column}
+.dc .g{font-size:11px;font-weight:700;color:var(--accent-dk);background:var(--accent-bg);border-radius:6px;padding:2px 8px;align-self:flex-start;margin-bottom:6px}
+.dc .q{font-size:13.5px;font-weight:650;overflow-wrap:anywhere;margin-bottom:4px}
+.dc .dg-block{margin:6px 0;flex:1}
+.dc a.open{font-size:12px;font-weight:600;color:var(--info);text-decoration:none;margin-top:6px}
+.dc a.open:hover{text-decoration:underline}
+.empty{padding:2rem 0;text-align:center;color:var(--muted)}
+.more{display:block;margin:14px auto}
+@media(max-width:640px){header{padding:.6rem 12px}main{padding:1rem 12px}.bar select{width:100%}.grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+<link rel="stylesheet" href="responsive.css">
+</head>
+<body>
+<header>
+  <a class="back" href="index.html">&larr; InterviewHub</a>
+  <h1>Architecture diagrams</h1>
+  <a class="btn" href="search.html" style="text-decoration:none">Search</a>
+  <button class="btn" id="theme" type="button">&#9790; Dark</button>
+</header>
+<main>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Filter diagrams, e.g. Neutron, rolling update, etcd, vLLM" autocomplete="off" aria-label="Filter diagrams">
+    <select id="g" aria-label="Filter by guide"><option value="">All guides</option></select>
+  </div>
+  <div class="meta" id="meta" aria-live="polite"></div>
+  <div class="grid" id="out"></div>
+  <button class="btn more" id="more" type="button" hidden>Show more</button>
+</main>
+<script>window.DG_GALLERY=true;</script>
+<script src="search_index.js"></script>
+<script src="diagrams/ai.js"></script><script src="diagrams/ansible.js"></script><script src="diagrams/architecture_tradeoffs.js"></script>
+<script src="diagrams/aws.js"></script><script src="diagrams/azure.js"></script><script src="diagrams/cicd.js"></script>
+<script src="diagrams/coding_scripting.js"></script><script src="diagrams/container_lifecycle.js"></script><script src="diagrams/database_performance.js"></script>
+<script src="diagrams/devsecops_security.js"></script><script src="diagrams/gcp.js"></script><script src="diagrams/git_production.js"></script>
+<script src="diagrams/helm.js"></script><script src="diagrams/kubernetes.js"></script><script src="diagrams/linux.js"></script>
+<script src="diagrams/networking.js"></script><script src="diagrams/observability.js"></script><script src="diagrams/openstack.js"></script>
+<script src="diagrams/product_management.js"></script><script src="diagrams/python_sre.js"></script><script src="diagrams/sre_devops_scenarios.js"></script>
+<script src="diagrams/sre_reliability.js"></script><script src="diagrams/system_design.js"></script><script src="diagrams/terraform.js"></script>
+<script src="diagrams.js"></script>
+<script>
+(function(){
+  'use strict';
+  var I=window.SEARCH_INDEX, Q=I.q, G=I.g, D=window.DIAGRAMS||{}, PAGE=30, shown=PAGE;
+  var $=function(id){return document.getElementById(id);};
+  var inp=$('q'), sel=$('g'), out=$('out'), meta=$('meta'), more=$('more');
+  function clean(s){return s.replace(/&amp;/g,'&').replace(/&mdash;/g,'—').replace(/ — InterviewHub$/,'');}
+  function keyOf(f){return f.replace(/\.html$/,'').replace(/_interview_guide$|_guide$/,'');}
+  var items=[];
+  G.forEach(function(g,gi){
+    var set=D[keyOf(g[0])]; if(!set) return;
+    var o=document.createElement('option'); o.value=gi; o.textContent=clean(g[1]); o.hidden=false; sel.appendChild(o);
+  });
+  var byG={}; Q.forEach(function(r){byG[r[0]+':'+r[1]]=r;});
+  G.forEach(function(g,gi){
+    var set=D[keyOf(g[0])]; if(!set) return;
+    Object.keys(set).sort(function(a,b){return a-b;}).forEach(function(n){
+      var r=byG[gi+':'+n]; if(!r) return;
+      items.push({gi:gi,n:n,spec:set[n],q:r[3],g:clean(g[1]),file:g[0],low:(r[3]+' '+(set[n].title||'')+' '+JSON.stringify(set[n])).toLowerCase()});
+    });
+  });
+  var dark=false; try{var s=localStorage.getItem('ekn-dark');dark=s==='1'||(s===null&&matchMedia('(prefers-color-scheme: dark)').matches);}catch(e){}
+  function theme(){document.body.classList.toggle('dark',dark);$('theme').textContent=dark?'☀ Light':'☾ Dark';}
+  $('theme').onclick=function(){dark=!dark;theme();try{localStorage.setItem('ekn-dark',dark?'1':'0');}catch(e){}};
+  theme();
+  var hits=[];
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function filter(){
+    var toks=inp.value.trim().toLowerCase().split(/\s+/).filter(Boolean), gi=sel.value;
+    hits=items.filter(function(it){
+      if(gi!==''&&it.gi!==+gi) return false;
+      for(var k=0;k<toks.length;k++) if(it.low.indexOf(toks[k])<0) return false;
+      return true;
+    });
+    shown=PAGE; render();
+  }
+  function render(){
+    out.innerHTML='';
+    if(!hits.length){out.innerHTML='<div class="empty">No diagrams match.</div>';meta.textContent='0 diagrams';more.hidden=true;return;}
+    var n=Math.min(shown,hits.length);
+    for(var i=0;i<n;i++){
+      var it=hits[i], c=document.createElement('div'); c.className='dc';
+      c.innerHTML='<span class="g">'+esc(it.g)+' · Q'+it.n+'</span><div class="q">'+esc(it.q)+'</div>';
+      var b=window.DG&&window.DG.build(it.n,it.spec); if(b) c.appendChild(b);
+      var a=document.createElement('a'); a.className='open'; a.href=it.file+'#card-'+it.n; a.textContent='Open question and answer →'; c.appendChild(a);
+      out.appendChild(c);
+    }
+    meta.textContent=hits.length.toLocaleString()+' diagram'+(hits.length===1?'':'s')+' across '+(sel.value===''?(sel.options.length-1)+' guides':'this guide')+(hits.length>n?' · showing '+n:'');
+    more.hidden=hits.length<=n;
+  }
+  var tm; inp.addEventListener('input',function(){clearTimeout(tm);tm=setTimeout(filter,120);});
+  sel.addEventListener('change',filter);
+  more.onclick=function(){shown+=PAGE;render();};
+  var gm=/[?&]g=([a-z_]+)/.exec(location.search);
+  if(gm){G.forEach(function(g,gi){if(keyOf(g[0])===gm[1]) sel.value=gi;});}
+  filter();
+})();
+</script>
+</body>
+</html>

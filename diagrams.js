@@ -12,7 +12,7 @@
   var file = location.pathname.split('/').pop() || '';
   var key = file.replace(/\.html$/, '').replace(/_interview_guide$|_guide$/, '');
   var set = (window.DIAGRAMS || {})[key];
-  if (!set) return;
+  if (!set && !window.DG_GALLERY) return;
   var NS = 'http://www.w3.org/2000/svg', CW = 6.6, LH = 15, PADX = 12, PADY = 8, GAP = 34;
 
   var st = document.createElement('style');
@@ -165,6 +165,7 @@
     b.appendChild(sc); return b;
   }
   function inject() {
+    if (!set) return;
     var cards = document.querySelectorAll('.q-card[id^="card-"]');
     for (var i = 0; i < cards.length; i++) {
       var c = cards[i], n = c.id.slice(5), d = set[n];
@@ -177,6 +178,8 @@
       if (sp && sp.nextSibling) body.insertBefore(blk, sp.nextSibling); else if (docs) body.insertBefore(blk, docs); else body.appendChild(blk);
     }
   }
+  window.DG = { build: build };
+  if (!set) return;
   var pending = false;
   new MutationObserver(function () {
     if (pending) return; pending = true;
