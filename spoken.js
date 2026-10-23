@@ -26,7 +26,10 @@
     '.sp-text{margin-top:10px;white-space:pre-wrap}' +
     '.sp-follow{margin-top:10px;font-size:13px}.sp-follow ul{margin:4px 0 0 18px}' +
     '.sp-dot{margin-left:4px;font-size:11px;opacity:.9}' +
-    '@media print{.sp-btn,.sp-timer{display:none}}';
+    '.sp-rec{margin-top:10px;padding-top:8px;border-top:1px dashed rgba(127,127,127,.35);font-size:13px}.sp-rec audio{display:block;width:100%;max-width:420px;margin:6px 0}' +
+    '.sp-rec a{font-size:12px;font-weight:600;color:#0F6E56}body.dark .sp-rec a{color:#4dd4a8}' +
+    '.sp-btn.rec{color:#A32D2D}body.dark .sp-btn.rec{color:#f08a8a}.sp-recdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d32f2f;margin-right:5px;animation:spb 1s infinite}@keyframes spb{50%{opacity:.25}}' +
+    '@media print{.sp-btn,.sp-timer,.sp-rec{display:none}}';
   var st = document.createElement('style');
   st.textContent = css;
   document.head.appendChild(st);
@@ -45,10 +48,13 @@
     var bShow = el('button', 'sp-btn', 'Show answer'); bShow.setAttribute('data-act', 'show');
     var bListen = el('button', 'sp-btn', '🔊 Listen'); bListen.setAttribute('data-act', 'listen');
     if (!('speechSynthesis' in window)) bListen.style.display = 'none';
-    [timer, bPractice, bShow, bListen].forEach(function (x) { head.appendChild(x); });
+    var bRec = el('button', 'sp-btn rec', '🎤 Record'); bRec.setAttribute('data-act', 'record');
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)) bRec.style.display = 'none';
+    [timer, bPractice, bRec, bShow, bListen].forEach(function (x) { head.appendChild(x); });
     var hint = el('div', 'sp-hint', 'Speak your own answer out loud first (target 60–90 s), then compare.');
     var text = el('div', 'sp-text', d.a); text.hidden = true;
-    b.appendChild(head); b.appendChild(hint); b.appendChild(text);
+    var rec = el('div', 'sp-rec'); rec.hidden = true;
+    b.appendChild(head); b.appendChild(hint); b.appendChild(rec); b.appendChild(text);
     if (d.f && d.f.length) {
       var f = el('div', 'sp-follow'); f.hidden = true;
       f.appendChild(el('strong', '', 'Likely follow-ups'));
@@ -76,6 +82,9 @@
     clearInterval(running.iv);
     var b = running.block, t = b.querySelector('.sp-timer'), secs = Math.round((Date.now() - running.t0) / 1000);
     var btn = b.querySelector('[data-act="practice"]'); if (btn) btn.textContent = '▶ Practice again';
+    var rb = b.querySelector('[data-act="record"]'); if (rb) rb.innerHTML = '🎤 Record again';
+    if (running.rec) { try { running.rec.stop(); } catch (e) {} }
+    t.className = 'sp-timer ' + (secs < 60 ? 'low' : secs <= 90 ? 'good' : 'over');
     var hint = b.querySelector('.sp-hint');
     if (hint) hint.textContent = secs < 60 ? 'You spoke for ' + fmt(secs) + ' — a bit short. Add a concrete example or command.' :
       secs <= 90 ? 'You spoke for ' + fmt(secs) + ' — right in the 60–90 s window.' :
@@ -99,6 +108,38 @@
       var u = new SpeechSynthesisUtterance(set[b.getAttribute('data-sp')].a);
       u.rate = 0.98; u.onend = u.onerror = function () { btn.textContent = '🔊 Listen'; };
       btn.textContent = '■ Stop'; ss.speak(u); return;
+    }
+    if (act === 'record') {
+      if (running && running.block === b && running.rec) { stop(true); return; }
+      if (running) stop(false);
+      var area = b.querySelector('.sp-rec');
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+        var chunks = [], rec = new MediaRecorder(stream), timer = b.querySelector('.sp-timer'), t0 = Date.now();
+        rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+        rec.onstop = function () {
+          stream.getTracks().forEach(function (tr) { tr.stop(); });
+          var blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+          var old = area.querySelector('audio'); if (old) URL.revokeObjectURL(old.src);
+          area.innerHTML = '';
+          area.appendChild(el('strong', '', 'Your recording (kept only in this tab, never uploaded)'));
+          var au = document.createElement('audio'); au.controls = true; au.src = URL.createObjectURL(blob); area.appendChild(au);
+          var dl = el('a', '', 'Download'); dl.href = au.src; dl.download = 'answer-q' + b.getAttribute('data-sp') + (/ogg/.test(blob.type) ? '.ogg' : /mp4/.test(blob.type) ? '.m4a' : '.webm'); area.appendChild(dl);
+          area.appendChild(el('div', 'sp-hint', 'Now listen to yourself, then press Listen for the model answer and compare structure, examples and pace.'));
+          area.hidden = false;
+        };
+        rec.start();
+        btn.innerHTML = '<span class="sp-recdot"></span>■ Stop';
+        show(b, false); area.hidden = true;
+        running = { block: b, t0: t0, rec: rec };
+        running.iv = setInterval(function () {
+          var s = Math.round((Date.now() - running.t0) / 1000);
+          timer.textContent = fmt(s); timer.className = 'sp-timer ' + (s < 60 ? 'low' : s <= 90 ? 'good' : 'over');
+        }, 250);
+      }).catch(function () {
+        area.hidden = false; area.innerHTML = '';
+        area.appendChild(el('div', 'sp-hint', 'Microphone not available or permission denied. Allow the microphone for this page, or use Practice (timer only).'));
+      });
+      return;
     }
     if (act === 'practice') {
       if (running && running.block === b) { stop(true); return; }

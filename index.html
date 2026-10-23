@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>InterviewHub — Platform , SRE & DevOps Engineering Interview Portal</title>
-<meta name="description" content="3,200+ production-grade interview Q&A across Terraform, Kubernetes, GCP, AWS, Azure, Networking, Linux, Databases, Containers, Git, Observability, CI/CD, Security, Coding, and Behavioral. Free, offline-ready.">
+<meta name="description" content="3,500+ production-grade interview Q&A across Terraform, Kubernetes, GCP, AWS, Azure, Networking, Linux, Databases, Containers, Git, Observability, CI/CD, Security, Coding, and Behavioral. Free, offline-ready.">
 <link rel="canonical" href="https://interviewhub.eknathalabs.com/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="InterviewHub — Platform, SRE &amp; DevOps Interview Portal">
-<meta property="og:description" content="3,200+ production-grade interview Q&amp;A with 60–90 second spoken answers. Free, offline-ready, no login.">
+<meta property="og:description" content="3,500+ production-grade interview Q&amp;A with 60–90 second spoken answers. Free, offline-ready, no login.">
 <meta property="og:url" content="https://interviewhub.eknathalabs.com/">
 <meta name="twitter:card" content="summary">
 <style>
@@ -172,6 +172,7 @@ footer a:hover { text-decoration: underline; }
       <span class="logo-name">Interview<em>Hub</em></span>
     </a>
     <nav>
+      <a href="search.html" class="hs">Search</a>
       <a href="resume_mapper.html" class="hs">Resume mapper</a>
       <a href="decision_trees.html" class="hs">Decision trees</a>
       <span class="hvisitor hs" id="visitor-count" hidden title="Anonymous visit counter (no cookies)">&#128065; <b data-n>0</b> visitors</span>
@@ -183,10 +184,10 @@ footer a:hover { text-decoration: underline; }
 <div class="hero">
   <div class="pill"><span class="pill-dot"></span>Platform & DevOps Engineer Interview Prep</div>
   <h1>Crack your next<br><mark>Platform or DevOps Engineer</mark> interview</h1>
-  <p class="sub">3,200+ production-grade questions with real commands, architecture patterns, and Principal-level answers.</p>
+  <p class="sub">3,500+ production-grade questions with real commands, architecture patterns, and Principal-level answers.</p>
   <div class="counters">
-    <div class="ctr"><div class="ctr-n">3,200+</div><div class="ctr-l">Total questions</div></div>
-    <div class="ctr"><div class="ctr-n">22</div><div class="ctr-l">Topic guides</div></div>
+    <div class="ctr"><div class="ctr-n">3,500+</div><div class="ctr-l">Total questions</div></div>
+    <div class="ctr"><div class="ctr-n">25</div><div class="ctr-l">Topic guides</div></div>
     <div class="ctr"><div class="ctr-n">100%</div><div class="ctr-l">Free &amp; offline</div></div>
     <div class="ctr"><div class="ctr-n">0</div><div class="ctr-l">Login required</div></div>
   </div>
@@ -195,8 +196,9 @@ footer a:hover { text-decoration: underline; }
 <div class="controls">
   <div class="search-wrap">
     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="text" id="search" placeholder="Search guides…" oninput="filterCards()">
+    <input type="text" id="search" placeholder="Search guides…" oninput="filterCards()" onkeydown="if(event.key==='Enter'&&this.value.trim())location.href='search.html?q='+encodeURIComponent(this.value.trim())">
   </div>
+  <a id="gsearch" href="search.html" style="display:none;font-size:13px;font-weight:600;color:var(--accent-dk);text-decoration:none;margin:6px 2px 0">Search all questions for this &rarr;</a>
   <div class="filter-row">
     <div class="chip on" onclick="setTag('all',this)">All (22)</div>
     <div class="chip" onclick="setTag('infra',this)">Infrastructure</div>
@@ -208,7 +210,7 @@ footer a:hover { text-decoration: underline; }
 </div>
 
 <div class="section">
-  <div class="section-meta" id="meta">Showing 22 guides · 3,200+ questions</div>
+  <div class="section-meta" id="meta">Showing 25 guides · 3,500+ questions</div>
   <div class="grid" id="grid">
 
     <!-- Terraform -->
@@ -526,6 +528,51 @@ footer a:hover { text-decoration: underline; }
       </div>
     </a>
 
+    <!-- Ansible -->
+    <a class="card t-red" href="ansible_interview_guide.html" data-tags="ops dev">
+      <div class="card-header">
+        <div class="card-icon">&#9881;</div>
+        <span class="cbadge">100 questions</span>
+      </div>
+      <div class="card-title">Ansible</div>
+      <div class="card-desc">Playbooks, roles, inventory, variables and precedence, Vault, Jinja2, error handling, rolling updates, AWX and testing with Molecule.</div>
+      <div class="card-tags"><span class="ctag">Playbooks</span><span class="ctag">Roles</span><span class="ctag">Vault</span><span class="ctag">Molecule</span><span class="ctag">AWX</span></div>
+      <div class="card-foot">
+        <span class="open-btn">Open guide <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+        <span class="clevel lv-mid">Intermediate</span>
+      </div>
+    </a>
+
+    <!-- Python for SRE &amp; DevOps -->
+    <a class="card t-teal" href="python_sre_interview_guide.html" data-tags="dev ops">
+      <div class="card-header">
+        <div class="card-icon">&#128013;</div>
+        <span class="cbadge">100 questions</span>
+      </div>
+      <div class="card-title">Python for SRE &amp; DevOps</div>
+      <div class="card-desc">Scripting, CLI tools, cloud SDKs, concurrency, testing, packaging, ops automation, observability, retries and safe production patterns.</div>
+      <div class="card-tags"><span class="ctag">boto3</span><span class="ctag">asyncio</span><span class="ctag">pytest</span><span class="ctag">Prometheus</span><span class="ctag">Automation</span></div>
+      <div class="card-foot">
+        <span class="open-btn">Open guide <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+        <span class="clevel lv-mid">Intermediate</span>
+      </div>
+    </a>
+
+    <!-- Helm -->
+    <a class="card t-purp" href="helm_interview_guide.html" data-tags="infra ops dev">
+      <div class="card-header">
+        <div class="card-icon">&#9096;</div>
+        <span class="cbadge">100 questions</span>
+      </div>
+      <div class="card-title">Helm</div>
+      <div class="card-desc">Charts, templates, values, releases and rollbacks, repositories and OCI, CI/CD and GitOps, chart security, troubleshooting and advanced patterns.</div>
+      <div class="card-tags"><span class="ctag">Charts</span><span class="ctag">Templates</span><span class="ctag">Values</span><span class="ctag">OCI</span><span class="ctag">GitOps</span></div>
+      <div class="card-foot">
+        <span class="open-btn">Open guide <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+        <span class="clevel lv-mid">Intermediate</span>
+      </div>
+    </a>
+
     <!-- AI Infrastructure &amp; LLMOps -->
     <a class="card t-blue" href="ai_interview_guide.html" data-tags="infra ops dev">
       <div class="card-header">
@@ -560,6 +607,7 @@ footer a:hover { text-decoration: underline; }
   <p>Every answer expanded, spoken answers and official-doc links included. Free to download and share.</p>
   <div class="pdfgrid">
     <a class="pdfl" href="pdf/ai_interview_guide.pdf" download>AI Infrastructure <small>150 Q</small></a>
+    <a class="pdfl" href="pdf/ansible_interview_guide.pdf" download>Ansible <small>100 Q</small></a>
     <a class="pdfl" href="pdf/architecture_tradeoffs_interview_guide.pdf" download>Architecture & Trade-offs <small>170 Q</small></a>
     <a class="pdfl" href="pdf/aws_interview_guide.pdf" download>AWS <small>170 Q</small></a>
     <a class="pdfl" href="pdf/azure_interview_guide.pdf" download>Azure <small>170 Q</small></a>
@@ -571,12 +619,14 @@ footer a:hover { text-decoration: underline; }
     <a class="pdfl" href="pdf/devsecops_security_interview_guide.pdf" download>DevSecOps <small>155 Q</small></a>
     <a class="pdfl" href="pdf/gcp_interview_guide.pdf" download>GCP <small>90 Q</small></a>
     <a class="pdfl" href="pdf/git_production_interview_guide.pdf" download>Git in Production <small>177 Q</small></a>
+    <a class="pdfl" href="pdf/helm_interview_guide.pdf" download>Helm <small>100 Q</small></a>
     <a class="pdfl" href="pdf/kubernetes_interview_guide.pdf" download>Kubernetes <small>170 Q</small></a>
     <a class="pdfl" href="pdf/linux_interview_guide.pdf" download>Linux <small>175 Q</small></a>
     <a class="pdfl" href="pdf/networking_interview_guide.pdf" download>Networking <small>170 Q</small></a>
     <a class="pdfl" href="pdf/observability_interview_guide.pdf" download>Observability <small>80 Q</small></a>
     <a class="pdfl" href="pdf/openstack_interview_guide.pdf" download>OpenStack <small>150 Q</small></a>
     <a class="pdfl" href="pdf/product_management_interview_guide.pdf" download>Platform PM <small>113 Q</small></a>
+    <a class="pdfl" href="pdf/python_sre_interview_guide.pdf" download>Python for SRE <small>100 Q</small></a>
     <a class="pdfl" href="pdf/sre_devops_scenarios_guide.pdf" download>Production Scenarios <small>171 Q</small></a>
     <a class="pdfl" href="pdf/sre_reliability_interview_guide.pdf" download>SRE & Incident Mgmt <small>173 Q</small></a>
     <a class="pdfl" href="pdf/system_design_interview_guide.pdf" download>System Design <small>141 Q</small></a>
@@ -610,6 +660,7 @@ var activeTag = 'all';
 
 function filterCards() {
   var q = document.getElementById('search').value.toLowerCase().trim();
+  var gs = document.getElementById('gsearch'); gs.style.display = q ? 'inline-block' : 'none'; gs.href = 'search.html?q=' + encodeURIComponent(q);
   var cards = document.querySelectorAll('.card');
   var shown = 0;
   cards.forEach(function(c) {

@@ -1,6 +1,6 @@
 # InterviewHub — Platform, SRE & DevOps Engineering Interview Portal
 
-> <!-- COUNT -->3,200+<!-- /COUNT --> production-grade interview Q&A across Terraform, Kubernetes, GCP, AWS, Azure, Networking, Linux, Databases, Containers, Git, Observability, CI/CD, DevSecOps, SRE, System Design, Coding, Platform PM, Behavioral and Staff+ architecture. Free · No login · No ads · Works offline.
+> <!-- COUNT -->3,500+<!-- /COUNT --> production-grade interview Q&A across Terraform, Kubernetes, GCP, AWS, Azure, Networking, Linux, Databases, Containers, Git, Observability, CI/CD, DevSecOps, SRE, System Design, Coding, Platform PM, Behavioral and Staff+ architecture. Free · No login · No ads · Works offline.
 
 **Live portal → <https://interviewhub.eknathalabs.com/>**
 
@@ -12,28 +12,31 @@
 | # | Guide | File | Questions | Spoken answers | PDF | Topics |
 |---|-------|------|-----------|----------------|-----|--------|
 | 1 | AI, LLM & MLOps | `ai_interview_guide.html` | 150 | 150 | [PDF](pdf/ai_interview_guide.pdf) | RAG, agents, model serving, GPUs on K8s, evaluation, LLM security, cost |
-| 2 | Staff+ Architecture & Trade-offs | `architecture_tradeoffs_interview_guide.html` | 170 | 170 | [PDF](pdf/architecture_tradeoffs_interview_guide.pdf) | Build vs buy, multi-region, tech debt, big bets |
-| 3 | AWS Production | `aws_interview_guide.html` | 170 | 170 | [PDF](pdf/aws_interview_guide.pdf) | IAM, VPC, EKS, RDS, Lambda, cost |
-| 4 | Azure Production | `azure_interview_guide.html` | 170 | 170 | [PDF](pdf/azure_interview_guide.pdf) | Entra ID, AKS, VNet, Storage, Cost Mgmt |
-| 5 | Behavioral Interview (STAR) | `behavioral_star_interview_guide.html` | 177 | 177 | [PDF](pdf/behavioral_star_interview_guide.pdf) | Incidents, leadership, communication, ownership |
-| 6 | CI/CD Pipelines | `cicd_interview_guide.html` | 86 | 86 | [PDF](pdf/cicd_interview_guide.pdf) | GitHub Actions, ArgoCD, Cloud Build, GitOps |
-| 7 | Coding & Scripting for SRE / Platform | `coding_scripting_interview_guide.html` | 200 | 200 | [PDF](pdf/coding_scripting_interview_guide.pdf) | Bash, Python, algorithms, API pagination, Go basics |
-| 8 | Container Lifecycle & Deployments | `container_lifecycle_interview_guide.html` | 103 | 103 | [PDF](pdf/container_lifecycle_interview_guide.pdf) | Docker, deployments, Helm, GitOps |
-| 9 | Database Performance | `database_performance_interview_guide.html` | 97 | 97 | [PDF](pdf/database_performance_interview_guide.pdf) | Indexing, EXPLAIN, replication, Cloud SQL |
-| 10 | DevSecOps / Cloud & Supply-Chain Security | `devsecops_security_interview_guide.html` | 155 | 155 | [PDF](pdf/devsecops_security_interview_guide.pdf) | Vault/KMS, SBOM/SLSA, K8s hardening, policy-as-code |
-| 11 | GCP Production | `gcp_interview_guide.html` | 90 | 90 | [PDF](pdf/gcp_interview_guide.pdf) | IAM, GKE, VPC, Cloud SQL, SCC, FinOps |
-| 12 | Git in Production | `git_production_interview_guide.html` | 177 | 177 | [PDF](pdf/git_production_interview_guide.pdf) | Branching, recovery, GitOps, governance |
-| 13 | Kubernetes Production | `kubernetes_interview_guide.html` | 170 | 170 | [PDF](pdf/kubernetes_interview_guide.pdf) | Pods, networking, storage, security, HPA, upgrades |
-| 14 | Linux Systems Admin | `linux_interview_guide.html` | 175 | 175 | [PDF](pdf/linux_interview_guide.pdf) | Processes, performance, security, systemd |
-| 15 | Networking Fundamentals | `networking_interview_guide.html` | 170 | 170 | [PDF](pdf/networking_interview_guide.pdf) | TCP/DNS, TLS, routing, eBPF, troubleshooting |
-| 16 | Observability & Monitoring | `observability_interview_guide.html` | 80 | 80 | [PDF](pdf/observability_interview_guide.pdf) | Prometheus, Grafana, SLOs, OTel, alerting |
-| 17 | OpenStack Private Cloud | `openstack_interview_guide.html` | 150 | 150 | [PDF](pdf/openstack_interview_guide.pdf) | Nova, Neutron, Cinder, Keystone, Ceph, HA, upgrades, troubleshooting |
-| 18 | Technical / Platform Product Management | `product_management_interview_guide.html` | 113 | 113 | [PDF](pdf/product_management_interview_guide.pdf) | Product sense, platform metrics, build-vs-buy, RICE |
-| 19 | Production Scenarios | `sre_devops_scenarios_guide.html` | 171 | 171 | [PDF](pdf/sre_devops_scenarios_guide.pdf) | STAR-format incident walkthroughs across SRE/DevOps/Platform |
-| 20 | SRE Reliability & Incident Management | `sre_reliability_interview_guide.html` | 173 | 173 | [PDF](pdf/sre_reliability_interview_guide.pdf) | SLOs, error budgets, incident command, postmortems, chaos |
-| 21 | System Design | `system_design_interview_guide.html` | 141 | 141 | [PDF](pdf/system_design_interview_guide.pdf) | URL shortener, rate limiter, cache, multi-region K8s, IDP |
-| 22 | Terraform Production | `terraform_interview_guide.html` | 173 | 173 | [PDF](pdf/terraform_interview_guide.pdf) | State, backends, modules, CI/CD, recovery |
-| | **Total** | | **3,261** | **3261** | | |
+| 2 | Ansible | `ansible_interview_guide.html` | 100 | 100 | [PDF](pdf/ansible_interview_guide.pdf) | Playbooks, roles, inventory, Vault, Jinja2, error handling, AWX, testing with Molecule |
+| 3 | Staff+ Architecture & Trade-offs | `architecture_tradeoffs_interview_guide.html` | 170 | 170 | [PDF](pdf/architecture_tradeoffs_interview_guide.pdf) | Build vs buy, multi-region, tech debt, big bets |
+| 4 | AWS Production | `aws_interview_guide.html` | 170 | 170 | [PDF](pdf/aws_interview_guide.pdf) | IAM, VPC, EKS, RDS, Lambda, cost |
+| 5 | Azure Production | `azure_interview_guide.html` | 170 | 170 | [PDF](pdf/azure_interview_guide.pdf) | Entra ID, AKS, VNet, Storage, Cost Mgmt |
+| 6 | Behavioral Interview (STAR) | `behavioral_star_interview_guide.html` | 177 | 177 | [PDF](pdf/behavioral_star_interview_guide.pdf) | Incidents, leadership, communication, ownership |
+| 7 | CI/CD Pipelines | `cicd_interview_guide.html` | 86 | 86 | [PDF](pdf/cicd_interview_guide.pdf) | GitHub Actions, ArgoCD, Cloud Build, GitOps |
+| 8 | Coding & Scripting for SRE / Platform | `coding_scripting_interview_guide.html` | 200 | 200 | [PDF](pdf/coding_scripting_interview_guide.pdf) | Bash, Python, algorithms, API pagination, Go basics |
+| 9 | Container Lifecycle & Deployments | `container_lifecycle_interview_guide.html` | 103 | 103 | [PDF](pdf/container_lifecycle_interview_guide.pdf) | Docker, deployments, Helm, GitOps |
+| 10 | Database Performance | `database_performance_interview_guide.html` | 97 | 97 | [PDF](pdf/database_performance_interview_guide.pdf) | Indexing, EXPLAIN, replication, Cloud SQL |
+| 11 | DevSecOps / Cloud & Supply-Chain Security | `devsecops_security_interview_guide.html` | 155 | 155 | [PDF](pdf/devsecops_security_interview_guide.pdf) | Vault/KMS, SBOM/SLSA, K8s hardening, policy-as-code |
+| 12 | GCP Production | `gcp_interview_guide.html` | 90 | 90 | [PDF](pdf/gcp_interview_guide.pdf) | IAM, GKE, VPC, Cloud SQL, SCC, FinOps |
+| 13 | Git in Production | `git_production_interview_guide.html` | 177 | 177 | [PDF](pdf/git_production_interview_guide.pdf) | Branching, recovery, GitOps, governance |
+| 14 | Helm | `helm_interview_guide.html` | 100 | 100 | [PDF](pdf/helm_interview_guide.pdf) | Charts, templates, values, releases, repositories, CI/CD, security, troubleshooting |
+| 15 | Kubernetes Production | `kubernetes_interview_guide.html` | 170 | 170 | [PDF](pdf/kubernetes_interview_guide.pdf) | Pods, networking, storage, security, HPA, upgrades |
+| 16 | Linux Systems Admin | `linux_interview_guide.html` | 175 | 175 | [PDF](pdf/linux_interview_guide.pdf) | Processes, performance, security, systemd |
+| 17 | Networking Fundamentals | `networking_interview_guide.html` | 170 | 170 | [PDF](pdf/networking_interview_guide.pdf) | TCP/DNS, TLS, routing, eBPF, troubleshooting |
+| 18 | Observability & Monitoring | `observability_interview_guide.html` | 80 | 80 | [PDF](pdf/observability_interview_guide.pdf) | Prometheus, Grafana, SLOs, OTel, alerting |
+| 19 | OpenStack Private Cloud | `openstack_interview_guide.html` | 150 | 150 | [PDF](pdf/openstack_interview_guide.pdf) | Nova, Neutron, Cinder, Keystone, Ceph, HA, upgrades, troubleshooting |
+| 20 | Technical / Platform Product Management | `product_management_interview_guide.html` | 113 | 113 | [PDF](pdf/product_management_interview_guide.pdf) | Product sense, platform metrics, build-vs-buy, RICE |
+| 21 | Python for SRE & DevOps | `python_sre_interview_guide.html` | 100 | 100 | [PDF](pdf/python_sre_interview_guide.pdf) | Scripting, CLI tools, cloud SDKs, concurrency, testing, packaging, ops automation, observability, patterns |
+| 22 | Production Scenarios | `sre_devops_scenarios_guide.html` | 171 | 171 | [PDF](pdf/sre_devops_scenarios_guide.pdf) | STAR-format incident walkthroughs across SRE/DevOps/Platform |
+| 23 | SRE Reliability & Incident Management | `sre_reliability_interview_guide.html` | 173 | 173 | [PDF](pdf/sre_reliability_interview_guide.pdf) | SLOs, error budgets, incident command, postmortems, chaos |
+| 24 | System Design | `system_design_interview_guide.html` | 141 | 141 | [PDF](pdf/system_design_interview_guide.pdf) | URL shortener, rate limiter, cache, multi-region K8s, IDP |
+| 25 | Terraform Production | `terraform_interview_guide.html` | 173 | 173 | [PDF](pdf/terraform_interview_guide.pdf) | State, backends, modules, CI/CD, recovery |
+| | **Total** | | **3,561** | **3561** | | |
 <!-- GUIDES:END -->
 
 ---
@@ -100,7 +103,7 @@ Run all four after editing a guide or adding spoken answers. Requires Node 18+.
 ## Share
 
 ```
-🚀 3,200+ DevOps, SRE & Platform Engineering interview questions — free, no login, works offline.
+🚀 3,500+ DevOps, SRE & Platform Engineering interview questions — free, no login, works offline.
 Now with 60–90 second spoken answers and a resume → questions mapper.
 
 👉 https://interviewhub.eknathalabs.com/

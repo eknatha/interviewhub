@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helm &amp; Kubernetes Packaging — InterviewHub</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .2s,color .2s;}
+body.dark{--bg:#161616;--text:#e4e4e0;--surface:#1f1f1f;--border:#2e2e2e;--border-h:#484848;--muted:#a0a0a0;--faint:#606060;--code-bg:#252525;}
+body:not(.dark){--bg:#f5f5f0;--text:#1a1a1a;--surface:#fff;--border:#e4e4dc;--border-h:#b0b0a6;--muted:#666;--faint:#999;--code-bg:#f8f7f3;}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;gap:.75rem;position:sticky;top:0;z-index:100;flex-wrap:wrap;}
+.hback{font-size:12px;font-weight:600;color:#1D9E75;text-decoration:none;padding:5px 10px;border-radius:7px;border:1px solid #E1F5EE;background:#E1F5EE;transition:all .14s;white-space:nowrap;}
+.hback:hover{background:#1D9E75;color:#fff;}
+header h1{font-size:15px;font-weight:600;color:var(--text);flex:1;min-width:120px;}
+.hspan{font-size:11px;background:#E1F5EE;color:#085041;padding:3px 10px;border-radius:99px;font-weight:600;white-space:nowrap;}
+.dm-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:5px 9px;border-radius:7px;cursor:pointer;font-size:13px;transition:all .14s;}
+.dm-btn:hover{background:var(--border);}
+.container{max-width:900px;margin:0 auto;padding:1.5rem;}
+.search-bar{position:relative;margin-bottom:1rem;}
+.search-bar input{width:100%;padding:10px 16px 10px 40px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:14px;outline:none;transition:border-color .15s;}
+.search-bar input:focus{border-color:#1D9E75;}
+.search-bar svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;opacity:.4;stroke:var(--text);fill:none;stroke-width:1.8;stroke-linecap:round;}
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:1rem;}
+.chip{padding:5px 13px;border-radius:99px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all .14s;user-select:none;}
+.chip:hover{border-color:#1D9E75;color:#0F6E56;}
+.chip.active{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.1rem;}
+.stat{background:var(--surface);border-radius:10px;padding:12px 14px;border:1px solid var(--border);}
+.stat-n{font-size:22px;font-weight:700;color:#1D9E75;}
+.stat-l{font-size:11px;color:var(--muted);margin-top:2px;}
+.stat-n.red{color:#A32D2D;}
+.count-bar{font-size:12px;color:var(--faint);margin-bottom:8px;}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.fm-start-btn{padding:5px 13px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #E1F5EE;background:#E1F5EE;color:#0F6E56;transition:all .14s;}
+.fm-start-btn:hover{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.fm-bar{background:var(--surface);border:1.5px solid #1D9E75;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1rem;display:none;}
+.fm-bar.on{display:block;}
+.fm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;flex-wrap:wrap;gap:6px;}
+.fm-title{font-size:13px;font-weight:700;color:var(--text);}
+.fm-score{font-size:12px;color:var(--muted);}
+.fm-card{background:var(--code-bg);border-radius:10px;padding:1.1rem;margin-bottom:.7rem;min-height:70px;display:flex;align-items:center;justify-content:center;text-align:center;}
+.fm-q{font-size:14px;font-weight:600;color:var(--text);line-height:1.5;}
+.fm-ans{display:none;font-size:13px;color:var(--muted);line-height:1.65;max-height:300px;overflow-y:auto;padding:4px;}
+.fm-ans.on{display:block;}
+.fm-ans .cmd{background:var(--surface);border-radius:5px;padding:5px 9px;font-family:monospace;font-size:11px;color:var(--text);border-left:2px solid #1D9E75;margin:3px 0;white-space:pre-wrap;word-break:break-all;display:block;}
+.fm-btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:.6rem;}
+.fm-btn{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all .14s;}
+.fm-btn:hover{border-color:#1D9E75;color:#1D9E75;}
+.fm-btn.reveal{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.fm-btn.got{background:#EAF3DE;color:#27500A;border-color:#639922;}
+.fm-btn.miss{background:#FCEBEB;color:#791F1F;border-color:#E24B4A;}
+.fm-prog{height:4px;background:var(--border);border-radius:2px;margin-top:.7rem;overflow:hidden;}
+.fm-fill{height:100%;background:#1D9E75;border-radius:2px;transition:width .3s;}
+.q-list{display:flex;flex-direction:column;gap:8px;}
+.q-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .14s;}
+.q-card:hover{border-color:var(--border-h);}
+.q-header{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;cursor:pointer;user-select:none;}
+.q-num{font-size:11px;font-weight:600;color:var(--faint);min-width:28px;padding-top:2px;flex-shrink:0;}
+.q-title{font-size:14px;font-weight:600;color:var(--text);flex:1;line-height:1.5;}
+.q-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.badge{font-size:11px;padding:3px 9px;border-radius:99px;font-weight:600;white-space:nowrap;}
+  .badge.basics{background:#E6F1FB;color:#0C447C;}
+  .badge.templates{background:#E1F5EE;color:#085041;}
+  .badge.values{background:#EEEDFE;color:#3C3489;}
+  .badge.charts{background:#FAEEDA;color:#633806;}
+  .badge.release{background:#EAF3DE;color:#27500A;}
+  .badge.repo{background:#FCEBEB;color:#791F1F;}
+  .badge.cicd{background:#F1EFE8;color:#444441;}
+  .badge.sec{background:#FBEAF0;color:#72243E;}
+  .badge.trouble{background:#FAC775;color:#412402;}
+  .badge.adv{background:#FAECE7;color:#712B13;}
+
+.chevron{font-size:11px;color:var(--faint);transition:transform .2s;flex-shrink:0;}
+.chevron.open{transform:rotate(180deg);}
+.q-body{display:none;padding:0 16px 16px 56px;border-top:1px solid var(--border);}
+.q-body.open{display:block;}
+.q-body p{font-size:13px;line-height:1.75;color:var(--muted);margin-bottom:8px;margin-top:10px;}
+.q-body p:last-child{margin-bottom:0;}
+.sec{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);margin:12px 0 5px;}
+.cmds{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+.cmd{background:var(--code-bg);border-radius:6px;padding:6px 10px;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;color:var(--text);border-left:2.5px solid #1D9E75;line-height:1.5;white-space:pre-wrap;word-break:break-all;}
+.tip{background:#FAEEDA;border-radius:7px;padding:9px 13px;font-size:12px;color:#412402;border-left:2.5px solid #BA7517;margin-top:8px;line-height:1.6;}
+.warn{background:#FCEBEB;border-radius:7px;padding:9px 13px;font-size:12px;color:#501313;border-left:2.5px solid #E24B4A;margin-top:8px;line-height:1.6;}
+.good{background:#EAF3DE;border-radius:7px;padding:9px 13px;font-size:12px;color:#173404;border-left:2.5px solid #639922;margin-top:8px;line-height:1.6;}
+.info{background:#EEEDFE;border-radius:7px;padding:9px 13px;font-size:12px;color:#26215C;border-left:2.5px solid #7F77DD;margin-top:8px;line-height:1.6;}
+.tip b,.warn b,.good b,.info b{font-weight:700;}
+body.dark .tip{background:#261a05;color:#FAC775;}
+body.dark .warn{background:#220a0a;color:#F09595;}
+body.dark .good{background:#081408;color:#C0DD97;}
+body.dark .info{background:#0e0b1f;color:#AFA9EC;}
+body.dark .fm-ans .cmd{background:#1a1a1a;}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr);}.q-body{padding-left:16px;}header{padding:.9rem 1rem;}header h1{font-size:13px;}.container{padding:1rem;}}
+
+/* ── DARK MODE VARIABLES ─────────────────────────────── */
+body {
+  --dm-bg:         #111314;
+  --dm-surface:    #1a1d1f;
+  --dm-surface2:   #222629;
+  --dm-border:     #2e3235;
+  --dm-text:       #e8eaec;
+  --dm-muted:      #8a9099;
+  --dm-cmd-bg:     #1e2123;
+  --dm-cmd-border: #1D9E75;
+}
+body.dark {
+  background:  var(--dm-bg)      !important;
+  color:       var(--dm-text)    !important;
+}
+body.dark header,
+body.dark .wrap > *:not(.q-list):not(#q-list) { color: var(--dm-text); }
+
+/* cards */
+body.dark .q-card  { background: var(--dm-surface); border-color: var(--dm-border); }
+body.dark .q-header .q-title { color: var(--dm-text); }
+body.dark .q-body  { border-color: var(--dm-border); }
+body.dark .q-body p { color: var(--dm-muted); }
+
+/* commands */
+body.dark .cmd     { background: var(--dm-cmd-bg); color: #c9d1d9; border-left-color: var(--dm-cmd-border); }
+body.dark .cmds    { background: transparent; }
+
+/* filter chips */
+body.dark .chip    { background: var(--dm-surface2); border-color: var(--dm-border); color: var(--dm-muted); }
+body.dark .chip.active,
+body.dark .chip.on { background: #0F6E56; color: #fff; border-color: #1D9E75; }
+
+/* search */
+body.dark .search-bar input,
+body.dark #search  { background: var(--dm-surface); border-color: var(--dm-border); color: var(--dm-text); }
+body.dark .search-bar input::placeholder,
+body.dark #search::placeholder { color: var(--dm-muted); }
+
+/* stats */
+body.dark .stat    { background: var(--dm-surface); border-color: var(--dm-border); }
+body.dark .stat-l  { color: var(--dm-muted); }
+
+/* tips/warns */
+body.dark .tip     { background: #231c09; color: #d4a847; }
+body.dark .warn    { background: #1f0f0f; color: #e07070; }
+body.dark .good    { background: #0d1f0d; color: #7aba5e; }
+body.dark .info    { background: #0d1226; color: #7aa8e0; }
+
+/* interview mode bar */
+body.dark .fm-bar  { background: var(--dm-surface); border-color: #1D9E75; }
+body.dark .fm-q    { color: var(--dm-text); }
+body.dark .fm-score { color: var(--dm-muted); }
+body.dark .fm-reveal { background: var(--dm-surface2); border-color: var(--dm-border); color: var(--dm-text); }
+
+/* header / portal link */
+body.dark .portal-link { color: #1D9E75; }
+body.dark .q-num   { color: var(--dm-muted); }
+body.dark .chevron { color: var(--dm-muted); }
+body.dark .count-bar { color: var(--dm-muted); }
+body.dark .sec     { color: var(--dm-muted); }
+
+/* dark toggle button */
+.dm-btn {
+  background: none; border: 1px solid #ddd; border-radius: 8px;
+  padding: 4px 10px; font-size: 13px; cursor: pointer; color: inherit;
+  transition: all .14s; flex-shrink: 0;
+}
+.dm-btn:hover { border-color: #1D9E75; }
+body.dark .dm-btn  { border-color: #2e3235; background: var(--dm-surface2); color: var(--dm-text); }
+
+/* interview mode toggle */
+.fm-btn {
+  background: #1D9E75; color: #fff; border: none; border-radius: 8px;
+  padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .14s; flex-shrink: 0;
+}
+.fm-btn:hover { background: #0F6E56; }
+
+/* interview mode bar */
+.fm-bar {
+  display: none;
+  background: #fff;
+  border: 2px solid #1D9E75;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  position: relative;
+}
+.fm-bar.open { display: block; }
+.fm-prog-wrap { height: 4px; background: #e0e0d8; border-radius: 99px; margin-bottom: 12px; overflow: hidden; }
+.fm-prog      { height: 4px; background: #1D9E75; border-radius: 99px; transition: width .3s; }
+.fm-meta      { font-size: 11px; color: #888; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.fm-q         { font-size: 15px; font-weight: 700; line-height: 1.5; margin-bottom: 14px; color: #1a1a1a; }
+.fm-answer    { display: none; margin-bottom: 14px; }
+.fm-answer.show { display: block; }
+.fm-actions   { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fm-reveal    { padding: 7px 16px; border: 1px solid #ddd; border-radius: 8px; background: #f5f5f0; font-size: 13px; font-weight: 600; cursor: pointer; }
+.fm-reveal:hover { background: #eee; }
+.fm-got       { padding: 7px 16px; background: #EAF3DE; color: #27500A; border: 1px solid #b5d88a; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.fm-got:hover { background: #d5ecb8; }
+.fm-miss      { padding: 7px 16px; background: #FCEBEB; color: #791F1F; border: 1px solid #f0b0b0; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.fm-miss:hover { background: #f9d5d5; }
+.fm-stop      { margin-left: auto; padding: 7px 14px; background: none; border: 1px solid #ddd; border-radius: 8px; font-size: 12px; cursor: pointer; color: #999; }
+.fm-stop:hover { border-color: #999; color: #555; }
+.fm-score     { font-size: 12px; color: #888; font-weight: 600; }
+.fm-done      { font-size: 14px; font-weight: 700; color: #1D9E75; margin-bottom: 8px; }
+
+/* toolbar row (count + IM button) */
+.toolbar      { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+
+</style>
+<meta name="description" content="100 production-grade Helm interview guide: charts, templates, values, releases, OCI registries, GitOps, security and troubleshooting.">
+<link rel="canonical" href="https://interviewhub.eknathalabs.com/helm_interview_guide.html">
+<link rel="stylesheet" href="print.css" media="print">
+<link rel="stylesheet" href="responsive.css">
+</head>
+<body>
+<header style="background:#fff;border-bottom:1px solid #e4e4dc;padding:.9rem 1.5rem;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;flex-wrap:wrap;"><a href="index.html" class="portal-link" style="font-size:12px;font-weight:600;color:#1D9E75;text-decoration:none;border:1px solid #ddd;border-radius:7px;padding:4px 10px;white-space:nowrap;">&#8592; Portal</a><h1 style="font-size:16px;font-weight:700;flex:1;min-width:0;">Helm &amp; Kubernetes Packaging — InterviewHub</h1><span style="font-size:11px;background:#E1F5EE;color:#085041;padding:3px 10px;border-radius:99px;font-weight:600;white-space:nowrap;">100 questions</span><button class="dm-btn" id="dm-btn" onclick="toggleDark()">&#9790; Dark</button></header>
+<div class="container">
+  <div class="search-bar">
+    <svg viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="5"/><path d="M10.5 10.5L14 14"/></svg>
+    <input type="text" id="search" placeholder="Search questions and answers…" oninput="filterQs()">
+  </div>
+  <div class="filters">
+    <div class="chip active" onclick="setFilter('all',this)">All (100)</div>
+    <div class="chip" onclick="setFilter('basics',this)">Core concepts</div>
+    <div class="chip" onclick="setFilter('templates',this)">Templating &amp; Go</div>
+    <div class="chip" onclick="setFilter('values',this)">Values &amp; config</div>
+    <div class="chip" onclick="setFilter('charts',this)">Charts &amp; dependencies</div>
+    <div class="chip" onclick="setFilter('release',this)">Releases &amp; lifecycle</div>
+    <div class="chip" onclick="setFilter('repo',this)">Repos &amp; OCI</div>
+    <div class="chip" onclick="setFilter('cicd',this)">CI/CD &amp; GitOps</div>
+    <div class="chip" onclick="setFilter('sec',this)">Security &amp; secrets</div>
+    <div class="chip" onclick="setFilter('trouble',this)">Troubleshooting</div>
+    <div class="chip" onclick="setFilter('adv',this)">Hooks/tests/advanced</div>
+  </div>
+
+  <div class="fm-bar" id="fmBar">
+    <div class="fm-header">
+      <span class="fm-title">&#127183; Interview Mode</span>
+      <span class="fm-score" id="fmScore">0 correct / 0 seen</span>
+    </div>
+    <div class="fm-card"><div class="fm-q" id="fmQ">Press Start to begin…</div></div>
+    <div class="fm-ans" id="fmAns"></div>
+    <div class="fm-btns">
+      <button class="fm-btn reveal" id="fmRev" onclick="fmReveal()">Reveal answer</button>
+      <button class="fm-btn got" id="fmGot" onclick="fmNext(true)" style="display:none">&#10003; Got it</button>
+      <button class="fm-btn miss" id="fmMiss" onclick="fmNext(false)" style="display:none">&#10005; Missed</button>
+      <button class="fm-btn" onclick="fmStop()">&#215; Exit</button>
+    </div>
+    <div class="fm-prog"><div class="fm-fill" id="fmFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n">100</div><div class="stat-l">Total questions</div></div>
+    <div class="stat"><div class="stat-n" id="visN">100</div><div class="stat-l">Showing</div></div>
+    <div class="stat"><div class="stat-n" id="viewN">0</div><div class="stat-l">Viewed</div></div>
+    <div class="stat"><div class="stat-n red" id="correctN">0</div><div class="stat-l">Correct in FM</div></div>
+  </div>
+  <div class="toolbar">
+    <span class="count-bar" id="countBar">Showing 100 questions</span>
+    <button class="fm-start-btn" onclick="fmStart()">&#127183; Interview Mode</button>
+  </div>
+  <div class="q-list" id="qList"></div>
+</div>
+<script>
+var QS = [
+  {n:1,tag:"basics",q:"What is Helm and what problems does it solve in Kubernetes?",body:"<p>Helm packages Kubernetes manifests into versioned charts with templates and values, renders them per environment and manages install, upgrade and rollback as releases. Helm 3 is client-only and stores release state as namespace secrets.</p><div class=\"cmds\"><div class=\"cmd\">helm install myapp ./mychart -f values-prod.yaml</div><div class=\"cmd\">helm list -A</div></div><div class=\"tip\"><b>Interview tip:</b> Say chart plus values equals release.</div>"},
+  {n:2,tag:"basics",q:"Explain the core Helm concepts: chart, release, repository and values.",body:"<p>A chart is the package, a release is an installed instance with numbered revisions, a repository publishes charts through HTTP index or OCI, and values are configuration merged over chart defaults at render time.</p><div class=\"cmds\"><div class=\"cmd\">helm history myapp</div><div class=\"cmd\">helm get values myapp</div></div><div class=\"tip\"><b>Interview tip:</b> Say one chart, many releases, each upgrade a revision.</div>"},
+  {n:3,tag:"basics",q:"What are the essential Helm commands you use daily?",body:"<p>Daily commands are search, show, template, lint, install, upgrade --install, list, status, get, history, rollback, uninstall, plus create, package and dependency update for authoring. Use the diff plugin and atomic and wait flags for safer upgrades.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install myapp ./chart -n prod --create-namespace --atomic --wait</div><div class=\"cmd\">helm template myapp ./chart -f values.yaml | kubectl apply --dry-run=server -f -</div></div><div class=\"tip\"><b>Interview tip:</b> Say lint, template, diff, then upgrade --install --atomic.</div>"},
+  {n:4,tag:"basics",q:"How does helm install work internally, from command to running resources?",body:"<p>Helm loads the chart, merges values, renders Go templates to manifests, validates them, orders resources by kind, stores the release record as a namespace secret, applies resources through the Kubernetes API with hooks, optionally waits for readiness and prints notes.</p><div class=\"cmds\"><div class=\"cmd\">kubectl get secrets -n prod -l owner=helm</div><div class=\"cmd\">helm install myapp ./chart --debug --dry-run</div></div><div class=\"tip\"><b>Interview tip:</b> Say render client-side, store release as a secret, apply via API.</div>"},
+  {n:5,tag:"basics",q:"What is the difference between helm install, helm upgrade and helm upgrade --install?",body:"<p>Install creates a release and fails if it exists; upgrade changes an existing release and creates a revision; upgrade --install does either, so it is idempotent for pipelines. Supply complete values each time and use atomic and wait.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install myapp oci://registry/charts/myapp --version 1.4.2 -f prod.yaml --atomic --timeout 5m</div></div><div class=\"tip\"><b>Interview tip:</b> Say upgrade --install with full values each run.</div>"},
+  {n:6,tag:"basics",q:"How does Helm store release state, and what happened to Tiller?",body:"<p>Helm 2 used a privileged in-cluster Tiller; Helm 3 removed it, acts with the caller's RBAC, and stores each revision as a secret named sh.helm.release.v1 in the release namespace. Restrict access to those secrets since they contain values.</p><div class=\"cmds\"><div class=\"cmd\">kubectl get secret sh.helm.release.v1.myapp.v3 -n prod</div><div class=\"cmd\">helm upgrade myapp ./chart --history-max 10</div></div><div class=\"tip\"><b>Interview tip:</b> Say no Tiller, state in namespace secrets.</div>"},
+  {n:7,tag:"basics",q:"When would you use Helm compared with Kustomize or plain manifests?",body:"<p>Plain manifests suit small static setups, Kustomize gives patch-based overlays without templating, and Helm adds packaging, versioning, dependencies, hooks and release management. Use Helm for third-party or configurable apps, Kustomize for simple variants, or combine them.</p><div class=\"cmds\"><div class=\"cmd\">helm template myapp ./chart | kubectl kustomize</div><div class=\"cmd\">kubectl apply -k overlays/prod</div></div><div class=\"tip\"><b>Interview tip:</b> Say Helm packages and versions; Kustomize patches.</div>"},
+  {n:8,tag:"basics",q:"How do you install and configure Helm, and manage Kubernetes context and namespaces?",body:"<p>Install a pinned Helm binary, verify kubeconfig context and namespace before acting, pass kube-context and namespace explicitly in automation, use create-namespace carefully, configure repositories or OCI logins and give CI least-privilege access.</p><div class=\"cmds\"><div class=\"cmd\">helm version</div><div class=\"cmd\">kubectl config current-context</div><div class=\"cmd\">helm list -n prod --kube-context prod-eu</div></div><div class=\"tip\"><b>Interview tip:</b> Say always pass context and namespace in pipelines.</div>"},
+  {n:9,tag:"basics",q:"What does helm uninstall remove, and what can be left behind?",body:"<p>Uninstall removes manifest resources and runs delete hooks, optionally keeping history. PVCs from stateful sets, CRDs, resources with the keep policy, namespaces and runtime-created objects can remain, so review and clean them explicitly.</p><div class=\"cmds\"><div class=\"cmd\">helm uninstall myapp -n prod --keep-history</div><div class=\"cmd\">kubectl get pvc,crd -n prod</div></div><div class=\"tip\"><b>Interview tip:</b> Say PVCs and CRDs survive uninstall by design.</div>"},
+  {n:10,tag:"basics",q:"What are Helm plugins and which ones are useful?",body:"<p>Plugins add Helm subcommands; install from trusted sources and pin versions. Useful ones are helm-diff for previewing upgrades, helm-secrets with SOPS, helm-unittest for template tests, helm-docs for documentation and mapkubeapis for removed APIs.</p><div class=\"cmds\"><div class=\"cmd\">helm plugin install https://github.com/databus23/helm-diff --version 3.9.0</div><div class=\"cmd\">helm diff upgrade myapp ./chart -f prod.yaml</div></div><div class=\"tip\"><b>Interview tip:</b> Say helm diff before every production upgrade.</div>"},
+  {n:11,tag:"templates",q:"How does Helm templating work, and what are the built-in objects?",body:"<p>Helm renders Go templates with Sprig functions, exposing Values, Release, Chart, Files, Capabilities and Template objects. Use whitespace control for valid YAML, underscore files for helpers and template with debug to inspect output.</p><div class=\"cmds\"><div class=\"cmd\">metadata:\n  name: {{ .Release.Name }}-web\n  namespace: {{ .Release.Namespace }}</div><div class=\"cmd\">helm template myapp ./chart --debug</div></div><div class=\"tip\"><b>Interview tip:</b> Say the dot is context; Values, Release and Chart are its parts.</div>"},
+  {n:12,tag:"templates",q:"How do you use conditionals and loops in Helm templates?",body:"<p>Use if/else for optional blocks, noting empty values are false; range for lists and maps, where dot is rebound so use $ for the root; with for optional nested values; and nindent and whitespace trimming to keep YAML valid.</p><div class=\"cmds\"><div class=\"cmd\">{{- if .Values.ingress.enabled }}\n{{- range .Values.ingress.hosts }}\n- host: {{ . | quote }}\n{{- end }}\n{{- end }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say $ is the root inside range and with.</div>"},
+  {n:13,tag:"templates",q:"What are named templates and _helpers.tpl, and how do include and template differ?",body:"<p>Define reusable fragments with define in _helpers.tpl and call them with include, which returns a string that can be piped to indent or nindent; template cannot be piped. Pass context explicitly and prefix names with the chart name since they are global.</p><div class=\"cmds\"><div class=\"cmd\">{{- define \"mychart.labels\" -}}\napp.kubernetes.io/name: {{ .Chart.Name }}\n{{- end }}</div><div class=\"cmd\">labels:\n  {{- include \"mychart.labels\" . | nindent 4 }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say include plus nindent, never template for helpers.</div>"},
+  {n:14,tag:"templates",q:"Which Sprig and Helm template functions do you use most, such as default, required, quote, toYaml and tpl?",body:"<p>Common functions are default for fallbacks, required for mandatory values, quote for safe strings, toYaml with nindent for pass-through blocks, tpl for templated values, trunc for name limits, sha256sum for checksums and lookup for cluster reads.</p><div class=\"cmds\"><div class=\"cmd\">image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}</div><div class=\"cmd\">apiUrl: {{ required \"apiUrl is required\" .Values.apiUrl | quote }}</div><div class=\"cmd\">resources:\n  {{- toYaml .Values.resources | nindent 2 }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say required for mandatory values, toYaml for blocks.</div>"},
+  {n:15,tag:"templates",q:"How do you trigger a rolling restart of pods when a ConfigMap or Secret changes?",body:"<p>Add a pod template annotation with the sha256sum of the rendered ConfigMap or Secret so changes alter the pod template and trigger a rolling update. Alternatives are Reloader-style controllers or apps that reload files themselves.</p><div class=\"cmds\"><div class=\"cmd\">spec:\n  template:\n    metadata:\n      annotations:\n        checksum/config: {{ include (print $.Template.BasePath \"/configmap.yaml\") . | sha256sum }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say checksum annotation to force a rolling update.</div>"},
+  {n:16,tag:"templates",q:"How do you debug a Helm template that renders the wrong output or fails?",body:"<p>Use helm lint, then helm template with --debug and --show-only to inspect output, dry-run for server-side validation, and print values with toYaml to check. Common causes are indentation, rebound dot, missing quotes, nil nested keys and whitespace trimming.</p><div class=\"cmds\"><div class=\"cmd\">helm template myapp ./chart --debug --show-only templates/deployment.yaml</div><div class=\"cmd\">helm template myapp ./chart | kubeconform -strict -summary</div></div><div class=\"tip\"><b>Interview tip:</b> Say template --debug, then kubeconform.</div>"},
+  {n:17,tag:"templates",q:"How do you handle optional blocks and nested values safely to avoid nil pointer errors?",body:"<p>Define defaults for every parent map in values.yaml, guard nested access with if, with or hasKey, use dig for safe traversal with a default, control features with enabled flags and fail early with required or a values schema.</p><div class=\"cmds\"><div class=\"cmd\">{{ dig \"service\" \"annotations\" \"team\" \"unknown\" .Values }}</div><div class=\"cmd\">{{- if and .Values.ingress .Values.ingress.enabled }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say defaults for parents, dig for safe reads.</div>"},
+  {n:18,tag:"templates",q:"How do you write a chart that supports multiple Kubernetes API versions?",body:"<p>Use Capabilities.APIVersions.Has and KubeVersion in helpers to pick apiVersion and fields, pass kube-version and api-versions flags when templating offline, declare kubeVersion in Chart.yaml, drop old versions on a schedule and use mapkubeapis for existing releases.</p><div class=\"cmds\"><div class=\"cmd\">{{- if .Capabilities.APIVersions.Has \"networking.k8s.io/v1/Ingress\" }}\napiVersion: networking.k8s.io/v1\n{{- end }}</div><div class=\"cmd\">helm template x ./chart --kube-version 1.29.0 --api-versions networking.k8s.io/v1/Ingress</div></div><div class=\"tip\"><b>Interview tip:</b> Say Capabilities, plus CI across several versions.</div>"},
+  {n:19,tag:"templates",q:"Why are Kubernetes resource names limited to 63 characters in charts, and how do you build safe names?",body:"<p>DNS label rules cap many names at 63 characters, so use the fullname helper that combines release and chart names, truncates and trims hyphens, account for suffixes, provide name overrides and keep selectors stable since they are immutable.</p><div class=\"cmds\"><div class=\"cmd\">{{- define \"mychart.fullname\" -}}\n{{- printf \"%s-%s\" .Release.Name .Chart.Name | trunc 63 | trimSuffix \"-\" -}}\n{{- end }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say fullname helper, truncate to 63, keep selectors stable.</div>"},
+  {n:20,tag:"templates",q:"How do you manage whitespace and indentation problems in Helm templates?",body:"<p>Use dashes in braces to trim whitespace, nindent or indent to place multi-line output at the correct depth, check rendered output with helm template and a YAML linter and move complex logic into helpers.</p><div class=\"cmds\"><div class=\"cmd\">{{- with .Values.nodeSelector }}\nnodeSelector:\n  {{- toYaml . | nindent 2 }}\n{{- end }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say dash trims, nindent places.</div>"},
+  {n:21,tag:"values",q:"How are Helm values merged, and what is the order of precedence?",body:"<p>Order is chart values.yaml, parent overrides for subcharts, values files in sequence, then set flags. Maps merge recursively but lists are replaced; null deletes a default. Prefer complete values files in Git over reuse-values.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install app ./chart -f base.yaml -f prod.yaml --set image.tag=1.4.2</div><div class=\"cmd\">helm get values app --all</div></div><div class=\"tip\"><b>Interview tip:</b> Say maps merge, lists replace.</div>"},
+  {n:22,tag:"values",q:"How do you organise values files for multiple environments?",body:"<p>Use a shared base values file plus small per-environment, region or cluster overlays applied in order, keep them in Git with the chart version pinned separately, store secrets elsewhere and validate all layers with a schema and rendered diffs in CI.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install app ./chart -f values/base.yaml -f values/prod.yaml -f values/prod-eu.yaml</div><div class=\"cmd\">diff &lt;(helm template app ./chart -f values/base.yaml -f values/stg.yaml) &lt;(helm template app ./chart -f values/base.yaml -f values/prod.yaml)</div></div><div class=\"tip\"><b>Interview tip:</b> Say base plus thin overlays, secrets elsewhere.</div>"},
+  {n:23,tag:"values",q:"What is values.schema.json and why should every chart have one?",body:"<p>A values.schema.json defines types, enums, required fields and patterns; Helm validates merged values on install, upgrade, lint and template, catching typos and bad input early and documenting options. Keep it in sync with values.yaml.</p><div class=\"cmds\"><div class=\"cmd\">{\n \"$schema\": \"https://json-schema.org/draft-07/schema#\",\n \"type\": \"object\",\n \"required\": [\"image\"],\n \"properties\": {\"replicaCount\": {\"type\": \"integer\", \"minimum\": 1}}\n}</div></div><div class=\"tip\"><b>Interview tip:</b> Say schema fails fast with a clear message.</div>"},
+  {n:24,tag:"values",q:"What are the differences between --set, --set-string, --set-file and --set-json?",body:"<p>Set infers types; set-string forces strings for tag-like values; set-file loads file content; set-json passes structured JSON. Prefer values files for reviewability and reserve set for a few dynamic values like image tags, and never for secrets.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade app ./chart --set-string image.tag=1.20 --set-file tls.crt=./tls.crt --set-json 'tolerations=[{\"key\":\"gpu\",\"operator\":\"Exists\"}]'</div></div><div class=\"tip\"><b>Interview tip:</b> Say set-string stops 1.20 becoming 1.2.</div>"},
+  {n:25,tag:"values",q:"How do you design a good values.yaml for a chart others will consume?",body:"<p>Group values logically with consistent names, safe defaults, documented comments and helm-docs, enabled flags for optional parts, standard extension points like annotations and tolerations, secret references, stable names across versions and a schema.</p><div class=\"cmds\"><div class=\"cmd\">image:\n  repository: nginx\n  tag: \"\"\nresources: {}\nautoscaling:\n  enabled: false</div><div class=\"cmd\">helm-docs --chart-search-root .</div></div><div class=\"tip\"><b>Interview tip:</b> Say values are the chart's API; version them like one.</div>"},
+  {n:26,tag:"values",q:"How do global values work, and how do values flow to subcharts?",body:"<p>Parents override subchart values under the subchart's name or alias; subcharts cannot read parent values except those under the global key, shared with all. Use import-values for the reverse, conditions and tags to toggle subcharts, and keep global small.</p><div class=\"cmds\"><div class=\"cmd\">postgresql:\n  auth:\n    database: app\nglobal:\n  imageRegistry: registry.example.com</div></div><div class=\"tip\"><b>Interview tip:</b> Say down by name, shared by global.</div>"},
+  {n:27,tag:"values",q:"How do you handle sensitive values in Helm without committing them in plain text?",body:"<p>Prefer referencing secrets created by External Secrets, CSI drivers or Sealed Secrets; otherwise encrypt values with SOPS and helm-secrets. Remember release records contain values, so restrict access, enable encryption at rest, rotate and scan for leaks.</p><div class=\"cmds\"><div class=\"cmd\">sops --encrypt --age $AGE_PUB values-secret.yaml &gt; values-secret.enc.yaml</div><div class=\"cmd\">helm secrets upgrade --install app ./chart -f values-secret.enc.yaml</div></div><div class=\"tip\"><b>Interview tip:</b> Say reference secrets, don't embed them.</div>"},
+  {n:28,tag:"values",q:"What are the problems with --reuse-values and how do you avoid configuration drift?",body:"<p>Reuse-values keeps old computed values so new chart defaults are ignored and the release drifts from Git. Pass full values files every time, treat Git as truth, audit with get values and use GitOps reconciliation.</p><div class=\"cmds\"><div class=\"cmd\">helm get values app --all -o yaml &gt; live.yaml</div><div class=\"cmd\">helm upgrade app ./chart -f values/base.yaml -f values/prod.yaml</div></div><div class=\"tip\"><b>Interview tip:</b> Say Git is the truth; avoid reuse-values.</div>"},
+  {n:29,tag:"values",q:"How do you pass complex structures such as lists of maps, multiline strings and typed numbers through values?",body:"<p>Use values files with native YAML and block scalars, render with toYaml and quote, use set-json or set-string on the command line, watch float and boolean coercion, and embed files with the Files object or set-file.</p><div class=\"cmds\"><div class=\"cmd\">config: |\n  log_level: info\n  retries: 3</div><div class=\"cmd\">data:\n  app.conf: |-\n    {{- .Values.config | nindent 4 }}\n  {{- (.Files.Glob \"files/*\").AsConfig | nindent 2 }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say quote versions; large ints go wrong.</div>"},
+  {n:30,tag:"values",q:"How would you validate and test values and rendered output before deploying?",body:"<p>Layer schema validation, helm lint --strict, rendering to kubeconform and policy checks with conftest or Kyverno, server-side dry-run and helm diff, helm-unittest assertions, and chart-testing installs in kind, all in CI.</p><div class=\"cmds\"><div class=\"cmd\">helm lint ./chart --strict -f values/prod.yaml</div><div class=\"cmd\">helm template app ./chart -f values/prod.yaml | kubeconform -strict -kubernetes-version 1.29.0</div><div class=\"cmd\">helm unittest ./chart</div></div><div class=\"tip\"><b>Interview tip:</b> Say lint, schema, policy, dry-run, diff, install test.</div>"},
+  {n:31,tag:"charts",q:"How do you provide sensible defaults for resources, replicas and autoscaling in a reusable chart?",body:"<p>Ship safe modest defaults or documented empty blocks, render resources with toYaml, omit replicas when HPA is enabled to avoid upgrade resets, expose PDB, spread and probes, offer size presets and give measured production examples.</p><div class=\"cmds\"><div class=\"cmd\">{{- if not .Values.autoscaling.enabled }}\nreplicas: {{ .Values.replicaCount }}\n{{- end }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say omit replicas when the HPA owns scaling.</div>"},
+  {n:32,tag:"charts",q:"What is the structure of a Helm chart and what does each part do?",body:"<p>Chart.yaml has metadata and dependencies, values.yaml and optional schema hold configuration, templates contains manifests, helpers, notes and tests, charts holds subcharts, crds holds CRDs, Chart.lock pins dependencies and .helmignore excludes files.</p><div class=\"cmds\"><div class=\"cmd\">helm create mychart &amp;&amp; tree mychart</div></div><div class=\"tip\"><b>Interview tip:</b> Say Chart.yaml, values, templates, charts, crds.</div>"},
+  {n:33,tag:"charts",q:"What is the difference between chart version and appVersion, and how should you version charts?",body:"<p>Chart version is semver for the package and is used by Helm for resolution and upgrades; appVersion is informational, often the default image tag. Bump the chart version with every change, major for breaking changes, and never overwrite a published version.</p><div class=\"cmds\"><div class=\"cmd\">apiVersion: v2\nname: myapp\nversion: 2.3.0\nappVersion: \"1.18.4\"</div><div class=\"cmd\">helm package ./myapp --version 2.3.1 --app-version 1.18.5</div></div><div class=\"tip\"><b>Interview tip:</b> Say chart version is the package; appVersion is the app.</div>"},
+  {n:34,tag:"charts",q:"How do chart dependencies and subcharts work?",body:"<p>Declare dependencies in Chart.yaml with versions, aliases, conditions and tags; dependency update resolves and writes Chart.lock, dependency build restores it for reproducible CI. Subcharts share the release but are isolated by values, and stateful ones are often better as separate releases.</p><div class=\"cmds\"><div class=\"cmd\">dependencies:\n  - name: postgresql\n    version: 15.x.x\n    repository: oci://registry-1.docker.io/bitnamicharts\n    condition: postgresql.enabled</div><div class=\"cmd\">helm dependency build ./chart</div></div><div class=\"tip\"><b>Interview tip:</b> Say lock file plus dependency build for reproducibility.</div>"},
+  {n:35,tag:"charts",q:"What are library charts and when are they useful?",body:"<p>A library chart of type library contains only named templates and is consumed as a dependency via include, centralising labels, deployments and policies for many services. Benefits are consistency and less boilerplate; risks are indirection and wide blast radius, so version and test it carefully.</p><div class=\"cmds\"><div class=\"cmd\">type: library</div><div class=\"cmd\">{{ include \"common.deployment\" (dict \"root\" . \"name\" \"web\") }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say library charts share templates, not manifests.</div>"},
+  {n:36,tag:"charts",q:"How do Helm hooks work and what are typical uses?",body:"<p>Hooks are annotated jobs or pods that run at lifecycle points such as pre-upgrade or post-install, ordered by weight and cleaned by delete policy. Use for migrations, backups and tests, but make them idempotent, set timeouts and remember rollbacks do not undo them.</p><div class=\"cmds\"><div class=\"cmd\">metadata:\n  annotations:\n    \"helm.sh/hook\": pre-upgrade\n    \"helm.sh/hook-weight\": \"0\"\n    \"helm.sh/hook-delete-policy\": before-hook-creation,hook-succeeded</div></div><div class=\"tip\"><b>Interview tip:</b> Say hooks run jobs at lifecycle points; clean them up.</div>"},
+  {n:37,tag:"charts",q:"How do you manage Custom Resource Definitions with Helm?",body:"<p>Files in crds install first without templating and are never upgraded or deleted by Helm. Manage updates with a separate CRD chart, a kubectl or GitOps step, or templated CRDs with a keep policy, and test upgrades because removal destroys custom resources.</p><div class=\"cmds\"><div class=\"cmd\">kubectl apply --server-side -f https://example.com/crds-v2.yaml</div><div class=\"cmd\">helm upgrade --install app ./chart --skip-crds</div></div><div class=\"tip\"><b>Interview tip:</b> Say Helm installs CRDs once and never touches them again.</div>"},
+  {n:38,tag:"charts",q:"How do you write and run Helm tests?",body:"<p>Test manifests in templates/tests carry the helm.sh/hook: test annotation and run only on helm test, passing on exit code zero. Use them as smoke checks in pipelines with cleanup policies, alongside unit tests and chart-testing in kind.</p><div class=\"cmds\"><div class=\"cmd\">metadata:\n  annotations:\n    \"helm.sh/hook\": test\nspec:\n  containers:\n    - name: probe\n      image: curlimages/curl\n      command: [\"curl\", \"-fsS\", \"http://{{ include \\\"mychart.fullname\\\" . }}:80/healthz\"]</div><div class=\"cmd\">helm test app --logs</div></div><div class=\"tip\"><b>Interview tip:</b> Say helm test is a post-deploy smoke test.</div>"},
+  {n:39,tag:"charts",q:"How do you package and structure charts for many microservices: one chart per service, umbrella charts or a shared generic chart?",body:"<p>One chart per service gives independence, umbrella charts couple services into one release, and a shared generic chart centralises practice. Often a library chart plus thin per-service charts, or generic chart with per-service values, balances consistency and autonomy.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install orders oci://registry/charts/generic-app --version 3.2.0 -f services/orders/values.yaml</div></div><div class=\"tip\"><b>Interview tip:</b> Say balance autonomy against consistency.</div>"},
+  {n:40,tag:"charts",q:"How do you create a chart from scratch with helm create and turn the scaffold into something production-ready?",body:"<p>Start from helm create, trim unused files, fix names and labels, add PDB, spread, security context, resources and probes, document values with helm-docs and a schema, add checksums, unit and smoke tests, CI lint and publish with proper versions.</p><div class=\"cmds\"><div class=\"cmd\">helm create webapp</div><div class=\"cmd\">helm lint webapp --strict &amp;&amp; helm-docs</div></div><div class=\"tip\"><b>Interview tip:</b> Say scaffold, harden, document, test, publish.</div>"},
+  {n:41,tag:"release",q:"How do Helm rollbacks work, and what are their limits?",body:"<p>Rollback applies a previous revision's manifest as a new revision, running rollback hooks. It does not revert data, migrations, CRDs or manual changes cleanly, depends on retained history, and in GitOps should be done by reverting Git.</p><div class=\"cmds\"><div class=\"cmd\">helm history app -n prod</div><div class=\"cmd\">helm rollback app 7 -n prod --wait --timeout 5m</div></div><div class=\"tip\"><b>Interview tip:</b> Say rollback reverts manifests, not data.</div>"},
+  {n:42,tag:"release",q:"What do --atomic, --wait, --timeout and --cleanup-on-fail do in an upgrade?",body:"<p>Wait polls until resources are ready within the timeout, atomic implies wait and rolls back on failure or removes a failed install, and cleanup-on-fail deletes new resources from a failed upgrade. Set realistic timeouts and capture events before rollback.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install app ./chart --atomic --timeout 10m --cleanup-on-fail</div></div><div class=\"tip\"><b>Interview tip:</b> Say atomic makes failed deploys revert themselves.</div>"},
+  {n:43,tag:"release",q:"What does a Helm release in a failed or pending state mean, and how do you recover from pending-upgrade or failed states?",body:"<p>Pending states mean an operation was interrupted; check history and processes, then helm rollback to the last good revision or, as last resort, fix or delete the stuck revision secret. Prevent with atomic, timeouts and serialised pipelines.</p><div class=\"cmds\"><div class=\"cmd\">helm history app -n prod</div><div class=\"cmd\">helm rollback app 12 -n prod</div><div class=\"cmd\">kubectl get secret -n prod -l owner=helm,name=app,status=pending-upgrade</div></div><div class=\"tip\"><b>Interview tip:</b> Say rollback first; edit secrets last.</div>"},
+  {n:44,tag:"release",q:"How does Helm compute upgrades with the three-way strategic merge, and what happens to manual changes made with kubectl?",body:"<p>Helm patches using old manifest, live state and new manifest, so manual changes to fields the chart does not set persist while chart-set fields are overwritten and removed fields deleted. Avoid manual edits, use helm diff and GitOps, and consider server-side apply.</p><div class=\"cmds\"><div class=\"cmd\">helm diff upgrade app ./chart -f values.yaml --three-way-merge</div><div class=\"cmd\">kubectl get deploy app -o yaml | diff - rendered.yaml</div></div><div class=\"tip\"><b>Interview tip:</b> Say compare old, live and new.</div>"},
+  {n:45,tag:"release",q:"How do you adopt existing Kubernetes resources into a Helm release, or move a release between namespaces?",body:"<p>To adopt resources add the managed-by Helm label and the release-name and release-namespace annotations; to move a release, install a new one in the target namespace, migrate data and traffic, then remove the old. Releases are namespaced so direct moves are unsupported.</p><div class=\"cmds\"><div class=\"cmd\">kubectl label deploy app app.kubernetes.io/managed-by=Helm</div><div class=\"cmd\">kubectl annotate deploy app meta.helm.sh/release-name=app meta.helm.sh/release-namespace=prod</div></div><div class=\"tip\"><b>Interview tip:</b> Say label and annotate to adopt.</div>"},
+  {n:46,tag:"release",q:"What deployment strategies can you implement with Helm, such as blue-green and canary?",body:"<p>Helm does rolling updates via deployment strategy; blue-green uses two releases and switches service or ingress, canary uses a small second release or weighted ingress, mesh, Argo Rollouts or Flagger for metric-driven promotion. Use backward-compatible migrations.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install app-green ./chart --set color=green</div><div class=\"cmd\">kubectl patch svc app -p '{\"spec\":{\"selector\":{\"color\":\"green\"}}}'</div></div><div class=\"tip\"><b>Interview tip:</b> Say Helm ships; a rollout controller shifts traffic.</div>"},
+  {n:47,tag:"release",q:"How do you manage Helm release history and cleanup, and what is --history-max?",body:"<p>Each revision is a secret, so cap them with --history-max (default 10) to protect etcd and listing speed, balancing rollback depth. Use Git and logs for audit, clean kept history and avoid large embedded files that hit secret size limits.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install app ./chart --history-max 5</div><div class=\"cmd\">kubectl get secrets -A -l owner=helm --no-headers | wc -l</div></div><div class=\"tip\"><b>Interview tip:</b> Say cap revisions; Git is the audit trail.</div>"},
+  {n:48,tag:"release",q:"How do you handle database migrations alongside Helm upgrades safely?",body:"<p>Use expand-and-contract migrations so old and new versions coexist, run them once as a pre-upgrade hook job or a dedicated pipeline step with locks, timeouts and idempotency, back up beforehand and never ship destructive changes together with the code that stops using the data.</p><div class=\"cmds\"><div class=\"cmd\">metadata:\n  annotations:\n    \"helm.sh/hook\": pre-upgrade\n    \"helm.sh/hook-delete-policy\": before-hook-creation\nspec:\n  backoffLimit: 0</div></div><div class=\"tip\"><b>Interview tip:</b> Say schema changes must be backward compatible.</div>"},
+  {n:49,tag:"release",q:"How do you use helm diff and a dry-run to review a change before production?",body:"<p>helm diff upgrade compares the rendered new manifests with live state, including three-way drift, and is run in pull requests with read-only credentials; dry-run adds server-side validation. Suppress secret values and review image, selector and removed resources.</p><div class=\"cmds\"><div class=\"cmd\">helm diff upgrade app ./chart -f values/prod.yaml -n prod --suppress-secrets --context 3</div><div class=\"cmd\">helm upgrade app ./chart --dry-run --debug</div></div><div class=\"tip\"><b>Interview tip:</b> Say review the rendered diff, not just the values.</div>"},
+  {n:50,tag:"release",q:"How do you roll back safely when only part of a multi-release application is broken?",body:"<p>Identify the culprit release, roll back only that release with helm rollback, respect compatibility order between dependent services, use feature flags, check data migrations and in GitOps revert the commit. Separate releases make partial rollback possible.</p><div class=\"cmds\"><div class=\"cmd\">helm rollback payments 14 -n prod --wait</div><div class=\"cmd\">helm history payments -n prod --max 5</div></div><div class=\"tip\"><b>Interview tip:</b> Say separate releases allow surgical rollbacks.</div>"},
+  {n:51,tag:"repo",q:"How do Helm chart repositories work, and how do they differ from OCI registries?",body:"<p>HTTP repositories serve an index.yaml plus chart archives; OCI registries store charts as artifacts, pushed and pulled by reference with no index and reuse existing registry auth, replication and scanning. Pin by version or digest.</p><div class=\"cmds\"><div class=\"cmd\">helm repo add bitnami https://charts.bitnami.com/bitnami &amp;&amp; helm repo update</div><div class=\"cmd\">helm push mychart-1.2.0.tgz oci://registry.example.com/charts</div></div><div class=\"tip\"><b>Interview tip:</b> Say OCI reuses the registry you already run.</div>"},
+  {n:52,tag:"repo",q:"How do you publish a chart to an OCI registry and consume it securely?",body:"<p>Package, log in with a token or CI identity, helm push to an oci URL, and consume by pinned version or digest. Use immutable tags, push permissions, scanning, signing and verification, with pull credentials in GitOps tools.</p><div class=\"cmds\"><div class=\"cmd\">helm package ./chart &amp;&amp; helm push chart-1.4.0.tgz oci://ghcr.io/org/charts</div><div class=\"cmd\">helm install app oci://ghcr.io/org/charts/chart --version 1.4.0</div></div><div class=\"tip\"><b>Interview tip:</b> Say immutable, pinned, signed.</div>"},
+  {n:53,tag:"repo",q:"How do you sign and verify Helm charts, and what is provenance?",body:"<p>Helm provenance signs the packaged chart with PGP into a .prov file and verifies on install; OCI charts are often signed with cosign. Protect keys, publish public keys and enforce verification in GitOps tools or admission policy with pinned digests.</p><div class=\"cmds\"><div class=\"cmd\">helm package --sign --key 'ci' --keyring ~/.gnupg/secring.gpg ./chart</div><div class=\"cmd\">helm install app ./chart-1.4.0.tgz --verify --keyring pub.gpg</div><div class=\"cmd\">cosign sign ghcr.io/org/charts/chart:1.4.0</div></div><div class=\"tip\"><b>Interview tip:</b> Say sign in CI, verify at deploy.</div>"},
+  {n:54,tag:"repo",q:"How would you set up an internal chart repository with ChartMuseum, Harbor or cloud registries?",body:"<p>Prefer an existing OCI-capable registry such as Harbor, ECR, ACR, GAR or GHCR; use ChartMuseum when HTTP repository semantics are needed. Plan auth, TLS, retention, backups and mirroring of third-party charts, with publishing only from tested main-branch pipelines.</p><div class=\"cmds\"><div class=\"cmd\">helm registry login harbor.example.com --username robot$ci</div><div class=\"cmd\">helm push chart-1.0.0.tgz oci://harbor.example.com/platform</div></div><div class=\"tip\"><b>Interview tip:</b> Say reuse the registry you already have.</div>"},
+  {n:55,tag:"repo",q:"How do you safely consume third-party charts such as Bitnami, ingress-nginx or Prometheus stacks?",body:"<p>Vet third-party charts by reading rendered output, pin versions, review diffs between versions, mirror or vendor them, override images to approved internal digests, customise via values or post-renderers, scan and test in staging and assign an owner for regular upgrades.</p><div class=\"cmds\"><div class=\"cmd\">helm template ingress ingress-nginx/ingress-nginx --version 4.11.3 -f values.yaml &gt; rendered.yaml</div><div class=\"cmd\">helm upgrade --install ingress ./ingress-nginx-4.11.3.tgz --post-renderer ./kustomize-post.sh</div></div><div class=\"tip\"><b>Interview tip:</b> Say pin, mirror, read the render, own the upgrade.</div>"},
+  {n:56,tag:"repo",q:"What is the helm pull, helm show and helm search workflow for evaluating a chart?",body:"<p>Search for the chart, helm show chart, readme, values and crds to read defaults, helm pull --untar to inspect templates, compare versions by diffing extracted directories, then helm template with intended values and a dry-run before installing.</p><div class=\"cmds\"><div class=\"cmd\">helm search repo nginx --versions | head</div><div class=\"cmd\">helm show values bitnami/nginx --version 18.2.0 &gt; defaults.yaml</div><div class=\"cmd\">helm pull bitnami/nginx --version 18.2.0 --untar</div></div><div class=\"tip\"><b>Interview tip:</b> Say read before you install.</div>"},
+  {n:57,tag:"repo",q:"How do you automate chart releases with chart-releaser or a CI pipeline?",body:"<p>On merge to main: lint, unit tests, version-bump check, package, publish with chart-releaser or helm push, sign and tag. Use ct list-changed, protected branches and short-lived credentials, never overwrite versions and let Renovate propose consumer bumps.</p><div class=\"cmds\"><div class=\"cmd\">ct lint --target-branch main</div><div class=\"cmd\">cr package charts/app &amp;&amp; cr upload -o org -r charts &amp;&amp; cr index -o org -r charts --push</div></div><div class=\"tip\"><b>Interview tip:</b> Say version bump enforced, publish only from main.</div>"},
+  {n:58,tag:"repo",q:"How do you search for and evaluate charts on Artifact Hub, and what signals indicate a trustworthy chart?",body:"<p>Artifact Hub helps discovery; judge charts by verified publisher, signing, recent maintenance, documentation, schema, safe defaults, image scan results and licence, then read the rendered output and scan it. Popularity is not proof of safety.</p><div class=\"cmds\"><div class=\"cmd\">helm search hub prometheus --max-col-width 80</div><div class=\"cmd\">helm show chart prometheus-community/prometheus</div></div><div class=\"tip\"><b>Interview tip:</b> Say discovery is not endorsement.</div>"},
+  {n:59,tag:"repo",q:"How do you work with private repositories and authentication in Helm, including in CI?",body:"<p>Add repositories with masked secrets at run time, log in to OCI with short-lived workload-identity tokens, keep pull-only credentials for deploys and push rights for the release job, isolate Helm config per job, rotate tokens and keep TLS verification enabled.</p><div class=\"cmds\"><div class=\"cmd\">aws ecr get-login-password | helm registry login --username AWS --password-stdin 123456789.dkr.ecr.eu-west-1.amazonaws.com</div><div class=\"cmd\">helm repo add internal https://charts.example.com --username $U --password $P</div></div><div class=\"tip\"><b>Interview tip:</b> Say short-lived tokens, least privilege.</div>"},
+  {n:60,tag:"repo",q:"How do you keep a chart repository healthy: versioning rules, retention, deprecation and breaking changes?",body:"<p>Enforce immutable semver versions, document breaking changes with majors, changelogs and upgrade guides, deprecate via Chart.yaml and notes, retain versions in use, automate tests and scans, define supported Kubernetes ranges and assign owners.</p><div class=\"cmds\"><div class=\"cmd\">deprecated: true\nkubeVersion: \"&gt;=1.27.0-0\"</div><div class=\"cmd\">ct lint --check-version-increment</div></div><div class=\"tip\"><b>Interview tip:</b> Say treat the repo like a product with consumers.</div>"},
+  {n:61,tag:"cicd",q:"How do you integrate Helm into a CI/CD pipeline, from lint to production deployment?",body:"<p>PRs run lint, schema, render, kubeconform, policy, unit tests, scans, kind install tests and a diff; merges publish chart and image; deploys use upgrade --install with atomic and wait, smoke tests, approvals and metric checks, promoting identical artefacts with environment values.</p><div class=\"cmds\"><div class=\"cmd\">helm lint chart --strict &amp;&amp; helm unittest chart</div><div class=\"cmd\">helm upgrade --install app oci://reg/charts/app --version $V -f env/$ENV.yaml -n $NS --atomic --wait --timeout 10m</div></div><div class=\"tip\"><b>Interview tip:</b> Say same artefact, different values.</div>"},
+  {n:62,tag:"cicd",q:"What is GitOps with Helm, and how do Argo CD and Flux deploy Helm charts?",body:"<p>GitOps controllers reconcile Helm charts from Git or registries: Argo CD renders with helm template and applies manifests without Helm release records, while Flux's HelmRelease runs real Helm actions with retries, remediation and drift detection. Changes flow through pull requests.</p><div class=\"cmds\"><div class=\"cmd\">apiVersion: helm.toolkit.fluxcd.io/v2\nkind: HelmRelease\nspec:\n  interval: 10m\n  chart:\n    spec:\n      chart: app\n      version: 1.4.x\n      sourceRef: {kind: HelmRepository, name: internal}</div><div class=\"cmd\">argocd app diff app-prod</div></div><div class=\"tip\"><b>Interview tip:</b> Say Argo renders and applies; Flux runs Helm.</div>"},
+  {n:63,tag:"cicd",q:"How do you promote a release across dev, staging and production using Helm?",body:"<p>Publish chart and image once, keep per-environment values in Git, promote by reviewed commits or automation through dev, staging and production with test, soak and approval gates, check parity with rendered diffs and roll back by reverting.</p><div class=\"cmds\"><div class=\"cmd\">diff &lt;(helm template a ./chart -f env/stg.yaml) &lt;(helm template a ./chart -f env/prod.yaml)</div><div class=\"cmd\">yq -i '.image.tag = \"1.4.2\"' env/stg.yaml</div></div><div class=\"tip\"><b>Interview tip:</b> Say build once, promote by config commits.</div>"},
+  {n:64,tag:"cicd",q:"How do you test Helm charts automatically in CI with chart-testing, kind and unit tests?",body:"<p>Use ct for change detection, lint and install tests in kind with several ci values files, helm-unittest for fast rendering assertions, kubeconform and policy checks across Kubernetes versions, and upgrade tests from the previous chart version in a CI matrix.</p><div class=\"cmds\"><div class=\"cmd\">ct lint-and-install --target-branch main --charts charts/app</div><div class=\"cmd\">helm unittest charts/app</div></div><div class=\"tip\"><b>Interview tip:</b> Say render tests, install tests, then upgrade tests.</div>"},
+  {n:65,tag:"cicd",q:"How do you manage Helm deployments securely from CI, including credentials and least privilege?",body:"<p>Use OIDC workload identity for short-lived cluster tokens, namespace-scoped RBAC per environment, protected production approvals, masked secrets from a vault, ephemeral runners, pinned actions and plugins, admission policies and signature verification.</p><div class=\"cmds\"><div class=\"cmd\">kubectl create rolebinding ci-deploy --clusterrole=edit --serviceaccount=ci:deployer -n app-prod</div><div class=\"cmd\">helm upgrade --install app ./chart -n app-prod --kube-as=system:serviceaccount:ci:deployer</div></div><div class=\"tip\"><b>Interview tip:</b> Say short-lived identity, narrow RBAC.</div>"},
+  {n:66,tag:"cicd",q:"How would you handle a failed Helm deployment in a pipeline, including diagnostics and notifications?",body:"<p>Use wait and timeouts, then on failure capture status, events, pod logs and describe output with secrets redacted, roll back and verify health, fail the job, record the deployment as failed and notify with links. Retry only transient errors and turn recurring causes into checks.</p><div class=\"cmds\"><div class=\"cmd\">kubectl get events -n prod --sort-by=.lastTimestamp | tail -30</div><div class=\"cmd\">kubectl logs -n prod -l app.kubernetes.io/instance=app --tail=100 --all-containers</div></div><div class=\"tip\"><b>Interview tip:</b> Say capture evidence first, then recover.</div>"},
+  {n:67,tag:"cicd",q:"What are Helm post-renderers and how can Kustomize be combined with Helm in a pipeline?",body:"<p>A post-renderer is an executable that receives rendered YAML on stdin and returns modified YAML, often via kustomize, letting you patch upstream charts without forking. Include it in tests and diffs, and beware of hidden transformations and breakage on upstream renames.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install app ./chart --post-renderer ./post-render.sh</div><div class=\"cmd\">#!/bin/sh\ncat &gt; all.yaml &amp;&amp; kustomize build .</div></div><div class=\"tip\"><b>Interview tip:</b> Say patch the render, don't fork the chart.</div>"},
+  {n:68,tag:"cicd",q:"How do you handle multi-cluster and multi-region Helm deployments?",body:"<p>Layer values per environment, region and cluster from an inventory, roll out in waves with health gates, and use GitOps fleet tooling such as Argo CD ApplicationSets or Flux to generate per-cluster apps. Monitor drift, test version matrices and limit blast radius.</p><div class=\"cmds\"><div class=\"cmd\">generators:\n  - clusters:\n      selector:\n        matchLabels: {env: prod}</div><div class=\"cmd\">helm upgrade --install app ./chart -f values/base.yaml -f values/region/eu-west-1.yaml --kube-context eu-west-1</div></div><div class=\"tip\"><b>Interview tip:</b> Say fleet generators and wave rollouts.</div>"},
+  {n:69,tag:"cicd",q:"How do you automate chart and image version updates with Renovate or Dependabot in a Helm and GitOps workflow?",body:"<p>Renovate opens pull requests for chart and image version bumps in Chart.yaml, values, Flux and Argo manifests; configure grouping, schedules and auto-merge for safe patches, require review for majors and critical components, and rely on CI rendered diffs to catch breaking changes.</p><div class=\"cmds\"><div class=\"cmd\">{\n \"extends\": [\"config:recommended\"],\n \"packageRules\": [{\"matchUpdateTypes\": [\"patch\"], \"automerge\": true}]\n}</div></div><div class=\"tip\"><b>Interview tip:</b> Say small frequent bumps beat big risky ones.</div>"},
+  {n:70,tag:"cicd",q:"How do you prevent two pipelines from deploying the same Helm release at the same time?",body:"<p>Use per-environment concurrency groups or locks that queue deployments without cancelling a running upgrade, deploy production only from protected branches, rely on GitOps single-controller reconciliation, use atomic and timeouts and alert on stuck pending releases.</p><div class=\"cmds\"><div class=\"cmd\">concurrency:\n  group: deploy-prod-${{ inputs.release }}\n  cancel-in-progress: false</div></div><div class=\"tip\"><b>Interview tip:</b> Say queue deploys; never kill one midway.</div>"},
+  {n:71,tag:"sec",q:"What are the main security risks of Helm charts and how do you reduce them?",body:"<p>Charts can create privileged pods, broad RBAC, mutable images and plaintext secrets. Reduce risk with trusted pinned and signed sources, rendered-manifest scanning, admission policy, least-privilege installers, secret references, network policies and protected release secrets.</p><div class=\"cmds\"><div class=\"cmd\">helm template app ./chart | kubescape scan - </div><div class=\"cmd\">helm template app ./chart | trivy config -</div></div><div class=\"tip\"><b>Interview tip:</b> Say scan the render; enforce policy at admission.</div>"},
+  {n:72,tag:"sec",q:"How do you apply Pod Security Standards and secure defaults inside a chart?",body:"<p>Default to non-root, no privilege escalation, dropped capabilities, read-only root filesystem, seccomp runtime default, no host access, resource limits and minimal RBAC with token automount off; test against restricted namespaces and assert defaults with unit tests.</p><div class=\"cmds\"><div class=\"cmd\">securityContext:\n  runAsNonRoot: true\n  runAsUser: 10001\n  allowPrivilegeEscalation: false\n  readOnlyRootFilesystem: true\n  capabilities: {drop: [\"ALL\"]}\n  seccompProfile: {type: RuntimeDefault}</div><div class=\"cmd\">kubectl label ns app pod-security.kubernetes.io/enforce=restricted</div></div><div class=\"tip\"><b>Interview tip:</b> Say the chart's defaults should pass restricted.</div>"},
+  {n:73,tag:"sec",q:"How is RBAC used by Helm itself, and what permissions does a deployer need?",body:"<p>Helm uses the caller's RBAC: namespaced deployers need create, update and delete on the chart's kinds plus release secrets, while cluster-scoped resources need elevated rights. Give app pipelines namespace roles, separate platform pipelines for CRDs and operators, avoid cluster-admin and limit RBAC-creating rights.</p><div class=\"cmds\"><div class=\"cmd\">kubectl auth can-i create deployments -n app-prod --as=system:serviceaccount:ci:deployer</div><div class=\"cmd\">kubectl auth can-i create clusterroles --as=system:serviceaccount:ci:deployer</div></div><div class=\"tip\"><b>Interview tip:</b> Say Helm has no powers of its own; RBAC rules.</div>"},
+  {n:74,tag:"sec",q:"How do you scan Helm charts and rendered manifests for vulnerabilities and misconfigurations?",body:"<p>Render charts per environment and run Checkov, Kubescape, Trivy or kube-linter plus conftest or Kyverno policies, extract and scan images and generate SBOMs, fail PRs on severity thresholds with expiring exceptions, and re-scan registries and enforce at admission.</p><div class=\"cmds\"><div class=\"cmd\">helm template app ./chart -f values/prod.yaml &gt; out.yaml &amp;&amp; checkov -f out.yaml</div><div class=\"cmd\">grep -E 'image:' out.yaml | awk '{print $2}' | sort -u | xargs -n1 trivy image</div></div><div class=\"tip\"><b>Interview tip:</b> Say scan the render with real values.</div>"},
+  {n:75,tag:"sec",q:"How do you secure the Helm release secrets and the data they contain?",body:"<p>Release secrets hold values and manifests in base64, not encryption, so restrict RBAC, enable etcd encryption at rest, keep real secret values out of Helm by referencing external secrets, cap history, audit access and rotate anything exposed.</p><div class=\"cmds\"><div class=\"cmd\">kubectl auth can-i get secrets -n app-prod --as=dev-user</div><div class=\"cmd\">helm get values app -n prod</div></div><div class=\"tip\"><b>Interview tip:</b> Say anyone who reads release secrets reads your values.</div>"},
+  {n:76,tag:"sec",q:"How do you use SOPS, helm-secrets and External Secrets together with Helm?",body:"<p>SOPS encrypts values files for Git and helm-secrets decrypts at deploy time, but decrypted values still land in release records. External Secrets or CSI drivers sync secrets from a vault so charts reference only names; prefer them for runtime credentials.</p><div class=\"cmds\"><div class=\"cmd\">apiVersion: external-secrets.io/v1beta1\nkind: ExternalSecret\nspec:\n  secretStoreRef: {name: vault, kind: ClusterSecretStore}\n  target: {name: db-credentials}\n  dataFrom:\n    - extract: {key: prod/db}</div></div><div class=\"tip\"><b>Interview tip:</b> Say SOPS for Git, External Secrets for runtime.</div>"},
+  {n:77,tag:"sec",q:"How do you enforce policy on Helm deployments with Kyverno, OPA Gatekeeper or admission webhooks?",body:"<p>Kyverno or Gatekeeper admission policies enforce registries, no latest tags, non-root, limits, labels and signatures on whatever Helm applies. Roll out audit then enforce with expiring exceptions, and run the same policies in CI on rendered manifests.</p><div class=\"cmds\"><div class=\"cmd\">kyverno apply policies/ --resource rendered.yaml</div><div class=\"cmd\">kubectl get policyreport -A</div></div><div class=\"tip\"><b>Interview tip:</b> Say audit first, enforce next, test in CI.</div>"},
+  {n:78,tag:"sec",q:"How do you secure the supply chain for Helm charts and the images they deploy?",body:"<p>Build in protected pipelines, publish immutable signed charts and images with SBOMs and attestations, pin by digest, mirror upstream content, verify signatures at deployment and admission with fail-closed policy, and keep provenance for incident response.</p><div class=\"cmds\"><div class=\"cmd\">cosign sign --yes registry/app@sha256:abc123</div><div class=\"cmd\">cosign verify registry/app@sha256:abc123 --certificate-identity-regexp 'https://github.com/org/.*' --certificate-oidc-issuer https://token.actions.githubusercontent.com</div></div><div class=\"tip\"><b>Interview tip:</b> Say sign, attest, pin by digest, verify at admission.</div>"},
+  {n:79,tag:"sec",q:"What should you check before installing a chart that creates ClusterRoles, webhooks or CRDs?",body:"<p>Review ClusterRoles for wildcards, secrets and escalate or bind rights; webhooks for failurePolicy, selectors, timeouts and backend availability; CRDs for conflicts, versions and upgrade ownership. Render and diff, test in a non-production cluster and prepare emergency removal steps.</p><div class=\"cmds\"><div class=\"cmd\">helm template x ./chart | yq 'select(.kind==\"ClusterRole\" or .kind==\"ValidatingWebhookConfiguration\")'</div><div class=\"cmd\">kubectl get validatingwebhookconfigurations</div></div><div class=\"tip\"><b>Interview tip:</b> Say cluster-scoped means cluster-wide blast radius.</div>"},
+  {n:80,tag:"trouble",q:"How do you troubleshoot a Helm install or upgrade that fails with 'cannot re-use a name that is still in use' or 'resource already exists'?",body:"<p>Name in use means a release record exists, so check helm list --all, then upgrade --install, uninstall or rename. Resource already exists means an unowned or other-release object, so inspect its Helm labels and annotations, adopt it, delete it safely or fix naming, especially for cluster-scoped objects.</p><div class=\"cmds\"><div class=\"cmd\">helm list -A --all | grep app</div><div class=\"cmd\">kubectl get clusterrole app -o jsonpath='{.metadata.annotations}'</div></div><div class=\"tip\"><b>Interview tip:</b> Say find the owner before deleting anything.</div>"},
+  {n:81,tag:"trouble",q:"Helm upgrade fails with 'another operation (install/upgrade/rollback) is in progress'. What do you do?",body:"<p>A stuck pending revision blocks new operations. Confirm nothing is running, view history, then helm rollback to the last good revision; for first installs uninstall and retry; as last resort back up and delete the stuck revision secret. Prevent with atomic, timeouts and non-cancelling pipelines.</p><div class=\"cmds\"><div class=\"cmd\">helm history app -n prod</div><div class=\"cmd\">helm rollback app &lt;last-deployed&gt; -n prod</div><div class=\"cmd\">kubectl get secret -n prod -l name=app,status=pending-upgrade -o name</div></div><div class=\"tip\"><b>Interview tip:</b> Say rollback to clear the pending state.</div>"},
+  {n:82,tag:"trouble",q:"A Helm upgrade fails with 'UPGRADE FAILED: ... field is immutable'. How do you handle it?",body:"<p>Immutable field errors come from changing selectors, volume claim templates, job specs or service IPs. Delete and recreate the object, orphan-delete stateful sets to keep pods and data, migrate PVCs, and prevent recurrence by keeping selectors stable and testing upgrades from the previous chart version.</p><div class=\"cmds\"><div class=\"cmd\">kubectl delete statefulset db -n prod --cascade=orphan</div><div class=\"cmd\">helm upgrade db ./chart -n prod</div></div><div class=\"tip\"><b>Interview tip:</b> Say selectors are forever; treat changing them as breaking.</div>"},
+  {n:83,tag:"trouble",q:"Helm reports 'Error: INSTALLATION FAILED: timed out waiting for the condition'. How do you find the real cause?",body:"<p>Timeout means readiness never arrived. Inspect pods, describe and events for scheduling, PVC, image pull, probe and crash issues, read current and previous logs, check hooks and quotas, increase the timeout only for slow healthy starts, then retry with atomic.</p><div class=\"cmds\"><div class=\"cmd\">kubectl get pods,pvc,events -n prod --sort-by=.lastTimestamp</div><div class=\"cmd\">kubectl describe pod -n prod -l app.kubernetes.io/instance=app</div><div class=\"cmd\">kubectl logs -n prod &lt;pod&gt; --previous</div></div><div class=\"tip\"><b>Interview tip:</b> Say Helm only reports; pods and events explain.</div>"},
+  {n:84,tag:"trouble",q:"How do you diagnose 'YAML parse error', 'nil pointer evaluating interface' and 'error converting YAML to JSON' during rendering?",body:"<p>Render with helm template --debug and --show-only. YAML errors usually mean bad indentation, missing nindent, unquoted special strings or tabs; nil pointers come from missing parent maps or rebound dot. Add defaults, guards, dig, $ for root, a schema and unit tests.</p><div class=\"cmds\"><div class=\"cmd\">helm template app ./chart --debug --show-only templates/deployment.yaml 2&gt;&amp;1 | head -60</div><div class=\"cmd\">helm lint ./chart --strict</div></div><div class=\"tip\"><b>Interview tip:</b> Say read the rendered output around the reported line.</div>"},
+  {n:85,tag:"trouble",q:"How do you handle Helm errors caused by removed or deprecated Kubernetes APIs, such as 'no matches for kind ... in version'?",body:"<p>Scan with pluto, kubent or kubeconform before upgrading clusters, update chart apiVersions and fields with Capabilities checks if needed, use mapkubeapis to fix stored release metadata, ensure CRDs exist first and verify releases with dry-run upgrades afterwards.</p><div class=\"cmds\"><div class=\"cmd\">pluto detect-helm -o wide</div><div class=\"cmd\">helm mapkubeapis app -n prod --dry-run</div></div><div class=\"tip\"><b>Interview tip:</b> Say scan for deprecated APIs before cluster upgrades.</div>"},
+  {n:86,tag:"trouble",q:"A release shows 'deployed' but the application is not working. How do you investigate?",body:"<p>Deployed does not mean working. Check pods, events and logs, compare helm get values and manifest with intent, verify config, secrets, permissions, service endpoints and selectors, ingress and network policies, diff against a healthy environment or previous revision and roll back to confirm.</p><div class=\"cmds\"><div class=\"cmd\">helm get values app -n prod --all &amp;&amp; helm get manifest app -n prod | less</div><div class=\"cmd\">kubectl get endpoints app -n prod</div><div class=\"cmd\">helm diff revision app 11 12 -n prod</div></div><div class=\"tip\"><b>Interview tip:</b> Say verify the render, then the wiring.</div>"},
+  {n:87,tag:"trouble",q:"How do you debug Helm hooks that hang, fail or leave resources behind?",body:"<p>Watch hook jobs and pods during the operation, read logs and events, check ordering and dependencies since pre-hooks run before release resources exist, tune weights, delete policies, backoff limit and deadlines, inspect with helm get hooks and clean leftovers manually.</p><div class=\"cmds\"><div class=\"cmd\">helm get hooks app -n prod</div><div class=\"cmd\">kubectl get jobs,pods -n prod -w</div><div class=\"cmd\">kubectl logs job/app-migrate -n prod</div></div><div class=\"tip\"><b>Interview tip:</b> Say pre-hooks run before your resources exist.</div>"},
+  {n:88,tag:"sec",q:"How do you restrict which charts, registries and namespaces teams can deploy to in a shared cluster?",body:"<p>Use namespace-scoped RBAC, quotas, network policies and Pod Security labels, admission policy limiting registries and requiring signatures, GitOps tenant constraints like AppProjects or Flux impersonation, internal chart mirrors and audited exceptions.</p><div class=\"cmds\"><div class=\"cmd\">apiVersion: argoproj.io/v1alpha1\nkind: AppProject\nspec:\n  sourceRepos: [\"https://git.example.com/team-a/*\"]\n  destinations: [{namespace: team-a-*, server: \"*\"}]\n  clusterResourceWhitelist: []</div></div><div class=\"tip\"><b>Interview tip:</b> Say tenants get namespaces, not cluster scope.</div>"},
+  {n:89,tag:"trouble",q:"A Helm upgrade changed or deleted resources unexpectedly. How do you find out why and prevent it?",body:"<p>Diff revisions with helm diff revision or helm get manifest to see rendering changes, then trace causes like changed defaults, missing values files, reuse-values, renamed keys or resource renames. Prevent with pre-upgrade diffs, full values in Git, pinned versions and the keep resource policy.</p><div class=\"cmds\"><div class=\"cmd\">helm diff revision app 11 12 -n prod</div><div class=\"cmd\">metadata:\n  annotations:\n    \"helm.sh/resource-policy\": keep</div></div><div class=\"tip\"><b>Interview tip:</b> Say always diff before prod and protect stateful resources.</div>"},
+  {n:90,tag:"trouble",q:"How do you troubleshoot Helm dependency errors, such as 'found in Chart.yaml, but missing in charts/ directory' or lock file mismatches?",body:"<p>Missing or mismatched dependencies need helm dependency build to restore the locked set or dependency update to re-resolve and rewrite Chart.lock. Check repositories, auth and constraints, commit the lock, and run dependency build before lint, package and template in CI.</p><div class=\"cmds\"><div class=\"cmd\">helm repo add bitnami https://charts.bitnami.com/bitnami &amp;&amp; helm repo update</div><div class=\"cmd\">helm dependency build ./chart</div></div><div class=\"tip\"><b>Interview tip:</b> Say commit the lock; build in CI.</div>"},
+  {n:91,tag:"adv",q:"How do you use the lookup function, and what are its limitations?",body:"<p>Lookup reads live cluster objects during rendering, for example to keep an existing secret. It returns empty offline, so helm template, diff and Argo CD render differently; it needs read RBAC and makes output nondeterministic. Always handle empty results and use it sparingly.</p><div class=\"cmds\"><div class=\"cmd\">{{- $s := lookup \"v1\" \"Secret\" .Release.Namespace \"db-pass\" }}\n{{- if $s }}\npassword: {{ index $s.data \"password\" }}\n{{- else }}\npassword: {{ randAlphaNum 24 | b64enc }}\n{{- end }}</div></div><div class=\"tip\"><b>Interview tip:</b> Say lookup is empty offline; handle both cases.</div>"},
+  {n:92,tag:"adv",q:"How do you generate stable random values, such as passwords, in Helm without changing them on every upgrade?",body:"<p>Random functions regenerate on every render. Keep secrets stable by reusing existing objects with lookup, requiring supplied values, creating them with a one-time hook, or generating them outside Helm with External Secrets or operators. Deterministic hashes are stable but only as strong as their seed.</p><div class=\"cmds\"><div class=\"cmd\">helm upgrade --install db ./chart --set auth.existingSecret=db-credentials</div></div><div class=\"tip\"><b>Interview tip:</b> Say never leave randAlphaNum in an upgradeable secret.</div>"},
+  {n:93,tag:"adv",q:"What are the Helm SDK and Helm in Go or Python automation, and when would you use them instead of the CLI?",body:"<p>The Helm SDK is a Go library exposing install, upgrade, rollback and template actions, used by controllers like Flux. For scripts the CLI with JSON output and exit codes is simpler; from Python call it with argument lists and timeouts. Use the SDK for long-running platform services.</p><div class=\"cmds\"><div class=\"cmd\">helm list -A -o json | jq '.[] | {name, namespace, status, chart}'</div><div class=\"cmd\">subprocess.run(['helm','upgrade','--install',rel,chart,'-n',ns,'--atomic'], check=True, timeout=900)</div></div><div class=\"tip\"><b>Interview tip:</b> Say CLI for pipelines, SDK for controllers.</div>"},
+  {n:94,tag:"adv",q:"How would you write unit tests for chart templates with helm-unittest?",body:"<p>helm-unittest suites in the tests directory set values and assert on rendered documents with equal, contains, isKind, hasDocuments, failedTemplate and snapshots. They run fast without a cluster; cover defaults, toggles, security settings and required-value errors, and complement install tests.</p><div class=\"cmds\"><div class=\"cmd\">suite: deployment\ntemplates: [deployment.yaml]\ntests:\n  - it: omits replicas when autoscaling\n    set: {autoscaling.enabled: true}\n    asserts:\n      - notExists: {path: spec.replicas}</div><div class=\"cmd\">helm unittest ./chart</div></div><div class=\"tip\"><b>Interview tip:</b> Say test toggles and failure cases, not only defaults.</div>"},
+  {n:95,tag:"adv",q:"How do you manage Helm releases with Helmfile or similar tools for many releases and environments?",body:"<p>Helmfile declares repositories, releases, versions and per-environment values in one file, applies only changed releases with diffs and dependency ordering via needs. It suits bootstrapping and push pipelines; GitOps controllers add continuous reconciliation and are preferred for production.</p><div class=\"cmds\"><div class=\"cmd\">releases:\n  - name: ingress\n    namespace: ingress\n    chart: ingress-nginx/ingress-nginx\n    version: 4.11.3\n    values: [values/ingress.yaml]</div><div class=\"cmd\">helmfile -e prod diff &amp;&amp; helmfile -e prod apply</div></div><div class=\"tip\"><b>Interview tip:</b> Say Helmfile is declarative push; GitOps is declarative pull.</div>"},
+  {n:96,tag:"adv",q:"How do you design charts for stateful applications such as databases, and what are the pitfalls?",body:"<p>Use StatefulSets with headless services, volume claim templates, PDBs, spread and meaningful readiness, but expect immutable template fields, persistent PVCs, credential stability and upgrade compatibility issues. Prefer operators for production databases, back up before upgrades and test restores.</p><div class=\"cmds\"><div class=\"cmd\">volumeClaimTemplates:\n  - metadata: {name: data}\n    spec:\n      accessModes: [ReadWriteOnce]\n      resources: {requests: {storage: {{ .Values.persistence.size }}}}</div><div class=\"cmd\">kubectl get pvc -n prod</div></div><div class=\"tip\"><b>Interview tip:</b> Say data outlives the release; plan for it.</div>"},
+  {n:97,tag:"adv",q:"How would you migrate from raw manifests or Kustomize to Helm, or from Helm to GitOps-native tooling, with minimal risk?",body:"<p>Convert one app at a time, render and diff until output matches live objects, preserve selectors, adopt resources via Helm labels and annotations or run in parallel then cut over. For GitOps, point controllers at the same chart and values, check hooks and lookups, rehearse in staging with backups.</p><div class=\"cmds\"><div class=\"cmd\">helm template app ./chart -f values.yaml | kubectl diff -f -</div><div class=\"cmd\">kubectl annotate deploy app meta.helm.sh/release-name=app meta.helm.sh/release-namespace=prod --overwrite</div></div><div class=\"tip\"><b>Interview tip:</b> Say diff until it's boring, then adopt.</div>"},
+  {n:98,tag:"adv",q:"What are common Helm anti-patterns and best practices you would enforce in code review?",body:"<p>Avoid hard-coded values, complex templates, forks, floating versions, secrets in values, reuse-values, unstable selectors, missing limits and probes, hooks for heavy work and untested charts. Enforce schema, tests, diffs, pinned versions and digests, atomic deploys and GitOps, with a review checklist.</p><div class=\"cmds\"><div class=\"cmd\">helm lint . --strict &amp;&amp; helm unittest . &amp;&amp; helm template . | kubeconform -strict</div><div class=\"cmd\">helm upgrade --install app . --atomic --wait --timeout 10m</div></div><div class=\"tip\"><b>Interview tip:</b> Say simple templates, pinned versions, tested upgrades.</div>"},
+  {n:99,tag:"adv",q:"How do you handle breaking changes when upgrading a major chart version, for example a third-party chart that renamed values?",body:"<p>Read upgrade notes, diff default values and templates between versions, rehearse in staging with backups and helm diff, update renamed values, apply CRD steps manually, consider intermediate versions or blue-green for risky changes, verify with tests and promote with a rollback plan.</p><div class=\"cmds\"><div class=\"cmd\">helm pull repo/chart --version 14.0.0 --untar --untardir new &amp;&amp; helm pull repo/chart --version 13.5.2 --untar --untardir old &amp;&amp; diff -ru old new | less</div><div class=\"cmd\">helm diff upgrade app repo/chart --version 14.0.0 -f values.yaml</div></div><div class=\"tip\"><b>Interview tip:</b> Say rehearse in staging with diff and backups.</div>"},
+  {n:100,tag:"adv",q:"How do you build and use Helm OCI dependencies and chart caching in air-gapped or restricted environments?",body:"<p>Mirror reviewed charts and images into an internal OCI registry, point dependencies and image values at it, keep Chart.lock and vendored archives for offline builds, transfer signed bundles for fully disconnected networks, verify digests and signatures and refresh on a regular approved cadence.</p><div class=\"cmds\"><div class=\"cmd\">helm pull oci://public.example/charts/app --version 1.4.0 &amp;&amp; helm push app-1.4.0.tgz oci://registry.internal/charts</div><div class=\"cmd\">skopeo copy docker://public/app:1.4.0 docker://registry.internal/app:1.4.0</div></div><div class=\"tip\"><b>Interview tip:</b> Say mirror, pin, verify, rewrite image registries.</div>"}
+];
+var activeFilter='all', openCards=new Set(), viewedCount=0;
+var fmQ=[], fmIdx=0, fmCorrect=0, fmSeen=0;
+
+function toggleDark(){
+  document.body.classList.toggle('dark');
+  document.getElementById('dmb').textContent=document.body.classList.contains('dark')?'\u2600':'\u263e';
+  try{localStorage.setItem('eklabs_dark',document.body.classList.contains('dark')?'1':'0');}catch(e){}
+}
+(function(){try{if(localStorage.getItem('eklabs_dark')==='1'){document.body.classList.add('dark');document.getElementById('dmb').textContent='\u2600';}}catch(e){}}());
+
+function badge(tag){
+  var L={'basics':'Core concepts','templates':'Templating & Go','values':'Values & config','charts':'Charts & dependencies','release':'Releases & lifecycle','repo':'Repos & OCI','cicd':'CI/CD & GitOps','sec':'Security & secrets','trouble':'Troubleshooting','adv':'Hooks/tests/advanced'};
+  return '<span class="badge '+tag+'">'+(L[tag]||tag)+'</span>';
+}
+function render(qs){
+  document.getElementById('countBar').textContent='Showing '+qs.length+' of 100 questions';
+  document.getElementById('visN').textContent=qs.length;
+  document.getElementById('qList').innerHTML=qs.map(function(q){
+    var open=openCards.has(q.n);
+    return '<div class="q-card" id="card-'+q.n+'">'
+      +'<div class="q-header" onclick="toggle('+q.n+')">'
+      +'<span class="q-num">Q'+q.n+'</span>'
+      +'<span class="q-title">'+q.q+'</span>'
+      +'<div class="q-right">'+badge(q.tag)
+      +'<span class="chevron'+(open?' open':'')+'" id="chev-'+q.n+'">&#9660;</span>'
+      +'</div></div>'
+      +'<div class="q-body'+(open?' open':'')+'" id="body-'+q.n+'">'+q.body+'</div>'
+      +'</div>';
+  }).join('');
+}
+function toggle(n){
+  var b=document.getElementById('body-'+n), c=document.getElementById('chev-'+n);
+  if(openCards.has(n)){openCards.delete(n);b.classList.remove('open');c.classList.remove('open');}
+  else{openCards.add(n);b.classList.add('open');c.classList.add('open');viewedCount++;document.getElementById('viewN').textContent=viewedCount;}
+}
+function setFilter(f,el){
+  activeFilter=f;
+  document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('active');});
+  el.classList.add('active');filterQs();
+}
+function filterQs(){
+  var q=document.getElementById('search').value.toLowerCase();
+  var filtered=QS;
+  if(activeFilter!=='all') filtered=filtered.filter(function(x){return x.tag===activeFilter;});
+  if(q) filtered=filtered.filter(function(x){return x.q.toLowerCase().indexOf(q)!==-1||x.body.toLowerCase().indexOf(q)!==-1;});
+  render(filtered);
+}
+function fmStart(){
+  var q=document.getElementById('search').value.toLowerCase();
+  var pool=QS.slice();
+  if(activeFilter!=='all') pool=pool.filter(function(x){return x.tag===activeFilter;});
+  if(q) pool=pool.filter(function(x){return x.q.toLowerCase().indexOf(q)!==-1||x.body.toLowerCase().indexOf(q)!==-1;});
+  if(!pool.length){alert('No questions match the current filter.');return;}
+  fmQ=pool.sort(function(){return Math.random()-.5;});
+  fmIdx=0;fmCorrect=0;fmSeen=0;
+  document.getElementById('fmBar').classList.add('on');
+  fmShow();
+}
+function fmShow(){
+  if(fmIdx>=fmQ.length){
+    document.getElementById('fmQ').textContent='Done! '+fmCorrect+'/'+fmQ.length+' correct';
+    document.getElementById('fmAns').classList.remove('on');
+    document.getElementById('fmRev').style.display='none';
+    document.getElementById('fmGot').style.display='none';
+    document.getElementById('fmMiss').style.display='none';
+    document.getElementById('fmFill').style.width='100%';
+    return;
+  }
+  var item=fmQ[fmIdx];
+  document.getElementById('fmQ').textContent='Q'+item.n+' — '+item.q;
+  document.getElementById('fmAns').innerHTML=item.body;
+  document.getElementById('fmAns').classList.remove('on');
+  document.getElementById('fmRev').style.display='';
+  document.getElementById('fmGot').style.display='none';
+  document.getElementById('fmMiss').style.display='none';
+  document.getElementById('fmFill').style.width=Math.round(fmIdx/fmQ.length*100)+'%';
+  document.getElementById('fmScore').textContent=fmCorrect+' correct / '+fmSeen+' seen';
+}
+function fmReveal(){
+  document.getElementById('fmAns').classList.add('on');
+  document.getElementById('fmRev').style.display='none';
+  document.getElementById('fmGot').style.display='';
+  document.getElementById('fmMiss').style.display='';
+  fmSeen++;
+}
+function fmNext(ok){
+  if(ok){fmCorrect++;document.getElementById('correctN').textContent=fmCorrect;}
+  fmIdx++;fmShow();
+}
+function fmStop(){document.getElementById('fmBar').classList.remove('on');}
+render(QS);
+
+
+/* ── DARK MODE ────────────────────── */
+(function(){
+  var saved = localStorage.getItem('ekn-dark');
+  if (saved === '1') document.body.classList.add('dark');
+})();
+function toggleDark() {
+  var on = document.body.classList.toggle('dark');
+  localStorage.setItem('ekn-dark', on ? '1' : '0');
+  var btn = document.getElementById('dm-btn');
+  if (btn) btn.textContent = on ? '☀ Light' : '☾ Dark';
+}
+
+/* ── INTERVIEW MODE ───────────────── */
+var fmAll = [], fmIdx = 0, fmGot = 0, fmTotal = 0;
+
+function fmStart() {
+  // collect currently visible QS
+  fmAll = [];
+  var cards = document.querySelectorAll('.q-card');
+  cards.forEach(function(c) {
+    var n = parseInt(c.id.replace('card-',''));
+    var q = QS.find ? QS.find(function(x){ return x.n === n; })
+                    : (function(){ for(var i=0;i<QS.length;i++){ if(QS[i].n===n) return QS[i]; } })();
+    if (q) fmAll.push(q);
+  });
+  // shuffle
+  for (var i = fmAll.length-1; i > 0; i--) {
+    var j = Math.floor(Math.random()*(i+1));
+    var tmp = fmAll[i]; fmAll[i] = fmAll[j]; fmAll[j] = tmp;
+  }
+  fmIdx = 0; fmGot = 0; fmTotal = fmAll.length;
+  var bar = document.getElementById('fm-bar');
+  if (bar) { bar.classList.add('open'); fmShow(); }
+}
+function fmShow() {
+  var bar = document.getElementById('fm-bar');
+  if (!bar || fmIdx >= fmTotal) { fmDone(); return; }
+  var q = fmAll[fmIdx];
+  var pct = fmTotal > 0 ? Math.round((fmIdx/fmTotal)*100) : 0;
+  document.getElementById('fm-prog').style.width = pct + '%';
+  document.getElementById('fm-meta').textContent = 'Question ' + (fmIdx+1) + ' of ' + fmTotal;
+  document.getElementById('fm-q-text').textContent = q.q;
+  document.getElementById('fm-answer').innerHTML = q.body;
+  document.getElementById('fm-answer').classList.remove('show');
+  document.getElementById('fm-reveal').style.display = '';
+  document.getElementById('fm-got').style.display    = 'none';
+  document.getElementById('fm-miss').style.display   = 'none';
+  document.getElementById('fm-score').textContent    = fmGot + ' / ' + fmIdx + ' correct';
+}
+function fmReveal() {
+  document.getElementById('fm-answer').classList.add('show');
+  document.getElementById('fm-reveal').style.display = 'none';
+  document.getElementById('fm-got').style.display    = '';
+  document.getElementById('fm-miss').style.display   = '';
+}
+function fmNext(ok) {
+  if (ok) fmGot++;
+  fmIdx++;
+  fmShow();
+}
+function fmStop() {
+  var bar = document.getElementById('fm-bar');
+  if (bar) bar.classList.remove('open');
+}
+function fmDone() {
+  var bar = document.getElementById('fm-bar');
+  if (!bar) return;
+  bar.innerHTML = '<div class="fm-done">&#127881; Session complete! You got <strong>' + fmGot + ' / ' + fmTotal + '</strong> correct.</div>'
+    + '<button class="fm-stop" onclick="fmStop()">Close</button>';
+}
+
+</script>
+<script src="spoken/helm.js"></script>
+<script src="spoken.js"></script>
+<script src="docs/helm.js"></script>
+<script src="docs.js"></script>
+<script src="diagrams/helm.js"></script>
+<script src="diagrams.js"></script>
+<script src="deeplink.js"></script>
+<script src="extras.js"></script>
+<script src="i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Python for SRE &amp; DevOps — InterviewHub</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .2s,color .2s;}
+body.dark{--bg:#161616;--text:#e4e4e0;--surface:#1f1f1f;--border:#2e2e2e;--border-h:#484848;--muted:#a0a0a0;--faint:#606060;--code-bg:#252525;}
+body:not(.dark){--bg:#f5f5f0;--text:#1a1a1a;--surface:#fff;--border:#e4e4dc;--border-h:#b0b0a6;--muted:#666;--faint:#999;--code-bg:#f8f7f3;}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;gap:.75rem;position:sticky;top:0;z-index:100;flex-wrap:wrap;}
+.hback{font-size:12px;font-weight:600;color:#1D9E75;text-decoration:none;padding:5px 10px;border-radius:7px;border:1px solid #E1F5EE;background:#E1F5EE;transition:all .14s;white-space:nowrap;}
+.hback:hover{background:#1D9E75;color:#fff;}
+header h1{font-size:15px;font-weight:600;color:var(--text);flex:1;min-width:120px;}
+.hspan{font-size:11px;background:#E1F5EE;color:#085041;padding:3px 10px;border-radius:99px;font-weight:600;white-space:nowrap;}
+.dm-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:5px 9px;border-radius:7px;cursor:pointer;font-size:13px;transition:all .14s;}
+.dm-btn:hover{background:var(--border);}
+.container{max-width:900px;margin:0 auto;padding:1.5rem;}
+.search-bar{position:relative;margin-bottom:1rem;}
+.search-bar input{width:100%;padding:10px 16px 10px 40px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:14px;outline:none;transition:border-color .15s;}
+.search-bar input:focus{border-color:#1D9E75;}
+.search-bar svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:15px;height:15px;opacity:.4;stroke:var(--text);fill:none;stroke-width:1.8;stroke-linecap:round;}
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:1rem;}
+.chip{padding:5px 13px;border-radius:99px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all .14s;user-select:none;}
+.chip:hover{border-color:#1D9E75;color:#0F6E56;}
+.chip.active{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.1rem;}
+.stat{background:var(--surface);border-radius:10px;padding:12px 14px;border:1px solid var(--border);}
+.stat-n{font-size:22px;font-weight:700;color:#1D9E75;}
+.stat-l{font-size:11px;color:var(--muted);margin-top:2px;}
+.stat-n.red{color:#A32D2D;}
+.count-bar{font-size:12px;color:var(--faint);margin-bottom:8px;}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.fm-start-btn{padding:5px 13px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #E1F5EE;background:#E1F5EE;color:#0F6E56;transition:all .14s;}
+.fm-start-btn:hover{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.fm-bar{background:var(--surface);border:1.5px solid #1D9E75;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1rem;display:none;}
+.fm-bar.on{display:block;}
+.fm-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;flex-wrap:wrap;gap:6px;}
+.fm-title{font-size:13px;font-weight:700;color:var(--text);}
+.fm-score{font-size:12px;color:var(--muted);}
+.fm-card{background:var(--code-bg);border-radius:10px;padding:1.1rem;margin-bottom:.7rem;min-height:70px;display:flex;align-items:center;justify-content:center;text-align:center;}
+.fm-q{font-size:14px;font-weight:600;color:var(--text);line-height:1.5;}
+.fm-ans{display:none;font-size:13px;color:var(--muted);line-height:1.65;max-height:300px;overflow-y:auto;padding:4px;}
+.fm-ans.on{display:block;}
+.fm-ans .cmd{background:var(--surface);border-radius:5px;padding:5px 9px;font-family:monospace;font-size:11px;color:var(--text);border-left:2px solid #1D9E75;margin:3px 0;white-space:pre-wrap;word-break:break-all;display:block;}
+.fm-btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:.6rem;}
+.fm-btn{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all .14s;}
+.fm-btn:hover{border-color:#1D9E75;color:#1D9E75;}
+.fm-btn.reveal{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.fm-btn.got{background:#EAF3DE;color:#27500A;border-color:#639922;}
+.fm-btn.miss{background:#FCEBEB;color:#791F1F;border-color:#E24B4A;}
+.fm-prog{height:4px;background:var(--border);border-radius:2px;margin-top:.7rem;overflow:hidden;}
+.fm-fill{height:100%;background:#1D9E75;border-radius:2px;transition:width .3s;}
+.q-list{display:flex;flex-direction:column;gap:8px;}
+.q-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;transition:border-color .14s;}
+.q-card:hover{border-color:var(--border-h);}
+.q-header{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;cursor:pointer;user-select:none;}
+.q-num{font-size:11px;font-weight:600;color:var(--faint);min-width:28px;padding-top:2px;flex-shrink:0;}
+.q-title{font-size:14px;font-weight:600;color:var(--text);flex:1;line-height:1.5;}
+.q-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.badge{font-size:11px;padding:3px 9px;border-radius:99px;font-weight:600;white-space:nowrap;}
+  .badge.core{background:#E6F1FB;color:#0C447C;}
+  .badge.files{background:#E1F5EE;color:#085041;}
+  .badge.cli{background:#EEEDFE;color:#3C3489;}
+  .badge.api{background:#FAEEDA;color:#633806;}
+  .badge.conc{background:#EAF3DE;color:#27500A;}
+  .badge.test{background:#FCEBEB;color:#791F1F;}
+  .badge.pkg{background:#F1EFE8;color:#444441;}
+  .badge.ops{background:#FBEAF0;color:#72243E;}
+  .badge.obs{background:#FAC775;color:#412402;}
+  .badge.pat{background:#FAECE7;color:#712B13;}
+
+.chevron{font-size:11px;color:var(--faint);transition:transform .2s;flex-shrink:0;}
+.chevron.open{transform:rotate(180deg);}
+.q-body{display:none;padding:0 16px 16px 56px;border-top:1px solid var(--border);}
+.q-body.open{display:block;}
+.q-body p{font-size:13px;line-height:1.75;color:var(--muted);margin-bottom:8px;margin-top:10px;}
+.q-body p:last-child{margin-bottom:0;}
+.sec{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);margin:12px 0 5px;}
+.cmds{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+.cmd{background:var(--code-bg);border-radius:6px;padding:6px 10px;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;color:var(--text);border-left:2.5px solid #1D9E75;line-height:1.5;white-space:pre-wrap;word-break:break-all;}
+.tip{background:#FAEEDA;border-radius:7px;padding:9px 13px;font-size:12px;color:#412402;border-left:2.5px solid #BA7517;margin-top:8px;line-height:1.6;}
+.warn{background:#FCEBEB;border-radius:7px;padding:9px 13px;font-size:12px;color:#501313;border-left:2.5px solid #E24B4A;margin-top:8px;line-height:1.6;}
+.good{background:#EAF3DE;border-radius:7px;padding:9px 13px;font-size:12px;color:#173404;border-left:2.5px solid #639922;margin-top:8px;line-height:1.6;}
+.info{background:#EEEDFE;border-radius:7px;padding:9px 13px;font-size:12px;color:#26215C;border-left:2.5px solid #7F77DD;margin-top:8px;line-height:1.6;}
+.tip b,.warn b,.good b,.info b{font-weight:700;}
+body.dark .tip{background:#261a05;color:#FAC775;}
+body.dark .warn{background:#220a0a;color:#F09595;}
+body.dark .good{background:#081408;color:#C0DD97;}
+body.dark .info{background:#0e0b1f;color:#AFA9EC;}
+body.dark .fm-ans .cmd{background:#1a1a1a;}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr);}.q-body{padding-left:16px;}header{padding:.9rem 1rem;}header h1{font-size:13px;}.container{padding:1rem;}}
+
+/* ── DARK MODE VARIABLES ─────────────────────────────── */
+body {
+  --dm-bg:         #111314;
+  --dm-surface:    #1a1d1f;
+  --dm-surface2:   #222629;
+  --dm-border:     #2e3235;
+  --dm-text:       #e8eaec;
+  --dm-muted:      #8a9099;
+  --dm-cmd-bg:     #1e2123;
+  --dm-cmd-border: #1D9E75;
+}
+body.dark {
+  background:  var(--dm-bg)      !important;
+  color:       var(--dm-text)    !important;
+}
+body.dark header,
+body.dark .wrap > *:not(.q-list):not(#q-list) { color: var(--dm-text); }
+
+/* cards */
+body.dark .q-card  { background: var(--dm-surface); border-color: var(--dm-border); }
+body.dark .q-header .q-title { color: var(--dm-text); }
+body.dark .q-body  { border-color: var(--dm-border); }
+body.dark .q-body p { color: var(--dm-muted); }
+
+/* commands */
+body.dark .cmd     { background: var(--dm-cmd-bg); color: #c9d1d9; border-left-color: var(--dm-cmd-border); }
+body.dark .cmds    { background: transparent; }
+
+/* filter chips */
+body.dark .chip    { background: var(--dm-surface2); border-color: var(--dm-border); color: var(--dm-muted); }
+body.dark .chip.active,
+body.dark .chip.on { background: #0F6E56; color: #fff; border-color: #1D9E75; }
+
+/* search */
+body.dark .search-bar input,
+body.dark #search  { background: var(--dm-surface); border-color: var(--dm-border); color: var(--dm-text); }
+body.dark .search-bar input::placeholder,
+body.dark #search::placeholder { color: var(--dm-muted); }
+
+/* stats */
+body.dark .stat    { background: var(--dm-surface); border-color: var(--dm-border); }
+body.dark .stat-l  { color: var(--dm-muted); }
+
+/* tips/warns */
+body.dark .tip     { background: #231c09; color: #d4a847; }
+body.dark .warn    { background: #1f0f0f; color: #e07070; }
+body.dark .good    { background: #0d1f0d; color: #7aba5e; }
+body.dark .info    { background: #0d1226; color: #7aa8e0; }
+
+/* interview mode bar */
+body.dark .fm-bar  { background: var(--dm-surface); border-color: #1D9E75; }
+body.dark .fm-q    { color: var(--dm-text); }
+body.dark .fm-score { color: var(--dm-muted); }
+body.dark .fm-reveal { background: var(--dm-surface2); border-color: var(--dm-border); color: var(--dm-text); }
+
+/* header / portal link */
+body.dark .portal-link { color: #1D9E75; }
+body.dark .q-num   { color: var(--dm-muted); }
+body.dark .chevron { color: var(--dm-muted); }
+body.dark .count-bar { color: var(--dm-muted); }
+body.dark .sec     { color: var(--dm-muted); }
+
+/* dark toggle button */
+.dm-btn {
+  background: none; border: 1px solid #ddd; border-radius: 8px;
+  padding: 4px 10px; font-size: 13px; cursor: pointer; color: inherit;
+  transition: all .14s; flex-shrink: 0;
+}
+.dm-btn:hover { border-color: #1D9E75; }
+body.dark .dm-btn  { border-color: #2e3235; background: var(--dm-surface2); color: var(--dm-text); }
+
+/* interview mode toggle */
+.fm-btn {
+  background: #1D9E75; color: #fff; border: none; border-radius: 8px;
+  padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .14s; flex-shrink: 0;
+}
+.fm-btn:hover { background: #0F6E56; }
+
+/* interview mode bar */
+.fm-bar {
+  display: none;
+  background: #fff;
+  border: 2px solid #1D9E75;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  position: relative;
+}
+.fm-bar.open { display: block; }
+.fm-prog-wrap { height: 4px; background: #e0e0d8; border-radius: 99px; margin-bottom: 12px; overflow: hidden; }
+.fm-prog      { height: 4px; background: #1D9E75; border-radius: 99px; transition: width .3s; }
+.fm-meta      { font-size: 11px; color: #888; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.fm-q         { font-size: 15px; font-weight: 700; line-height: 1.5; margin-bottom: 14px; color: #1a1a1a; }
+.fm-answer    { display: none; margin-bottom: 14px; }
+.fm-answer.show { display: block; }
+.fm-actions   { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fm-reveal    { padding: 7px 16px; border: 1px solid #ddd; border-radius: 8px; background: #f5f5f0; font-size: 13px; font-weight: 600; cursor: pointer; }
+.fm-reveal:hover { background: #eee; }
+.fm-got       { padding: 7px 16px; background: #EAF3DE; color: #27500A; border: 1px solid #b5d88a; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.fm-got:hover { background: #d5ecb8; }
+.fm-miss      { padding: 7px 16px; background: #FCEBEB; color: #791F1F; border: 1px solid #f0b0b0; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.fm-miss:hover { background: #f9d5d5; }
+.fm-stop      { margin-left: auto; padding: 7px 14px; background: none; border: 1px solid #ddd; border-radius: 8px; font-size: 12px; cursor: pointer; color: #999; }
+.fm-stop:hover { border-color: #999; color: #555; }
+.fm-score     { font-size: 12px; color: #888; font-weight: 600; }
+.fm-done      { font-size: 14px; font-weight: 700; color: #1D9E75; margin-bottom: 8px; }
+
+/* toolbar row (count + IM button) */
+.toolbar      { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+
+</style>
+<meta name="description" content="100 production-grade Python for SRE and DevOps interview guide: scripting, APIs, boto3, concurrency, testing, packaging and automation patterns.">
+<link rel="canonical" href="https://interviewhub.eknathalabs.com/python_sre_interview_guide.html">
+<link rel="stylesheet" href="print.css" media="print">
+<link rel="stylesheet" href="responsive.css">
+</head>
+<body>
+<header style="background:#fff;border-bottom:1px solid #e4e4dc;padding:.9rem 1.5rem;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;flex-wrap:wrap;"><a href="index.html" class="portal-link" style="font-size:12px;font-weight:600;color:#1D9E75;text-decoration:none;border:1px solid #ddd;border-radius:7px;padding:4px 10px;white-space:nowrap;">&#8592; Portal</a><h1 style="font-size:16px;font-weight:700;flex:1;min-width:0;">Python for SRE &amp; DevOps — InterviewHub</h1><span style="font-size:11px;background:#E1F5EE;color:#085041;padding:3px 10px;border-radius:99px;font-weight:600;white-space:nowrap;">100 questions</span><button class="dm-btn" id="dm-btn" onclick="toggleDark()">&#9790; Dark</button></header>
+<div class="container">
+  <div class="search-bar">
+    <svg viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="5"/><path d="M10.5 10.5L14 14"/></svg>
+    <input type="text" id="search" placeholder="Search questions and answers…" oninput="filterQs()">
+  </div>
+  <div class="filters">
+    <div class="chip active" onclick="setFilter('all',this)">All (100)</div>
+    <div class="chip" onclick="setFilter('core',this)">Core language</div>
+    <div class="chip" onclick="setFilter('files',this)">Files &amp; data</div>
+    <div class="chip" onclick="setFilter('cli',this)">CLI &amp; scripting</div>
+    <div class="chip" onclick="setFilter('api',this)">APIs &amp; cloud SDKs</div>
+    <div class="chip" onclick="setFilter('conc',this)">Concurrency &amp; speed</div>
+    <div class="chip" onclick="setFilter('test',this)">Testing &amp; quality</div>
+    <div class="chip" onclick="setFilter('pkg',this)">Packaging &amp; envs</div>
+    <div class="chip" onclick="setFilter('ops',this)">Ops automation</div>
+    <div class="chip" onclick="setFilter('obs',this)">Observability &amp; tooling</div>
+    <div class="chip" onclick="setFilter('pat',this)">Patterns &amp; scenarios</div>
+  </div>
+
+  <div class="fm-bar" id="fmBar">
+    <div class="fm-header">
+      <span class="fm-title">&#127183; Interview Mode</span>
+      <span class="fm-score" id="fmScore">0 correct / 0 seen</span>
+    </div>
+    <div class="fm-card"><div class="fm-q" id="fmQ">Press Start to begin…</div></div>
+    <div class="fm-ans" id="fmAns"></div>
+    <div class="fm-btns">
+      <button class="fm-btn reveal" id="fmRev" onclick="fmReveal()">Reveal answer</button>
+      <button class="fm-btn got" id="fmGot" onclick="fmNext(true)" style="display:none">&#10003; Got it</button>
+      <button class="fm-btn miss" id="fmMiss" onclick="fmNext(false)" style="display:none">&#10005; Missed</button>
+      <button class="fm-btn" onclick="fmStop()">&#215; Exit</button>
+    </div>
+    <div class="fm-prog"><div class="fm-fill" id="fmFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n">100</div><div class="stat-l">Total questions</div></div>
+    <div class="stat"><div class="stat-n" id="visN">100</div><div class="stat-l">Showing</div></div>
+    <div class="stat"><div class="stat-n" id="viewN">0</div><div class="stat-l">Viewed</div></div>
+    <div class="stat"><div class="stat-n red" id="correctN">0</div><div class="stat-l">Correct in FM</div></div>
+  </div>
+  <div class="toolbar">
+    <span class="count-bar" id="countBar">Showing 100 questions</span>
+    <button class="fm-start-btn" onclick="fmStart()">&#127183; Interview Mode</button>
+  </div>
+  <div class="q-list" id="qList"></div>
+</div>
+<script>
+var QS = [
+  {n:1,tag:"core",q:"What are mutable and immutable types in Python, and why do mutable default arguments cause bugs?",body:"<p>Immutable types never change; mutable ones change in place and are shared by reference. Default arguments are evaluated once, so use None and create the list inside the function. Copy or deepcopy to avoid aliasing.</p><div class=\"cmds\"><div class=\"cmd\">def add_host(h, hosts=None):\n    hosts = [] if hosts is None else hosts\n    hosts.append(h)\n    return hosts</div><div class=\"cmd\">import copy; cfg2 = copy.deepcopy(cfg)</div></div><div class=\"tip\"><b>Interview tip:</b> Say default arguments are evaluated once at definition.</div>"},
+  {n:2,tag:"core",q:"How do list, dict and set comprehensions and generator expressions differ, and when do you use each?",body:"<p>Comprehensions build lists, dicts or sets eagerly in one expression; generator expressions are lazy and use constant memory. Use comprehensions for simple filtering and mapping, generators for large streams, and loops when logic gets complex.</p><div class=\"cmds\"><div class=\"cmd\">running = [i['id'] for i in instances if i['state'] == 'running']</div><div class=\"cmd\">total = sum(len(line) for line in open('big.log'))</div></div><div class=\"tip\"><b>Interview tip:</b> Say lazy generators for large data, loops when logic is complex.</div>"},
+  {n:3,tag:"core",q:"What are generators and the yield keyword, and how do they help with log and data streaming?",body:"<p>A generator uses yield to produce values lazily and keeps state between calls. Chain generators for streaming log processing with flat memory, and wrap paginated APIs so callers just iterate. They are single-use.</p><div class=\"cmds\"><div class=\"cmd\">def errors(path):\n    with open(path) as f:\n        for line in f:\n            if 'ERROR' in line:\n                yield line\n\nfor e in errors('app.log'):\n    print(e)</div></div><div class=\"tip\"><b>Interview tip:</b> Say streaming pipelines keep memory flat.</div>"},
+  {n:4,tag:"core",q:"How do decorators work and what are practical uses in automation code?",body:"<p>A decorator wraps a function to add behaviour such as retries, timing, logging or caching. Use functools.wraps to preserve metadata, add an outer function for arguments, and keep decorators focused so control flow stays clear.</p><div class=\"cmds\"><div class=\"cmd\">import functools, time\ndef retry(n=3, delay=1):\n    def deco(fn):\n        @functools.wraps(fn)\n        def wrapper(*a, **kw):\n            for i in range(n):\n                try: return fn(*a, **kw)\n                except Exception:\n                    if i == n - 1: raise\n                    time.sleep(delay * 2 ** i)\n        return wrapper\n    return deco</div></div><div class=\"tip\"><b>Interview tip:</b> Say functools.wraps and a retry decorator as the example.</div>"},
+  {n:5,tag:"core",q:"What are context managers and how do you use them for resources such as files, locks and connections?",body:"<p>A context manager guarantees cleanup via with, even on exceptions, for files, locks, connections and temp dirs. Write one with enter and exit, or with contextlib.contextmanager and try and finally around a single yield. ExitStack handles dynamic numbers of contexts.</p><div class=\"cmds\"><div class=\"cmd\">from contextlib import contextmanager\n@contextmanager\ndef timer(label):\n    t = time.perf_counter()\n    try: yield\n    finally: print(label, time.perf_counter() - t)</div><div class=\"cmd\">with open('a.txt') as f, open('b.txt', 'w') as g:\n    g.write(f.read())</div></div><div class=\"tip\"><b>Interview tip:</b> Say with guarantees cleanup even when errors occur.</div>"},
+  {n:6,tag:"core",q:"How should you handle exceptions in operational scripts?",body:"<p>Catch specific exceptions you can handle, let others propagate, add context with raise from, clean up with finally or context managers, use custom exceptions for domain errors, and exit nonzero at the top level after logging.</p><div class=\"cmds\"><div class=\"cmd\">try:\n    r = client.get(url, timeout=5)\n    r.raise_for_status()\nexcept requests.Timeout as e:\n    raise RuntimeError(f'API timed out: {url}') from e</div></div><div class=\"tip\"><b>Interview tip:</b> Say never swallow errors silently; exit nonzero.</div>"},
+  {n:7,tag:"core",q:"How do type hints, dataclasses and pydantic improve automation code?",body:"<p>Type hints document and let mypy catch errors; dataclasses remove boilerplate for data records; pydantic validates and converts external input such as config and API data at run time. Run mypy in CI.</p><div class=\"cmds\"><div class=\"cmd\">from pydantic import BaseModel\nclass Settings(BaseModel):\n    region: str\n    retries: int = 3\nSettings(**{'region': 'us-east-1'})</div><div class=\"cmd\">mypy src/</div></div><div class=\"tip\"><b>Interview tip:</b> Say validate at the boundary with pydantic.</div>"},
+  {n:8,tag:"core",q:"What is the GIL and how does it affect Python in infrastructure work?",body:"<p>The GIL lets one thread run Python bytecode at a time, so threads help I/O-bound work but not CPU-bound work. Use threads or asyncio for waiting on networks and processes or native extensions for heavy computation.</p><div class=\"cmds\"><div class=\"cmd\">from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor</div><div class=\"cmd\">python -c \"import sys; print(sys._is_gil_enabled())\"</div></div><div class=\"tip\"><b>Interview tip:</b> Say threads for waiting, processes for computing.</div>"},
+  {n:9,tag:"core",q:"Explain scope, closures and common pitfalls with late binding in loops.",body:"<p>Names resolve local, enclosing, global, built-in. Closures capture variables, not values, so loop-created functions share the last value; bind with default arguments or functools.partial. Use nonlocal or global deliberately and avoid shadowing built-ins.</p><div class=\"cmds\"><div class=\"cmd\">callbacks = [lambda x=h: ping(x) for h in hosts]</div><div class=\"cmd\">from functools import partial\ncallbacks = [partial(ping, h) for h in hosts]</div></div><div class=\"tip\"><b>Interview tip:</b> Say closures capture variables, not values.</div>"},
+  {n:10,tag:"core",q:"How do strings, bytes and encodings work, and what problems appear when handling logs and subprocess output?",body:"<p>str is Unicode text and bytes is raw data. Decode at input, work in str, encode at output, pass encodings explicitly, and use errors=replace for dirty logs. Subprocess output needs text mode or decoding, and hashing needs bytes.</p><div class=\"cmds\"><div class=\"cmd\">open('app.log', encoding='utf-8', errors='replace')</div><div class=\"cmd\">subprocess.run(cmd, capture_output=True, text=True, check=True)</div><div class=\"cmd\">hashlib.sha256('abc'.encode()).hexdigest()</div></div><div class=\"tip\"><b>Interview tip:</b> Say specify the encoding explicitly.</div>"},
+  {n:11,tag:"pkg",q:"How do modules, packages, imports and the __main__ guard work in a script project?",body:"<p>Modules are files and packages are directories imported through the search path. Guard script code with if __name__ == '__main__' so tests can import safely. Use a package layout with an editable install, avoid shadowing stdlib names and break circular imports by restructuring.</p><div class=\"cmds\"><div class=\"cmd\">if __name__ == '__main__':\n    raise SystemExit(main())</div><div class=\"cmd\">pip install -e .</div></div><div class=\"tip\"><b>Interview tip:</b> Say the main guard keeps modules importable and testable.</div>"},
+  {n:12,tag:"files",q:"How do you process a very large log file efficiently in Python?",body:"<p>Iterate the file object line by line with generators, precompile regexes, aggregate with Counter, stream gzip in text mode, split into chunks across processes if needed and handle rotation when tailing. Use grep, ripgrep or DuckDB when they fit better.</p><div class=\"cmds\"><div class=\"cmd\">import re, collections, gzip\nrx = re.compile(r' 5\\d\\d ')\nc = collections.Counter()\nwith gzip.open('access.log.gz', 'rt') as f:\n    for line in f:\n        if rx.search(line): c[line.split()[0]] += 1</div><div class=\"cmd\">rg -c ' 5[0-9][0-9] ' access.log</div></div><div class=\"tip\"><b>Interview tip:</b> Say stream with constant memory and precompile regexes.</div>"},
+  {n:13,tag:"files",q:"How do you read and write JSON, YAML and TOML safely?",body:"<p>Use json with indent and sorted keys, yaml.safe_load never full load, tomllib for TOML, validate with pydantic or jsonschema, and write via a temp file and atomic rename. Preserve comments with ruamel when editing human-maintained YAML.</p><div class=\"cmds\"><div class=\"cmd\">import yaml\ncfg = yaml.safe_load(open('config.yml', encoding='utf-8'))</div><div class=\"cmd\">import tomllib\nwith open('pyproject.toml', 'rb') as f: d = tomllib.load(f)</div><div class=\"cmd\">json.dumps(data, indent=2, sort_keys=True)</div></div><div class=\"tip\"><b>Interview tip:</b> Say safe_load only.</div>"},
+  {n:14,tag:"files",q:"How do you use regular expressions to parse logs, and what are the pitfalls?",body:"<p>Compile once, use named groups, choose search, match or fullmatch deliberately and use raw strings. Beware backtracking, greedy matches and None results; use real parsers for structured formats and test with bad lines.</p><div class=\"cmds\"><div class=\"cmd\">rx = re.compile(r'(?P&lt;ip&gt;\\S+) .* \"(?P&lt;method&gt;[A-Z]+) (?P&lt;path&gt;\\S+).*\" (?P&lt;status&gt;\\d{3})')\nm = rx.match(line)\nif m: rec = m.groupdict()</div></div><div class=\"tip\"><b>Interview tip:</b> Say named groups and handle the None case.</div>"},
+  {n:15,tag:"files",q:"How do you use pathlib and shutil for file operations, and how do you write files atomically?",body:"<p>Pathlib provides readable path handling and shutil gives copy, move and rmtree. Write atomically by creating a temp file in the same directory, fsync, then os.replace, set restrictive permissions and validate paths before deleting.</p><div class=\"cmds\"><div class=\"cmd\">import os, tempfile, pathlib\nd = pathlib.Path('/etc/app')\nwith tempfile.NamedTemporaryFile('w', dir=d, delete=False) as t:\n    t.write(data); t.flush(); os.fsync(t.fileno())\nos.replace(t.name, d / 'app.conf')</div></div><div class=\"tip\"><b>Interview tip:</b> Say temp file then os.replace for atomic updates.</div>"},
+  {n:16,tag:"files",q:"How do you run external commands safely and robustly with subprocess?",body:"<p>Use subprocess.run with an argument list, no shell, check=True, capture_output and text, a timeout and explicit env. Avoid secrets in arguments, handle missing binaries, stream with Popen carefully and prefer libraries over shelling out.</p><div class=\"cmds\"><div class=\"cmd\">r = subprocess.run(['kubectl', 'get', 'pods', '-o', 'json'], capture_output=True, text=True, check=True, timeout=30)\npods = json.loads(r.stdout)</div></div><div class=\"tip\"><b>Interview tip:</b> Say a list, not a shell string; always set a timeout.</div>"},
+  {n:17,tag:"files",q:"How do you work with archives and compressed files (tar, zip, gzip) in Python?",body:"<p>Use tarfile, zipfile, gzip and shutil helpers. When extracting untrusted archives, defend against path traversal and symlinks with the tarfile data filter or manual path checks, limit sizes, stream large archives and add checksums for integrity.</p><div class=\"cmds\"><div class=\"cmd\">import tarfile\nwith tarfile.open('backup.tgz', 'w:gz') as t:\n    t.add('/etc/app', arcname='app')</div><div class=\"cmd\">with tarfile.open('in.tgz') as t:\n    t.extractall('/tmp/out', filter='data')</div></div><div class=\"tip\"><b>Interview tip:</b> Say never extract untrusted archives without validation.</div>"},
+  {n:18,tag:"files",q:"How should a Python tool read configuration from files, environment variables and command-line flags?",body:"<p>Define precedence defaults, file, environment, flags; resolve once into a typed, validated settings object; read secrets from the environment or a secrets manager; redact when printing, and offer a print-config option.</p><div class=\"cmds\"><div class=\"cmd\">from pydantic_settings import BaseSettings\nclass S(BaseSettings):\n    region: str = 'us-east-1'\n    token: str\n    model_config = {'env_prefix': 'MYTOOL_'}</div><div class=\"cmd\">MYTOOL_REGION=eu-west-1 mytool run</div></div><div class=\"tip\"><b>Interview tip:</b> Say one typed settings object, secrets never logged.</div>"},
+  {n:19,tag:"files",q:"How do you work with temporary files and directories securely?",body:"<p>Use tempfile for unique, securely created files and directories with restrictive permissions, TemporaryDirectory as a context manager for cleanup, same-directory temps for atomic replacement, and avoid predictable names or writing secrets to disk.</p><div class=\"cmds\"><div class=\"cmd\">import tempfile\nwith tempfile.TemporaryDirectory() as d:\n    work(d)</div><div class=\"cmd\">fd, path = tempfile.mkstemp(prefix='job-')</div></div><div class=\"tip\"><b>Interview tip:</b> Say predictable temp names are a symlink-attack risk.</div>"},
+  {n:20,tag:"files",q:"How do you compute checksums and compare files or directories for changes?",body:"<p>Hash files in chunks with hashlib SHA-256, or file_digest on newer versions, and compare with a published checksum. For directories, map relative path to hash and diff the maps, checking size and mtime first. Avoid MD5 and SHA-1 for security.</p><div class=\"cmds\"><div class=\"cmd\">import hashlib\nh = hashlib.sha256()\nwith open(p, 'rb') as f:\n    for chunk in iter(lambda: f.read(1 &lt;&lt; 20), b''):\n        h.update(chunk)\nprint(h.hexdigest())</div></div><div class=\"tip\"><b>Interview tip:</b> Say chunked hashing, SHA-256, compare maps for directories.</div>"},
+  {n:21,tag:"cli",q:"How do you choose between argparse, click and typer for command-line tools?",body:"<p>Argparse needs no dependency and suits small scripts; click offers concise groups and testing support; typer uses type hints for compact definitions and completion. Choose by size and audience, and keep logic in testable functions with exit codes, help and dry-run.</p><div class=\"cmds\"><div class=\"cmd\">import typer\napp = typer.Typer()\n@app.command()\ndef scale(name: str, replicas: int = 2, dry_run: bool = False): ...</div><div class=\"cmd\">if __name__ == '__main__': app()</div></div><div class=\"tip\"><b>Interview tip:</b> Say argparse for small scripts, click or typer for growing tools.</div>"},
+  {n:22,tag:"cli",q:"How do exit codes and signals work in Python scripts, and why do they matter?",body:"<p>Exit code zero means success and nonzero failure, so scripts must never hide errors. Handle SIGTERM and SIGINT with the signal module to stop gracefully, flush output, release locks and terminate children, usually by setting a flag the main loop checks.</p><div class=\"cmds\"><div class=\"cmd\">import signal, sys\nstop = False\ndef handler(sig, frm):\n    global stop; stop = True\nsignal.signal(signal.SIGTERM, handler)</div><div class=\"cmd\">sys.exit(1)</div></div><div class=\"tip\"><b>Interview tip:</b> Say orchestrators rely on exit codes and SIGTERM.</div>"},
+  {n:23,tag:"cli",q:"How do you set up logging properly in a Python tool or service?",body:"<p>Use logging with per-module loggers, configure once in the application, include timestamp, level and name, emit JSON for services with context such as request IDs, write to stdout or stderr in containers, log exceptions with exc_info and never log secrets.</p><div class=\"cmds\"><div class=\"cmd\">import logging\nlogging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')\nlog = logging.getLogger(__name__)\nlog.info('scaling %s to %d', name, n)</div></div><div class=\"tip\"><b>Interview tip:</b> Say libraries create loggers, applications configure them.</div>"},
+  {n:24,tag:"cli",q:"How do you make a Python script work well in Unix pipelines, reading stdin and writing clean stdout?",body:"<p>Stream stdin line by line, write data to stdout and diagnostics to stderr, offer JSON lines output, handle broken pipes, check isatty before prompting, flush when streaming and use exit codes properly.</p><div class=\"cmds\"><div class=\"cmd\">import sys\nfor line in sys.stdin:\n    print(line.strip().upper())</div><div class=\"cmd\">kubectl get pods -o json | python tool.py | head -5</div></div><div class=\"tip\"><b>Interview tip:</b> Say data to stdout, messages to stderr.</div>"},
+  {n:25,tag:"cli",q:"How do you design automation scripts to be idempotent and safe to re-run?",body:"<p>Check current state before acting, use stable names or tags, record progress for resumption, guard destructive steps with dry-run and confirmations, use locks and idempotency tokens, log skipped versus performed actions and test by running twice.</p><div class=\"cmds\"><div class=\"cmd\">def ensure_bucket(s3, name):\n    try:\n        s3.head_bucket(Bucket=name); return False\n    except ClientError:\n        s3.create_bucket(Bucket=name); return True</div><div class=\"cmd\">python tool.py --dry-run</div></div><div class=\"tip\"><b>Interview tip:</b> Say run it twice; the second run should do nothing.</div>"},
+  {n:26,tag:"cli",q:"How do you implement retries with exponential backoff and jitter correctly?",body:"<p>Retry only transient errors with exponential backoff, a cap and random jitter, bound attempts and total time, honour Retry-After, make writes idempotent and log retries. Use tenacity, urllib3 Retry or boto3 retry modes rather than hand-rolled loops.</p><div class=\"cmds\"><div class=\"cmd\">from tenacity import retry, stop_after_attempt, wait_exponential_jitter, retry_if_exception_type\n@retry(stop=stop_after_attempt(5), wait=wait_exponential_jitter(initial=1, max=30), retry=retry_if_exception_type(requests.ConnectionError))\ndef call(): ...</div></div><div class=\"tip\"><b>Interview tip:</b> Say bounded retries, jitter and idempotent operations.</div>"},
+  {n:27,tag:"cli",q:"How do you add safety features such as dry-run, confirmation and progress reporting to operational scripts?",body:"<p>Add dry-run, ideally default for risky tools, confirmation with a printed target context, a cap on items changed per run, progress reporting, a final summary, audit logging and exit codes that reflect partial failure.</p><div class=\"cmds\"><div class=\"cmd\">if args.dry_run:\n    log.info('would delete %s', vol_id)\nelse:\n    ec2.delete_volume(VolumeId=vol_id)</div><div class=\"cmd\">python cleanup.py --max-delete 20 --apply</div></div><div class=\"tip\"><b>Interview tip:</b> Say show the account and region before you act.</div>"},
+  {n:28,tag:"cli",q:"How do you run commands on remote servers from Python, and what are the options?",body:"<p>Use Paramiko for low-level SSH and SFTP, Fabric for friendlier multi-host commands, Netmiko for network devices, ssh via subprocess to reuse config, or ansible-runner. Verify host keys, set timeouts, check exit status, limit concurrency and avoid secrets in commands.</p><div class=\"cmds\"><div class=\"cmd\">import paramiko\nc = paramiko.SSHClient()\nc.load_system_host_keys()\nc.connect('10.0.0.5', username='ops', timeout=10)\n_, out, err = c.exec_command('uptime')\nprint(out.read().decode(), out.channel.recv_exit_status())</div></div><div class=\"tip\"><b>Interview tip:</b> Say verify host keys and always check the exit status.</div>"},
+  {n:29,tag:"cli",q:"When should you write a tool in Python rather than Bash?",body:"<p>Use Bash for short command glue; move to Python when you need data structures, API and JSON handling, error handling, concurrency, tests or team maintenance. Mind interpreter availability on minimal hosts.</p><div class=\"cmds\"><div class=\"cmd\">set -euo pipefail</div><div class=\"cmd\">python3 -m zipapp mytool -o mytool.pyz -p '/usr/bin/env python3'</div></div><div class=\"tip\"><b>Interview tip:</b> Say a hundred lines or a dictionary means Python.</div>"},
+  {n:30,tag:"cli",q:"How do you package a Python script as a command-line tool others can install?",body:"<p>Create a package with pyproject.toml declaring dependencies and a scripts entry point, build a wheel, install with pipx or uv tool, publish to a private index or Git tag, and use zipapp or PyInstaller for hosts without package access. Build from tags in CI.</p><div class=\"cmds\"><div class=\"cmd\">[project.scripts]\nmytool = \"mytool.cli:main\"</div><div class=\"cmd\">python -m build &amp;&amp; pipx install dist/mytool-1.0.0-py3-none-any.whl</div></div><div class=\"tip\"><b>Interview tip:</b> Say entry points, wheels and pipx for isolation.</div>"},
+  {n:31,tag:"api",q:"How do you call HTTP APIs reliably in Python with requests or httpx?",body:"<p>Use requests or httpx with explicit timeouts, a reused session, raise_for_status, retries with backoff, verified TLS, careful secrets handling and a small client class that centralises auth and error handling for easy mocking.</p><div class=\"cmds\"><div class=\"cmd\">import requests\ns = requests.Session()\ns.headers['Authorization'] = f'Bearer {token}'\nr = s.get(url, timeout=(3.05, 10))\nr.raise_for_status()\ndata = r.json()</div></div><div class=\"tip\"><b>Interview tip:</b> Say timeouts, sessions and raise_for_status.</div>"},
+  {n:32,tag:"api",q:"How do you handle pagination, rate limits and large result sets from APIs?",body:"<p>Wrap pagination in a generator following cursors or links, honour 429 and Retry-After with backoff, limit concurrency, prefer cursor over offset pagination, use filters and bulk endpoints, and prefer webhooks to polling.</p><div class=\"cmds\"><div class=\"cmd\">def items(url):\n    while url:\n        r = s.get(url, timeout=10); r.raise_for_status()\n        j = r.json()\n        yield from j['items']\n        url = j.get('next')</div></div><div class=\"tip\"><b>Interview tip:</b> Say a generator hides pagination from callers.</div>"},
+  {n:33,tag:"api",q:"How do you use boto3 effectively: clients, resources, paginators and waiters?",body:"<p>Use clients with paginators for complete listings and waiters for state changes, credentials from the default chain or assumed roles, botocore Config for retries and timeouts, ClientError code handling, one client per thread and moto for tests.</p><div class=\"cmds\"><div class=\"cmd\">import boto3\nec2 = boto3.client('ec2')\nfor page in ec2.get_paginator('describe_instances').paginate(Filters=[{'Name':'tag:env','Values':['prod']}]):\n    for r in page['Reservations']: ...</div><div class=\"cmd\">ec2.get_waiter('instance_running').wait(InstanceIds=[iid])</div></div><div class=\"tip\"><b>Interview tip:</b> Say paginators and waiters instead of loops and sleeps.</div>"},
+  {n:34,tag:"api",q:"How do you use the Kubernetes Python client, and when would you use it instead of kubectl?",body:"<p>The kubernetes client loads kubeconfig or in-cluster config and exposes typed APIs, watches and dynamic clients. Use it for reports, cleanup, controllers and structured automation; kubectl for one-offs. Use least-privilege RBAC, handle ApiException, page lists, watch rather than poll and patch rather than replace.</p><div class=\"cmds\"><div class=\"cmd\">from kubernetes import client, config\nconfig.load_kube_config()\nv1 = client.CoreV1Api()\nfor p in v1.list_pod_for_all_namespaces(limit=100).items:\n    print(p.metadata.namespace, p.metadata.name, p.status.phase)</div></div><div class=\"tip\"><b>Interview tip:</b> Say in-cluster config and least-privilege RBAC.</div>"},
+  {n:35,tag:"api",q:"How do you implement authentication for API clients, including tokens, OAuth and refresh?",body:"<p>Use API keys from the environment or secrets manager, or OAuth client credentials with cached short-lived tokens refreshed before expiry, with a 401 fallback and a lock to avoid concurrent refreshes. Scope tokens narrowly and never log them.</p><div class=\"cmds\"><div class=\"cmd\">r = requests.post(token_url, data={'grant_type':'client_credentials'}, auth=(cid, secret), timeout=10)\ntoken = r.json()['access_token']\nexpires = time.time() + r.json()['expires_in'] - 30</div></div><div class=\"tip\"><b>Interview tip:</b> Say cache tokens and refresh with a margin.</div>"},
+  {n:36,tag:"api",q:"How would you build a small webhook receiver or internal API with Flask or FastAPI?",body:"<p>Expose a POST endpoint, verify an HMAC signature in constant time, validate the body with pydantic, respond fast and process in the background or a queue, make handlers idempotent by delivery ID, and add health checks, logging, limits and tests.</p><div class=\"cmds\"><div class=\"cmd\">import hmac, hashlib\nok = hmac.compare_digest(sig, 'sha256=' + hmac.new(secret, body, hashlib.sha256).hexdigest())</div><div class=\"cmd\">uvicorn app:app --host 0.0.0.0 --port 8080</div></div><div class=\"tip\"><b>Interview tip:</b> Say verify the signature, ack fast, process async, be idempotent.</div>"},
+  {n:37,tag:"api",q:"How do you automate GitHub or GitLab with their APIs, for example for repository hygiene or release automation?",body:"<p>Use PyGithub or python-gitlab with GitHub App or fine-grained tokens, automate settings, pull requests, audits and releases, respect rate limits with ETags and backoff, paginate, run bulk changes in dry-run first and prefer pull requests for review.</p><div class=\"cmds\"><div class=\"cmd\">from github import Github\ng = Github(auth=auth)\nfor repo in g.get_organization('acme').get_repos():\n    repo.get_branch('main').edit_protection(required_approving_review_count=1)</div></div><div class=\"tip\"><b>Interview tip:</b> Say scoped app tokens and dry-run bulk changes.</div>"},
+  {n:38,tag:"api",q:"How do you integrate Python automation with Slack, PagerDuty or ticketing systems?",body:"<p>Use Slack webhooks or the Web API for concise linked messages, the PagerDuty Events API with a dedup key, ticket APIs for findings and Slack signature verification for interactive commands. Keep tokens secret, tolerate notification failures and avoid duplicates.</p><div class=\"cmds\"><div class=\"cmd\">requests.post(slack_webhook, json={'text': f':warning: backup failed on {host} &lt;{runbook}|runbook&gt;'}, timeout=10)</div><div class=\"cmd\">requests.post('https://events.pagerduty.com/v2/enqueue', json={'routing_key': key, 'event_action': 'trigger', 'dedup_key': f'backup-{host}', 'payload': {...}})</div></div><div class=\"tip\"><b>Interview tip:</b> Say dedup keys prevent duplicate incidents.</div>"},
+  {n:39,tag:"api",q:"How do you validate data from external APIs and files using pydantic or JSON Schema?",body:"<p>Validate at the boundary with pydantic models or JSON Schema: types, constraints, defaults and cross-field rules, failing early with clear errors. Decide whether to reject all input or skip and report bad records, and prefer strict modes to avoid surprising coercion.</p><div class=\"cmds\"><div class=\"cmd\">from pydantic import BaseModel, Field\nclass Instance(BaseModel):\n    id: str\n    cpu: int = Field(ge=1, le=128)\nInstance.model_validate(raw)</div><div class=\"cmd\">jsonschema.validate(instance=cfg, schema=schema)</div></div><div class=\"tip\"><b>Interview tip:</b> Say validate once at the edge so the rest of the code can trust types.</div>"},
+  {n:40,tag:"conc",q:"How do you choose between threading, multiprocessing and asyncio?",body:"<p>Threads or asyncio for I/O-bound work, multiprocessing for CPU-bound work. Threads suit existing blocking libraries, asyncio scales to thousands of connections but needs async libraries. Bound concurrency, handle per-task errors and avoid shared mutable state.</p><div class=\"cmds\"><div class=\"cmd\">from concurrent.futures import ThreadPoolExecutor\nwith ThreadPoolExecutor(max_workers=20) as ex:\n    results = list(ex.map(check_host, hosts))</div></div><div class=\"tip\"><b>Interview tip:</b> Say identify whether it is waiting or computing first.</div>"},
+  {n:41,tag:"conc",q:"How does asyncio work, and how would you use it to call many APIs concurrently?",body:"<p>Asyncio uses one event loop with coroutines that await I/O. Create tasks with gather or TaskGroup, use an async client, bound concurrency with a semaphore, apply timeouts, collect errors per task and move blocking calls to threads with to_thread.</p><div class=\"cmds\"><div class=\"cmd\">import asyncio, httpx\nasync def fetch(c, u, sem):\n    async with sem:\n        return (await c.get(u, timeout=10)).status_code\nasync def main():\n    sem = asyncio.Semaphore(20)\n    async with httpx.AsyncClient() as c:\n        print(await asyncio.gather(*(fetch(c, u, sem) for u in urls)))\nasyncio.run(main())</div></div><div class=\"tip\"><b>Interview tip:</b> Say a semaphore bounds concurrency; never block the loop.</div>"},
+  {n:42,tag:"conc",q:"How do you use ThreadPoolExecutor to run tasks in parallel safely, for example checks across many hosts?",body:"<p>Create a bounded ThreadPoolExecutor, submit one task per host, collect with as_completed, record exceptions per future, keep tasks independent, protect shared state, implement timeouts inside tasks and summarise results with a meaningful exit code.</p><div class=\"cmds\"><div class=\"cmd\">from concurrent.futures import ThreadPoolExecutor, as_completed\nwith ThreadPoolExecutor(max_workers=16) as ex:\n    futs = {ex.submit(check, h): h for h in hosts}\n    for f in as_completed(futs):\n        try: print(futs[f], f.result())\n        except Exception as e: print(futs[f], 'FAILED', e)</div></div><div class=\"tip\"><b>Interview tip:</b> Say bound the workers and handle each future's exception.</div>"},
+  {n:43,tag:"conc",q:"How do you profile a slow Python script and find the bottleneck?",body:"<p>Profile first with cProfile and snakeviz, line_profiler and perf_counter timing, and use py-spy on running processes. Look for quadratic algorithms, repeated work, per-item calls and serial I/O, optimise the biggest contributor and re-measure.</p><div class=\"cmds\"><div class=\"cmd\">python -m cProfile -o out.prof tool.py &amp;&amp; snakeviz out.prof</div><div class=\"cmd\">py-spy top --pid 4321</div><div class=\"cmd\">py-spy record -o flame.svg --pid 4321 --duration 30</div></div><div class=\"tip\"><b>Interview tip:</b> Say measure first, fix the biggest contributor.</div>"},
+  {n:44,tag:"conc",q:"How do you diagnose and fix memory problems in Python scripts and services?",body:"<p>Distinguish steady growth from spikes, then use tracemalloc, memray and objgraph to find allocations and retained references. Common causes are loading everything into memory, unbounded caches and held references; fix with streaming, bounded caches, batching and compact types.</p><div class=\"cmds\"><div class=\"cmd\">import tracemalloc\ntracemalloc.start()\n# ... run work ...\nfor s in tracemalloc.take_snapshot().statistics('lineno')[:10]: print(s)</div><div class=\"cmd\">python -m memray run tool.py</div></div><div class=\"tip\"><b>Interview tip:</b> Say find what is retaining the objects, not just who allocated them.</div>"},
+  {n:45,tag:"api",q:"How do you design a robust Python client library for an internal API, and how do you make it testable?",body:"<p>Wrap the API in a class with injected session and credentials, typed methods and models, centralised auth, retries, pagination and a small exception hierarchy. Test with responses or respx and contract tests, and version and document the library.</p><div class=\"cmds\"><div class=\"cmd\">class Client:\n    def __init__(self, base, token, session=None):\n        self.s = session or requests.Session()\n        self.s.headers['Authorization'] = f'Bearer {token}'\n        self.base = base</div><div class=\"cmd\">import responses\n@responses.activate\ndef test_get(): ...</div></div><div class=\"tip\"><b>Interview tip:</b> Say one exception hierarchy and an injectable session.</div>"},
+  {n:46,tag:"conc",q:"How do you use queues and worker patterns for producer-consumer workloads in Python?",body:"<p>Use a queue between producers and a pool of workers, bound its size for back-pressure, handle errors per item with retry or dead-letter paths, shut down gracefully and use an external broker such as Celery, RQ or SQS when work must be durable or distributed.</p><div class=\"cmds\"><div class=\"cmd\">import queue, threading\nq = queue.Queue(maxsize=100)\ndef worker():\n    while True:\n        item = q.get()\n        try: process(item)\n        finally: q.task_done()</div><div class=\"cmd\">for _ in range(8): threading.Thread(target=worker, daemon=True).start()</div></div><div class=\"tip\"><b>Interview tip:</b> Say bound the queue to get back-pressure.</div>"},
+  {n:47,tag:"conc",q:"How do you avoid race conditions and deadlocks in concurrent Python code?",body:"<p>Avoid shared mutable state by using queues and returning results, protect unavoidable sharing with small lock-guarded sections, use consistent lock ordering or timeouts to avoid deadlocks, and inspect stuck processes with faulthandler or py-spy dump.</p><div class=\"cmds\"><div class=\"cmd\">lock = threading.Lock()\nwith lock:\n    counter += 1</div><div class=\"cmd\">py-spy dump --pid 4321</div></div><div class=\"tip\"><b>Interview tip:</b> Say prefer queues over shared state.</div>"},
+  {n:48,tag:"conc",q:"How does caching with functools.lru_cache and TTL caches speed up scripts, and what are the pitfalls?",body:"<p>lru_cache memoises pure functions by hashable arguments with a bounded size; use TTL caches for changing data and shared caches across processes. Beware side effects, unbounded growth, mutable results, caching methods and missing invalidation.</p><div class=\"cmds\"><div class=\"cmd\">from functools import lru_cache\n@lru_cache(maxsize=256)\ndef account_name(account_id): ...</div><div class=\"cmd\">account_name.cache_info()</div><div class=\"cmd\">from cachetools import TTLCache; cache = TTLCache(maxsize=100, ttl=300)</div></div><div class=\"tip\"><b>Interview tip:</b> Say bounded size and an expiry for changing data.</div>"},
+  {n:49,tag:"conc",q:"How would you speed up processing of a large dataset in Python without rewriting everything?",body:"<p>First fix algorithms with sets, dictionaries and avoiding nested loops, then use C-backed built-ins, vectorised pandas, numpy, Polars or DuckDB, use process pools for CPU-bound chunks, choose efficient formats like Parquet and measure after each change.</p><div class=\"cmds\"><div class=\"cmd\">import duckdb\nduckdb.sql(\"select status, count(*) from 'access.parquet' group by 1\").show()</div><div class=\"cmd\">pd.read_csv('big.csv', chunksize=100_000)</div></div><div class=\"tip\"><b>Interview tip:</b> Say algorithm first, then vectorise, then parallelise.</div>"},
+  {n:50,tag:"test",q:"How do you structure tests with pytest, and what are fixtures and parametrisation?",body:"<p>Pytest finds test_ functions and uses plain asserts. Fixtures provide reusable setup and cleanup at chosen scopes, parametrize runs cases from data, and tmp_path, monkeypatch, capsys and caplog help with files, environment and output. Keep tests small and deterministic.</p><div class=\"cmds\"><div class=\"cmd\">import pytest\n@pytest.mark.parametrize('line,status', [('GET / 200', 200), ('GET /x 500', 500)])\ndef test_status(line, status):\n    assert parse(line).status == status</div><div class=\"cmd\">pytest -q -x --maxfail=3</div></div><div class=\"tip\"><b>Interview tip:</b> Say fixtures for setup, parametrize for cases.</div>"},
+  {n:51,tag:"test",q:"How do you mock cloud and API calls in tests, for example with unittest.mock, moto or responses?",body:"<p>Use moto for AWS, responses or respx for HTTP, and unittest.mock for other dependencies, patching where used. Inject clients for easy substitution, assert on resulting state rather than call sequences, and keep a small set of integration tests against a sandbox.</p><div class=\"cmds\"><div class=\"cmd\">from moto import mock_aws\n@mock_aws\ndef test_bucket():\n    s3 = boto3.client('s3', region_name='us-east-1')\n    s3.create_bucket(Bucket='b')\n    assert ensure_bucket(s3, 'b') is False</div></div><div class=\"tip\"><b>Interview tip:</b> Say test behaviour against a fake backend, not call counts.</div>"},
+  {n:52,tag:"test",q:"How do you test command-line tools and scripts?",body:"<p>Keep logic in importable functions and test them directly, test the CLI layer with CliRunner or main(argv) checking output and exit codes, use tmp_path and monkeypatch for files and environment, test failure paths and dry-run, and add a few end-to-end installs.</p><div class=\"cmds\"><div class=\"cmd\">from click.testing import CliRunner\ndef test_cli():\n    r = CliRunner().invoke(app, ['scale', 'web', '--dry-run'])\n    assert r.exit_code == 0 and 'would scale' in r.output</div></div><div class=\"tip\"><b>Interview tip:</b> Say test the exit code and the failure paths.</div>"},
+  {n:53,tag:"test",q:"What do you measure with code coverage, and how do you use it sensibly in CI?",body:"<p>Coverage shows which code ran, not whether tests assert meaningful behaviour. Use branch coverage, a ratcheting threshold and diff coverage for new code, review uncovered lines, test critical paths thoroughly and avoid treating the percentage as the goal.</p><div class=\"cmds\"><div class=\"cmd\">pytest --cov=mytool --cov-branch --cov-report=term-missing --cov-fail-under=85</div><div class=\"cmd\">diff-cover coverage.xml --compare-branch=origin/main</div></div><div class=\"tip\"><b>Interview tip:</b> Say coverage finds gaps; it does not prove quality.</div>"},
+  {n:54,tag:"test",q:"How do you use linters, formatters and type checkers such as ruff, black and mypy in a Python project?",body:"<p>Use a formatter for consistent style, ruff for linting and security rules with auto-fixes, and mypy or pyright for type errors. Configure in pyproject, run in pre-commit and CI, and adopt gradually in existing code by baselining and tightening.</p><div class=\"cmds\"><div class=\"cmd\">ruff check --fix . &amp;&amp; ruff format .</div><div class=\"cmd\">mypy --strict src/</div><div class=\"cmd\">pre-commit run --all-files</div></div><div class=\"tip\"><b>Interview tip:</b> Say pre-commit for speed, CI for enforcement.</div>"},
+  {n:55,tag:"test",q:"How do you test code that depends on time, randomness or external state?",body:"<p>Make time, randomness and external state explicit: inject clocks or use freezegun, seed or inject random generators, use monkeypatch, tmp_path and fakes, replace sleep with a recorder and keep tests independent. Fix flaky tests quickly.</p><div class=\"cmds\"><div class=\"cmd\">from freezegun import freeze_time\n@freeze_time('2026-01-01 12:00')\ndef test_token_expired(): ...</div><div class=\"cmd\">monkeypatch.setattr(time, 'sleep', lambda s: delays.append(s))</div></div><div class=\"tip\"><b>Interview tip:</b> Say inject the clock and replace sleep.</div>"},
+  {n:56,tag:"test",q:"What is a good testing strategy for infrastructure automation code in Python?",body:"<p>Use a pyramid: fast unit tests for logic, component tests with moto and responses, a few integration tests in disposable sandboxes, tests that dry-run changes nothing and safeguards hold, idempotency tests and periodic contract checks, with cleanup and unique prefixes.</p><div class=\"cmds\"><div class=\"cmd\">pytest tests/unit -q &amp;&amp; pytest tests/integration -m sandbox --maxfail=1</div><div class=\"cmd\">aws resourcegroupstaggingapi get-resources --tag-filters Key=test-run,Values=$RUN_ID</div></div><div class=\"tip\"><b>Interview tip:</b> Say prove the destructive paths are guarded.</div>"},
+  {n:57,tag:"test",q:"How do you set up pre-commit hooks and CI checks that keep a Python automation repository healthy?",body:"<p>Pre-commit runs fast pinned hooks locally for lint, format, types and secret detection; CI repeats them plus the full tests, coverage, pip-audit and build, enforced by branch protection. Automated dependency updates use the tests as a safety net.</p><div class=\"cmds\"><div class=\"cmd\">repos:\n  - repo: https://github.com/astral-sh/ruff-pre-commit\n    rev: v0.6.9\n    hooks: [{id: ruff}, {id: ruff-format}]</div><div class=\"cmd\">pip-audit -r requirements.txt</div></div><div class=\"tip\"><b>Interview tip:</b> Say the same checks locally and in CI.</div>"},
+  {n:58,tag:"test",q:"How do you test infrastructure state from Python, for example with Testinfra?",body:"<p>Testinfra is a pytest plugin that asserts server state such as packages, services, ports and files over local, SSH, Docker or Ansible connections. Use it to verify images, configuration runs and deployments, alongside application tests.</p><div class=\"cmds\"><div class=\"cmd\">def test_nginx(host):\n    assert host.package('nginx').is_installed\n    assert host.service('nginx').is_running\n    assert host.socket('tcp://0.0.0.0:80').is_listening</div><div class=\"cmd\">pytest --hosts=ssh://web01 tests/</div></div><div class=\"tip\"><b>Interview tip:</b> Say check observable state, not implementation.</div>"},
+  {n:59,tag:"pkg",q:"How do virtual environments work, and how do venv, virtualenv, pipx and uv differ?",body:"<p>A virtual environment isolates a project's interpreter and packages. venv is built in, virtualenv and uv are faster, pipx isolates CLI tools, and uv can also manage dependencies and Python versions. Call the environment's interpreter directly in cron or systemd and never pollute the system Python.</p><div class=\"cmds\"><div class=\"cmd\">python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r requirements.txt</div><div class=\"cmd\">*/5 * * * * /opt/tool/.venv/bin/python /opt/tool/run.py</div><div class=\"cmd\">pipx install ruff</div></div><div class=\"tip\"><b>Interview tip:</b> Say never install into the system Python.</div>"},
+  {n:60,tag:"pkg",q:"Compare pip, pip-tools, Poetry and uv for dependency management and lock files.",body:"<p>Pip alone does not lock transitive dependencies. pip-tools compiles pinned files, Poetry and uv manage projects with lock files, and uv is very fast. Declare ranges in pyproject, lock everything with hashes, install from the lock and update through reviewed pull requests.</p><div class=\"cmds\"><div class=\"cmd\">pip-compile --generate-hashes requirements.in -o requirements.txt</div><div class=\"cmd\">uv lock &amp;&amp; uv sync --frozen</div></div><div class=\"tip\"><b>Interview tip:</b> Say lock files make installs reproducible.</div>"},
+  {n:61,tag:"pkg",q:"What goes in pyproject.toml, and how do you structure a modern Python project?",body:"<p>pyproject.toml holds build system, project metadata, dependencies, optional groups and script entry points plus tool configuration for ruff, mypy and pytest. Use a src layout with tests beside it, editable installs for development and wheels for release.</p><div class=\"cmds\"><div class=\"cmd\">[build-system]\nrequires = [\"hatchling\"]\nbuild-backend = \"hatchling.build\"\n[project]\nname = \"mytool\"\nversion = \"1.0.0\"\nrequires-python = \"&gt;=3.10\"\ndependencies = [\"requests&gt;=2.31\"]</div><div class=\"cmd\">pip install -e '.[dev]'</div></div><div class=\"tip\"><b>Interview tip:</b> Say one standard file and a src layout.</div>"},
+  {n:62,tag:"pkg",q:"How do you secure the Python dependency supply chain?",body:"<p>Minimise dependencies, pin versions with hashes and install in hash-checking mode, use an internal index or proxy with reserved internal names, scan with pip-audit or Dependabot, produce SBOMs, sign releases and build in clean low-privilege environments.</p><div class=\"cmds\"><div class=\"cmd\">pip install --require-hashes -r requirements.txt</div><div class=\"cmd\">pip-audit -r requirements.txt</div><div class=\"cmd\">pip config set global.index-url https://pypi.internal.example.com/simple</div></div><div class=\"tip\"><b>Interview tip:</b> Say hashes plus an internal mirror stop tampering and confusion.</div>"},
+  {n:63,tag:"pkg",q:"How do you containerise a Python application well?",body:"<p>Use a slim base and a multi-stage build, install locked dependencies before source for caching, run as non-root with unbuffered output, use exec-form CMD and handle SIGTERM, keep secrets out of the image, pin base digests and scan and rebuild regularly.</p><div class=\"cmds\"><div class=\"cmd\">FROM python:3.12-slim AS build\nCOPY requirements.txt .\nRUN pip wheel -r requirements.txt -w /wheels\nFROM python:3.12-slim\nCOPY --from=build /wheels /wheels\nRUN pip install --no-index /wheels/*\nUSER 10001\nCMD [\"python\", \"-m\", \"mytool\"]</div></div><div class=\"tip\"><b>Interview tip:</b> Say multi-stage, non-root, exec form, no secrets baked in.</div>"},
+  {n:64,tag:"pkg",q:"How do you manage multiple Python versions across developer machines and servers?",body:"<p>Declare requires-python, test a version matrix in CI, use pyenv or uv with a version file for developers, and on servers use containers or dedicated interpreters instead of the system Python. Track end-of-life dates and treat deprecation warnings as errors in tests.</p><div class=\"cmds\"><div class=\"cmd\">pyenv install 3.12.4 &amp;&amp; pyenv local 3.12.4</div><div class=\"cmd\">uv python install 3.12</div><div class=\"cmd\">pytest -W error::DeprecationWarning</div></div><div class=\"tip\"><b>Interview tip:</b> Say containers or a dedicated interpreter, never system Python.</div>"},
+  {n:65,tag:"pkg",q:"How do you distribute Python tools to hosts that have no internet access?",body:"<p>Use a wheelhouse installed with --no-index, a zipapp for pure Python, PyInstaller for a single executable, a container image, or an internal mirror like devpi or Artifactory. Match architecture, libc and Python version, and checksum or sign artefacts.</p><div class=\"cmds\"><div class=\"cmd\">pip download -r requirements.txt -d wheelhouse/ --platform manylinux2014_x86_64 --only-binary=:all:</div><div class=\"cmd\">pip install --no-index --find-links wheelhouse/ -r requirements.txt</div></div><div class=\"tip\"><b>Interview tip:</b> Say a wheelhouse built for the exact target platform.</div>"},
+  {n:66,tag:"pkg",q:"How do you version, release and publish an internal Python package?",body:"<p>Use semantic versions derived from Git tags, keep a changelog and automate releases in CI: test, build sdist and wheel, twine check and upload to the internal index with short-lived credentials. Yank bad releases, announce deprecations first and ship a py.typed marker.</p><div class=\"cmds\"><div class=\"cmd\">python -m build &amp;&amp; twine check dist/*</div><div class=\"cmd\">twine upload --repository-url https://pypi.internal.example.com/ dist/*</div></div><div class=\"tip\"><b>Interview tip:</b> Say tag, build in CI, publish with short-lived credentials.</div>"},
+  {n:67,tag:"conc",q:"How do you use multiprocessing and process pools correctly for CPU-bound work?",body:"<p>Use ProcessPoolExecutor or Pool for CPU-bound tasks; arguments and results must be picklable and chunked to limit transfer cost. Use the main guard, choose spawn or fork carefully, size workers to cores and memory, and handle worker errors. Measure, since small tasks may not benefit.</p><div class=\"cmds\"><div class=\"cmd\">from concurrent.futures import ProcessPoolExecutor\nif __name__ == '__main__':\n    with ProcessPoolExecutor(max_workers=os.cpu_count()) as ex:\n        out = list(ex.map(hash_file, files, chunksize=16))</div></div><div class=\"tip\"><b>Interview tip:</b> Say chunk the work and keep results small.</div>"},
+  {n:68,tag:"test",q:"What is property-based testing and where does it help in operations code?",body:"<p>Property-based testing with Hypothesis generates many inputs and checks properties such as round trips and ordering, shrinking failures to minimal examples. It suits parsers, CIDR and version handling and idempotency, alongside example tests.</p><div class=\"cmds\"><div class=\"cmd\">from hypothesis import given, strategies as st\n@given(st.lists(st.integers()))\ndef test_sorted(xs):\n    assert sorted(xs) == sorted(sorted(xs))</div><div class=\"cmd\">pytest --hypothesis-seed=42</div></div><div class=\"tip\"><b>Interview tip:</b> Say round-trip properties find edge cases you did not think of.</div>"},
+  {n:69,tag:"pkg",q:"How do you deploy and run a Python service or script on servers with systemd?",body:"<p>Install into a dedicated directory with its own virtual environment and service account, run with a systemd unit using Restart, EnvironmentFile and hardening options, use timers for periodic jobs, switch versioned releases by symlink and handle SIGTERM within the stop timeout.</p><div class=\"cmds\"><div class=\"cmd\">[Service]\nUser=svc-tool\nExecStart=/opt/tool/current/.venv/bin/tool run\nRestart=on-failure\nNoNewPrivileges=true\nProtectSystem=strict</div><div class=\"cmd\">systemctl status tool &amp;&amp; journalctl -u tool -n 50</div></div><div class=\"tip\"><b>Interview tip:</b> Say a dedicated venv and user, hardened unit, timers over cron.</div>"},
+  {n:70,tag:"files",q:"How do you generate reports from CSV, JSON or cloud data using the csv module or pandas?",body:"<p>Use csv DictReader and DictWriter for simple streaming, pandas for grouping, joins and pivots with explicit dtypes and chunking, and DuckDB or Polars for large files. Keep output reproducible with stable ordering and UTC timestamps, and strip sensitive columns.</p><div class=\"cmds\"><div class=\"cmd\">import pandas as pd\ndf = pd.read_csv('billing.csv', usecols=['tag_team', 'cost'], dtype={'tag_team': 'string'})\nprint(df.groupby('tag_team')['cost'].sum().sort_values(ascending=False))</div></div><div class=\"tip\"><b>Interview tip:</b> Say vectorise, never loop over rows.</div>"},
+  {n:71,tag:"ops",q:"How would you write a robust health-check or monitoring script that runs from cron or a timer?",body:"<p>Check specific things with explicit timeouts, report through exit codes, metrics and structured logs, distinguish failure from inability to check, require consecutive failures before alerting, prevent overlap with a lock and run unprivileged. Prefer Prometheus metrics to ad-hoc emails.</p><div class=\"cmds\"><div class=\"cmd\">r = requests.get(url, timeout=5)\nok = r.status_code == 200 and 'ok' in r.text\nsys.exit(0 if ok else 2)</div><div class=\"cmd\">flock -n /var/lock/check.lock python check.py</div></div><div class=\"tip\"><b>Interview tip:</b> Say timeouts everywhere and a lock against overlap.</div>"},
+  {n:72,tag:"ops",q:"How would you write a script to find and clean up unused cloud resources safely, such as unattached volumes or old snapshots?",body:"<p>Separate discovery from deletion, default to dry-run, honour protection tags, enforce minimum age, print account and region, cap deletions, tag-then-delete with owner notification, paginate fully, log every action and test in a sandbox with decoys.</p><div class=\"cmds\"><div class=\"cmd\">for page in ec2.get_paginator('describe_volumes').paginate(Filters=[{'Name':'status','Values':['available']}]):\n    for v in page['Volumes']:\n        if age_days(v['CreateTime']) &gt; 30 and not protected(v): candidates.append(v['VolumeId'])</div><div class=\"cmd\">python cleanup.py --account prod --region eu-west-1 --max-delete 25 --apply</div></div><div class=\"tip\"><b>Interview tip:</b> Say report first, then tag, then delete.</div>"},
+  {n:73,tag:"ops",q:"How do you monitor TLS certificate expiry with Python?",body:"<p>Connect with ssl and SNI under a timeout, read notAfter, compute days left, parse chains with cryptography, source endpoints from inventories and Kubernetes, alert in tiers and export an expiry metric. Also detect trust and chain errors and confirm automatic renewal worked.</p><div class=\"cmds\"><div class=\"cmd\">import ssl, socket, datetime\nctx = ssl.create_default_context()\nwith socket.create_connection((host, 443), timeout=5) as s, ctx.wrap_socket(s, server_hostname=host) as t:\n    exp = datetime.datetime.strptime(t.getpeercert()['notAfter'], '%b %d %H:%M:%S %Y %Z')\nprint((exp - datetime.datetime.utcnow()).days)</div></div><div class=\"tip\"><b>Interview tip:</b> Say export the expiry as a metric and alert in tiers.</div>"},
+  {n:74,tag:"ops",q:"How would you automate database backups and restore verification with Python?",body:"<p>Orchestrate native dump or snapshot tools, stream compressed encrypted output to object storage with checksums and a manifest, apply retention, alert on failure or lateness, and regularly restore into an isolated instance to verify content and measure restore time. Use immutable storage.</p><div class=\"cmds\"><div class=\"cmd\">subprocess.run(f'pg_dump -Fc {db} | gzip | aws s3 cp - s3://backups/{db}/{ts}.dump.gz', shell=True, check=True)</div><div class=\"cmd\">pg_restore -d verify_db latest.dump &amp;&amp; psql verify_db -c 'select count(*) from orders'</div></div><div class=\"tip\"><b>Interview tip:</b> Say the restore test is the real backup test.</div>"},
+  {n:75,tag:"ops",q:"How would you build an inventory or compliance report across many cloud accounts and regions?",body:"<p>Collect with assumed roles across accounts and regions using paginators and bounded parallelism, normalise to a common schema, store timestamped results, evaluate compliance rules into findings with owners and deliver reports. Use native services like AWS Config where they fit.</p><div class=\"cmds\"><div class=\"cmd\">sts = boto3.client('sts')\ncreds = sts.assume_role(RoleArn=f'arn:aws:iam::{acct}:role/audit', RoleSessionName='inv')['Credentials']\nec2 = boto3.client('ec2', region_name=r, aws_access_key_id=creds['AccessKeyId'], aws_secret_access_key=creds['SecretAccessKey'], aws_session_token=creds['SessionToken'])</div></div><div class=\"tip\"><b>Interview tip:</b> Say tolerate per-account failures and store results over time.</div>"},
+  {n:76,tag:"ops",q:"How would you write a Kubernetes operator or controller in Python, for example with kopf?",body:"<p>Use kopf handlers for create, update, delete and timers on a custom resource: reconcile child resources with owner references, update status conditions, keep handlers idempotent and non-blocking, apply least-privilege RBAC and test in a kind cluster. Go with controller-runtime suits larger operators.</p><div class=\"cmds\"><div class=\"cmd\">import kopf\n@kopf.on.create('example.com', 'v1', 'databases')\ndef create(spec, name, namespace, logger, **kw):\n    logger.info(f'creating {name}')\n    return {'phase': 'Ready'}</div><div class=\"cmd\">kopf run operator.py --namespace=default</div></div><div class=\"tip\"><b>Interview tip:</b> Say idempotent reconcile with owner references and status.</div>"},
+  {n:77,tag:"ops",q:"How would you build a ChatOps bot or command that lets engineers run safe operations from Slack?",body:"<p>Receive signed slash-command requests, verify them, ack fast and process async; use an allow list of validated commands, map users to roles, require second-person approval for risky actions, use scoped bot credentials, log an audit trail, add idempotency and redact outputs.</p><div class=\"cmds\"><div class=\"cmd\">from slack_bolt import App\napp = App(token=bot_token, signing_secret=secret)\n@app.command('/scale')\ndef scale(ack, command, respond):\n    ack()\n    respond(f\"Scaling {command['text']}\")</div></div><div class=\"tip\"><b>Interview tip:</b> Say allow-listed commands, role checks and an audit log.</div>"},
+  {n:78,tag:"ops",q:"Compare cron, systemd timers, Kubernetes CronJobs and workflow schedulers such as Airflow for running scheduled Python jobs.",body:"<p>Cron is simple but blind; systemd timers add logging, catch-up and controls; Kubernetes CronJobs suit containerised tasks with concurrency policies; Airflow-style schedulers handle multi-step dependencies and backfills. Pick the simplest that fits, make jobs idempotent, lock against overlap and alert on missed runs.</p><div class=\"cmds\"><div class=\"cmd\">kubectl create cronjob backup --image=registry/backup:1.2 --schedule='0 2 * * *' -- python backup.py</div><div class=\"cmd\">systemctl list-timers --all</div></div><div class=\"tip\"><b>Interview tip:</b> Say simplest tool that fits, plus dead-man's-switch alerting.</div>"},
+  {n:79,tag:"ops",q:"How do you handle scheduled jobs that must not overlap or must run exactly once across several machines?",body:"<p>Use flock or scheduler concurrency settings on one host, and distributed locks or leader election across hosts with a TTL and renewal. Because exactly-once is hard, aim for at-least-once with idempotent effects and fencing tokens, or use a single scheduler with failover.</p><div class=\"cmds\"><div class=\"cmd\">flock -n /var/lock/job.lock python job.py</div><div class=\"cmd\">r.set('lock:backup', host, nx=True, ex=600)</div></div><div class=\"tip\"><b>Interview tip:</b> Say at-least-once with idempotent effects beats chasing exactly-once.</div>"},
+  {n:80,tag:"obs",q:"How would you monitor disk space and clean up logs automatically, safely?",body:"<p>Measure percent, bytes and inodes with psutil or shutil, alert in tiers and export metrics. Prefer logrotate and fixing noisy logging; if a cleaner is needed, use an allow list, retention age, symlink safety, skip open files, dry-run and logging, and verify the outcome.</p><div class=\"cmds\"><div class=\"cmd\">import shutil\nu = shutil.disk_usage('/var')\nprint(u.free / u.total)</div><div class=\"cmd\">lsof +L1 | head</div><div class=\"cmd\">find /var/log/app -type f -mtime +14 -name '*.gz' -print</div></div><div class=\"tip\"><b>Interview tip:</b> Say deleted-but-open files still hold space.</div>"},
+  {n:81,tag:"ops",q:"How would you automate a rolling restart or deployment across servers from Python while keeping the service available?",body:"<p>Build the host list, batch it within capacity limits, drain from the load balancer, deploy and restart, require health checks, watch metrics, then continue; stop and optionally roll back on failure. Use a canary, idempotent steps, locks, dry-run and logs, and prefer Ansible or Kubernetes when they fit.</p><div class=\"cmds\"><div class=\"cmd\">for batch in chunks(hosts, size=3):\n    drain(batch); deploy(batch)\n    if not healthy(batch, timeout=120): rollback(batch); raise SystemExit('batch failed')\n    undrain(batch); time.sleep(30)</div></div><div class=\"tip\"><b>Interview tip:</b> Say batch, drain, deploy, health check, stop on failure.</div>"},
+  {n:82,tag:"obs",q:"How do you expose custom metrics from a Python service or script to Prometheus?",body:"<p>Use prometheus_client counters, gauges and histograms with low-cardinality labels, expose an HTTP endpoint for long-running services, and use the textfile collector or Pushgateway for batch jobs with a last-success timestamp. Follow naming conventions.</p><div class=\"cmds\"><div class=\"cmd\">from prometheus_client import Counter, Histogram, start_http_server\nREQS = Counter('jobs_total', 'Jobs processed', ['status'])\nLAT = Histogram('job_seconds', 'Job duration')\nstart_http_server(9100)</div></div><div class=\"tip\"><b>Interview tip:</b> Say avoid high-cardinality labels.</div>"},
+  {n:83,tag:"obs",q:"How do you implement structured logging in Python?",body:"<p>Emit JSON log lines with consistent fields, UTC timestamps, service and version, and a correlation id carried by context variables. Use logger.exception for tracebacks, log to stdout, redact secrets and configure handlers only in the application.</p><div class=\"cmds\"><div class=\"cmd\">import structlog\nlog = structlog.get_logger().bind(service='billing')\nlog.info('invoice_created', invoice_id=42, amount_cents=1999)</div></div><div class=\"tip\"><b>Interview tip:</b> Say fields, not strings, plus a correlation id.</div>"},
+  {n:84,tag:"obs",q:"How do you add distributed tracing to a Python service with OpenTelemetry?",body:"<p>Install the SDK and instrumentation, set a resource with service name, create manual spans with safe attributes, propagate W3C trace context, export OTLP to a collector with sampling, and put trace ids in logs.</p><div class=\"cmds\"><div class=\"cmd\">opentelemetry-instrument --service_name billing python app.py</div><div class=\"cmd\">from opentelemetry import trace\ntracer = trace.get_tracer(__name__)\nwith tracer.start_as_current_span('charge') as span:\n    span.set_attribute('batch.size', n)</div></div><div class=\"tip\"><b>Interview tip:</b> Say propagate context and sample at the collector.</div>"},
+  {n:85,tag:"obs",q:"How do you design health and readiness endpoints for a Python web service?",body:"<p>Keep liveness cheap and dependency-free, use readiness to check that the instance can serve with short timeouts, add a startup probe for slow starts, fail readiness first on shutdown, return proper codes without sensitive detail and cache check results.</p><div class=\"cmds\"><div class=\"cmd\">@app.get('/healthz')\ndef live(): return {'status': 'ok'}\n@app.get('/readyz')\ndef ready():\n    if not db_ok(timeout=1): raise HTTPException(503)\n    return {'status': 'ready'}</div></div><div class=\"tip\"><b>Interview tip:</b> Say liveness is cheap; readiness checks dependencies.</div>"},
+  {n:86,tag:"obs",q:"How would you build a webhook receiver for Alertmanager or similar alert sources in Python?",body:"<p>Receive and validate the payload with authentication, reply fast and process asynchronously, map labels to actions, deduplicate by fingerprint or group key, close on resolved, limit automated remediation and monitor the receiver with a dead-man's switch.</p><div class=\"cmds\"><div class=\"cmd\">@app.post('/alerts')\nasync def alerts(payload: AlertGroup, bg: BackgroundTasks):\n    bg.add_task(handle, payload)\n    return {'ok': True}</div></div><div class=\"tip\"><b>Interview tip:</b> Say dedupe by fingerprint and keep a dead-man's switch.</div>"},
+  {n:87,tag:"obs",q:"How do you analyse large log files in Python, including with pandas?",body:"<p>Stream line by line with compiled regexes and Counters for constant memory, use pandas with explicit dtypes and chunks for richer analysis, use DuckDB or Polars for very large files, count malformed lines and use a log platform for ongoing needs.</p><div class=\"cmds\"><div class=\"cmd\">import re, collections\npat = re.compile(r'\" (\\d{3}) ')\nc = collections.Counter(m.group(1) for line in open('access.log') if (m := pat.search(line)))\nprint(c.most_common())</div></div><div class=\"tip\"><b>Interview tip:</b> Say stream first, load into pandas only when needed.</div>"},
+  {n:88,tag:"obs",q:"How do you calculate SLIs and SLO burn rates from metrics using Python?",body:"<p>Compute good over total events from the metrics API for the SLO window, derive remaining error budget, and calculate burn rate as consumption relative to the allowed rate. Use multi-window burn-rate alerts and weekly reports; recording rules or Sloth can generate it natively.</p><div class=\"cmds\"><div class=\"cmd\">r = requests.get(PROM+'/api/v1/query', params={'query': 'sum(rate(http_requests_total{code!~\"5..\"}[30d]))/sum(rate(http_requests_total[30d]))'}).json()\nsli = float(r['data']['result'][0]['value'][1])</div></div><div class=\"tip\"><b>Interview tip:</b> Say burn rate relates consumption to the allowed rate.</div>"},
+  {n:89,tag:"obs",q:"How do you debug a slow or hanging Python process in production?",body:"<p>Check system metrics and logs first, use py-spy to dump stacks and flame graphs from a live process, enable faulthandler for hangs, use tracemalloc for memory growth, check for blocking calls in async code and missing timeouts, then reproduce, fix and add alerting.</p><div class=\"cmds\"><div class=\"cmd\">py-spy dump --pid 1234</div><div class=\"cmd\">py-spy record -o profile.svg --pid 1234 --duration 30</div><div class=\"cmd\">import faulthandler, signal\nfaulthandler.register(signal.SIGUSR1)</div></div><div class=\"tip\"><b>Interview tip:</b> Say py-spy attaches without a restart.</div>"},
+  {n:90,tag:"obs",q:"How do you write a custom exporter or textfile metrics for data that existing exporters do not cover?",body:"<p>Use a prometheus_client custom collector that queries on scrape with timeouts and exposes scrape success and duration, or write atomically to the node exporter textfile directory with a last-run timestamp. Follow naming and cardinality rules, run unprivileged and check for existing exporters first.</p><div class=\"cmds\"><div class=\"cmd\">from prometheus_client.core import GaugeMetricFamily, REGISTRY\nclass C:\n    def collect(self):\n        g = GaugeMetricFamily('queue_depth', 'Depth', labels=['queue'])\n        g.add_metric(['jobs'], fetch_depth())\n        yield g\nREGISTRY.register(C())</div></div><div class=\"tip\"><b>Interview tip:</b> Say collect on scrape and expose scrape success.</div>"},
+  {n:91,tag:"pat",q:"How do you implement retries with exponential backoff and jitter, and when should you not retry?",body:"<p>Retry only transient errors with exponential backoff and jitter, capped attempts and elapsed time, respecting Retry-After. Keep operations idempotent, use libraries like tenacity, count retries and combine with a circuit breaker.</p><div class=\"cmds\"><div class=\"cmd\">from tenacity import retry, stop_after_attempt, wait_random_exponential, retry_if_exception_type\n@retry(stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=1, max=30), retry=retry_if_exception_type(TransientError))\ndef call(): ...</div></div><div class=\"tip\"><b>Interview tip:</b> Say jitter, caps and idempotency.</div>"},
+  {n:92,tag:"pat",q:"What is a circuit breaker and how would you apply it in Python automation?",body:"<p>A circuit breaker opens after repeated failures so calls fail fast, then half-opens after a cool-down to test recovery. Use pybreaker, provide fallbacks, tune thresholds, emit state metrics and pair with timeouts and retries.</p><div class=\"cmds\"><div class=\"cmd\">import pybreaker\nbreaker = pybreaker.CircuitBreaker(fail_max=5, reset_timeout=30)\n@breaker\ndef call_api(): ...</div></div><div class=\"tip\"><b>Interview tip:</b> Say fail fast, then probe in half-open.</div>"},
+  {n:93,tag:"pat",q:"How do you make resource-creating scripts idempotent?",body:"<p>Compare desired and actual state, create only when missing, update only on difference, use deterministic names or client tokens, treat already-exists and not-found as success after verification, record progress and test by running twice.</p><div class=\"cmds\"><div class=\"cmd\">try:\n    s3.create_bucket(Bucket=name)\nexcept s3.exceptions.BucketAlreadyOwnedByYou:\n    pass</div></div><div class=\"tip\"><b>Interview tip:</b> Say second run changes nothing.</div>"},
+  {n:94,tag:"pat",q:"How do you handle locking and concurrency control in automation scripts?",body:"<p>Use flock or filelock on one host and a TTL-based distributed lock such as Redis, etcd or a database across hosts. Keep scope small, set acquisition timeouts, make work idempotent and use fencing tokens against stale holders.</p><div class=\"cmds\"><div class=\"cmd\">from filelock import FileLock, Timeout\ntry:\n    with FileLock('/var/lock/job.lock', timeout=1):\n        run()\nexcept Timeout:\n    sys.exit('another run is active')</div></div><div class=\"tip\"><b>Interview tip:</b> Say locks expire, so keep work idempotent.</div>"},
+  {n:95,tag:"pat",q:"How do you manage configuration in Python tools across environments?",body:"<p>Use typed, validated settings loaded at startup from defaults, files, environment and flags with documented precedence, safe parsers, separate environment files, secrets from a manager, injected settings objects for testing and a show-config command.</p><div class=\"cmds\"><div class=\"cmd\">from pydantic_settings import BaseSettings\nclass Settings(BaseSettings):\n    api_url: str\n    timeout: int = 10\ns = Settings()</div></div><div class=\"tip\"><b>Interview tip:</b> Say validate at startup, secrets elsewhere.</div>"},
+  {n:96,tag:"pat",q:"How should Python scripts handle secrets safely?",body:"<p>Prefer workload identity and short-lived credentials; otherwise fetch from a secrets manager or restricted file at runtime, never from code, arguments or logs. Rotate, scope tightly, redact in logs, use the secrets module and compare_digest, scan commits and revoke leaks immediately.</p><div class=\"cmds\"><div class=\"cmd\">import os\ntoken = os.environ['API_TOKEN']</div><div class=\"cmd\">gitleaks detect --source .</div></div><div class=\"tip\"><b>Interview tip:</b> Say short-lived credentials beat stored secrets.</div>"},
+  {n:97,tag:"pat",q:"How do you implement graceful shutdown in a Python service or worker?",body:"<p>Handle SIGTERM by setting a flag, stop taking new work, finish or checkpoint in-flight items, acknowledge or return queue messages, close resources and exit within the grace period. Fail readiness first for web services and keep work idempotent in case of SIGKILL.</p><div class=\"cmds\"><div class=\"cmd\">import signal\nstop = False\nsignal.signal(signal.SIGTERM, lambda *a: globals().update(stop=True))\nwhile not stop:\n    process_next()</div></div><div class=\"tip\"><b>Interview tip:</b> Say flag, drain, finish, exit before SIGKILL.</div>"},
+  {n:98,tag:"pat",q:"How do you work reliably with flaky or rate-limited third-party APIs?",body:"<p>Use timeouts, retries with backoff and jitter, Retry-After handling and circuit breakers, throttle with a token bucket and bounded concurrency, paginate fully, validate responses, cache with ETags, use idempotency keys, record metrics and checkpoint long jobs behind a thin client class.</p><div class=\"cmds\"><div class=\"cmd\">s = requests.Session()\ns.mount('https://', HTTPAdapter(max_retries=Retry(total=5, backoff_factor=1, status_forcelist=[429,500,502,503,504])))\nr = s.get(url, timeout=(3, 10))</div></div><div class=\"tip\"><b>Interview tip:</b> Say throttle yourself before the server does.</div>"},
+  {n:99,tag:"pat",q:"How do you process large batches of items safely, with chunking, progress and failure handling?",body:"<p>Process in bounded chunks with per-item error capture, a failure-rate circuit to stop systematic problems, progress metrics, durable checkpoints, idempotent processing, a dead-letter store for failures, a summary at the end and dry-run and limit options.</p><div class=\"cmds\"><div class=\"cmd\">from itertools import islice\ndef batches(it, n):\n    it = iter(it)\n    while chunk := list(islice(it, n)):\n        yield chunk</div><div class=\"cmd\">python migrate.py --dry-run --limit 100</div></div><div class=\"tip\"><b>Interview tip:</b> Say checkpoints and a dead-letter list.</div>"},
+  {n:100,tag:"pat",q:"What common anti-patterns do you see in Python operations scripts, and how do you fix them?",body:"<p>Common problems are shell=True, ignored errors and bare except, missing timeouts, hard-coded config and secrets, no pagination, local time, no dry-run, no tests and system-wide installs. Fix them with argument lists, specific exceptions, config outside code, logging, pagination, UTC, tests, virtual environments and ruff in CI.</p><div class=\"cmds\"><div class=\"cmd\">subprocess.run(['systemctl', 'restart', svc], check=True, timeout=60)</div><div class=\"cmd\">ruff check . &amp;&amp; ruff format --check .</div></div><div class=\"tip\"><b>Interview tip:</b> Say lint in CI catches most of them.</div>"}
+];
+var activeFilter='all', openCards=new Set(), viewedCount=0;
+var fmQ=[], fmIdx=0, fmCorrect=0, fmSeen=0;
+
+function toggleDark(){
+  document.body.classList.toggle('dark');
+  document.getElementById('dmb').textContent=document.body.classList.contains('dark')?'\u2600':'\u263e';
+  try{localStorage.setItem('eklabs_dark',document.body.classList.contains('dark')?'1':'0');}catch(e){}
+}
+(function(){try{if(localStorage.getItem('eklabs_dark')==='1'){document.body.classList.add('dark');document.getElementById('dmb').textContent='\u2600';}}catch(e){}}());
+
+function badge(tag){
+  var L={'core':'Core language','files':'Files & data','cli':'CLI & scripting','api':'APIs & cloud SDKs','conc':'Concurrency & speed','test':'Testing & quality','pkg':'Packaging & envs','ops':'Ops automation','obs':'Observability & tooling','pat':'Patterns & scenarios'};
+  return '<span class="badge '+tag+'">'+(L[tag]||tag)+'</span>';
+}
+function render(qs){
+  document.getElementById('countBar').textContent='Showing '+qs.length+' of 100 questions';
+  document.getElementById('visN').textContent=qs.length;
+  document.getElementById('qList').innerHTML=qs.map(function(q){
+    var open=openCards.has(q.n);
+    return '<div class="q-card" id="card-'+q.n+'">'
+      +'<div class="q-header" onclick="toggle('+q.n+')">'
+      +'<span class="q-num">Q'+q.n+'</span>'
+      +'<span class="q-title">'+q.q+'</span>'
+      +'<div class="q-right">'+badge(q.tag)
+      +'<span class="chevron'+(open?' open':'')+'" id="chev-'+q.n+'">&#9660;</span>'
+      +'</div></div>'
+      +'<div class="q-body'+(open?' open':'')+'" id="body-'+q.n+'">'+q.body+'</div>'
+      +'</div>';
+  }).join('');
+}
+function toggle(n){
+  var b=document.getElementById('body-'+n), c=document.getElementById('chev-'+n);
+  if(openCards.has(n)){openCards.delete(n);b.classList.remove('open');c.classList.remove('open');}
+  else{openCards.add(n);b.classList.add('open');c.classList.add('open');viewedCount++;document.getElementById('viewN').textContent=viewedCount;}
+}
+function setFilter(f,el){
+  activeFilter=f;
+  document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('active');});
+  el.classList.add('active');filterQs();
+}
+function filterQs(){
+  var q=document.getElementById('search').value.toLowerCase();
+  var filtered=QS;
+  if(activeFilter!=='all') filtered=filtered.filter(function(x){return x.tag===activeFilter;});
+  if(q) filtered=filtered.filter(function(x){return x.q.toLowerCase().indexOf(q)!==-1||x.body.toLowerCase().indexOf(q)!==-1;});
+  render(filtered);
+}
+function fmStart(){
+  var q=document.getElementById('search').value.toLowerCase();
+  var pool=QS.slice();
+  if(activeFilter!=='all') pool=pool.filter(function(x){return x.tag===activeFilter;});
+  if(q) pool=pool.filter(function(x){return x.q.toLowerCase().indexOf(q)!==-1||x.body.toLowerCase().indexOf(q)!==-1;});
+  if(!pool.length){alert('No questions match the current filter.');return;}
+  fmQ=pool.sort(function(){return Math.random()-.5;});
+  fmIdx=0;fmCorrect=0;fmSeen=0;
+  document.getElementById('fmBar').classList.add('on');
+  fmShow();
+}
+function fmShow(){
+  if(fmIdx>=fmQ.length){
+    document.getElementById('fmQ').textContent='Done! '+fmCorrect+'/'+fmQ.length+' correct';
+    document.getElementById('fmAns').classList.remove('on');
+    document.getElementById('fmRev').style.display='none';
+    document.getElementById('fmGot').style.display='none';
+    document.getElementById('fmMiss').style.display='none';
+    document.getElementById('fmFill').style.width='100%';
+    return;
+  }
+  var item=fmQ[fmIdx];
+  document.getElementById('fmQ').textContent='Q'+item.n+' — '+item.q;
+  document.getElementById('fmAns').innerHTML=item.body;
+  document.getElementById('fmAns').classList.remove('on');
+  document.getElementById('fmRev').style.display='';
+  document.getElementById('fmGot').style.display='none';
+  document.getElementById('fmMiss').style.display='none';
+  document.getElementById('fmFill').style.width=Math.round(fmIdx/fmQ.length*100)+'%';
+  document.getElementById('fmScore').textContent=fmCorrect+' correct / '+fmSeen+' seen';
+}
+function fmReveal(){
+  document.getElementById('fmAns').classList.add('on');
+  document.getElementById('fmRev').style.display='none';
+  document.getElementById('fmGot').style.display='';
+  document.getElementById('fmMiss').style.display='';
+  fmSeen++;
+}
+function fmNext(ok){
+  if(ok){fmCorrect++;document.getElementById('correctN').textContent=fmCorrect;}
+  fmIdx++;fmShow();
+}
+function fmStop(){document.getElementById('fmBar').classList.remove('on');}
+render(QS);
+
+
+/* ── DARK MODE ────────────────────── */
+(function(){
+  var saved = localStorage.getItem('ekn-dark');
+  if (saved === '1') document.body.classList.add('dark');
+})();
+function toggleDark() {
+  var on = document.body.classList.toggle('dark');
+  localStorage.setItem('ekn-dark', on ? '1' : '0');
+  var btn = document.getElementById('dm-btn');
+  if (btn) btn.textContent = on ? '☀ Light' : '☾ Dark';
+}
+
+/* ── INTERVIEW MODE ───────────────── */
+var fmAll = [], fmIdx = 0, fmGot = 0, fmTotal = 0;
+
+function fmStart() {
+  // collect currently visible QS
+  fmAll = [];
+  var cards = document.querySelectorAll('.q-card');
+  cards.forEach(function(c) {
+    var n = parseInt(c.id.replace('card-',''));
+    var q = QS.find ? QS.find(function(x){ return x.n === n; })
+                    : (function(){ for(var i=0;i<QS.length;i++){ if(QS[i].n===n) return QS[i]; } })();
+    if (q) fmAll.push(q);
+  });
+  // shuffle
+  for (var i = fmAll.length-1; i > 0; i--) {
+    var j = Math.floor(Math.random()*(i+1));
+    var tmp = fmAll[i]; fmAll[i] = fmAll[j]; fmAll[j] = tmp;
+  }
+  fmIdx = 0; fmGot = 0; fmTotal = fmAll.length;
+  var bar = document.getElementById('fm-bar');
+  if (bar) { bar.classList.add('open'); fmShow(); }
+}
+function fmShow() {
+  var bar = document.getElementById('fm-bar');
+  if (!bar || fmIdx >= fmTotal) { fmDone(); return; }
+  var q = fmAll[fmIdx];
+  var pct = fmTotal > 0 ? Math.round((fmIdx/fmTotal)*100) : 0;
+  document.getElementById('fm-prog').style.width = pct + '%';
+  document.getElementById('fm-meta').textContent = 'Question ' + (fmIdx+1) + ' of ' + fmTotal;
+  document.getElementById('fm-q-text').textContent = q.q;
+  document.getElementById('fm-answer').innerHTML = q.body;
+  document.getElementById('fm-answer').classList.remove('show');
+  document.getElementById('fm-reveal').style.display = '';
+  document.getElementById('fm-got').style.display    = 'none';
+  document.getElementById('fm-miss').style.display   = 'none';
+  document.getElementById('fm-score').textContent    = fmGot + ' / ' + fmIdx + ' correct';
+}
+function fmReveal() {
+  document.getElementById('fm-answer').classList.add('show');
+  document.getElementById('fm-reveal').style.display = 'none';
+  document.getElementById('fm-got').style.display    = '';
+  document.getElementById('fm-miss').style.display   = '';
+}
+function fmNext(ok) {
+  if (ok) fmGot++;
+  fmIdx++;
+  fmShow();
+}
+function fmStop() {
+  var bar = document.getElementById('fm-bar');
+  if (bar) bar.classList.remove('open');
+}
+function fmDone() {
+  var bar = document.getElementById('fm-bar');
+  if (!bar) return;
+  bar.innerHTML = '<div class="fm-done">&#127881; Session complete! You got <strong>' + fmGot + ' / ' + fmTotal + '</strong> correct.</div>'
+    + '<button class="fm-stop" onclick="fmStop()">Close</button>';
+}
+
+</script>
+<script src="spoken/python_sre.js"></script>
+<script src="spoken.js"></script>
+<script src="docs/python_sre.js"></script>
+<script src="docs.js"></script>
+<script src="diagrams/python_sre.js"></script>
+<script src="diagrams.js"></script>
+<script src="deeplink.js"></script>
+<script src="extras.js"></script>
+<script src="i18n.js"></script>
+</body>
+</html>
