@@ -1467,5 +1467,729 @@
 "ruff check . && ruff format --check ."
 ],
 "tip": "Say lint in CI catches most of them."
+},
+{
+"tag": "core",
+"q": "What is the Python data model and how do dunder methods make your own classes behave like built-ins?",
+"a": "The data model is the set of special methods, written with double underscores, that Python calls to implement language features. Defining them lets your classes integrate with built-in syntax. The repr and str methods control how an object prints, which is vital for useful logs and debugging; len, getitem and iter make a class sized, indexable and iterable; eq and hash control equality and use in sets and dictionaries; enter and exit make it a context manager; call makes an instance callable; and lt and related methods enable sorting. For operations tooling, a small class representing a host, a resource or a time window becomes much easier to use when it prints clearly and compares naturally. Dataclasses generate many of these for you. Care is needed with hash and equality: objects that compare equal must have equal hashes, and mutable objects used as dictionary keys cause bugs. Implementing the protocol methods, rather than inventing custom method names, makes code idiomatic and compatible with standard library functions like sorted, sum and any.",
+"f": [
+"Why must equal objects have equal hashes?",
+"Which methods make an object iterable?"
+],
+"p": "Dunder methods such as repr, len, iter, eq, hash, enter and exit let custom classes work with built-in syntax and functions. Use clear repr for logs, keep eq and hash consistent, and let dataclasses generate the boilerplate.",
+"cmds": [
+"class Host:\n    def __init__(self, name): self.name = name\n    def __repr__(self): return f'Host({self.name!r})'\n    def __eq__(self, o): return self.name == o.name\n    def __hash__(self): return hash(self.name)"
+],
+"tip": "Say implement the protocols instead of custom method names."
+},
+{
+"tag": "core",
+"q": "How do itertools and functools help in everyday operations scripts?",
+"a": "These standard modules provide efficient building blocks that replace hand-written loops. From itertools, chain joins several iterables lazily, islice takes a slice from any iterator, which suits reading the first lines of a huge file, batched or a small helper splits work into chunks for API calls, groupby groups consecutive items after sorting, product and combinations generate test matrices, and takewhile and dropwhile process streams until a condition changes. Because they are lazy, they handle data larger than memory. From functools, lru_cache memoises expensive pure functions such as repeated DNS or metadata lookups, partial pre-fills arguments to create specialised callbacks, reduce folds a sequence, wraps preserves metadata when writing decorators, and cached_property computes an attribute once per instance. Singledispatch provides function overloading by type. Using them makes code shorter and often faster, and communicates intent. The caveats are that groupby needs sorted input, lru_cache needs hashable arguments and can retain memory, and cached results must not hide data that changes over time.",
+"f": [
+"Why does groupby need sorted input?",
+"What is the risk of lru_cache for changing data?"
+],
+"p": "Use itertools chain, islice, batched and groupby for lazy stream processing, and functools lru_cache, partial, wraps and cached_property to cache and specialise functions. Remember groupby needs sorted data and caches can serve stale results.",
+"cmds": [
+"from itertools import islice\nfirst = list(islice(open('big.log'), 10))",
+"from functools import lru_cache\n@lru_cache(maxsize=1024)\ndef resolve(host): ..."
+],
+"tip": "Say lazy iteration keeps memory flat."
+},
+{
+"tag": "core",
+"q": "How do references, shallow copies and deep copies work in Python, and what bugs do they cause?",
+"a": "Variables in Python are names bound to objects, so assignment copies the reference, not the object. Two names can point to the same list, and changing it through one changes what the other sees. Passing a list or dictionary to a function lets that function modify the caller's data, which surprises people. A shallow copy, made with the copy method, slicing or the copy module, creates a new container but shares the nested objects, so modifying an inner list still affects both. A deep copy recursively duplicates everything, at a cost in time and memory, and can fail or misbehave for objects holding connections or locks. Common bugs include mutating shared default arguments, building a list of lists with multiplication, which repeats the same inner list, modifying a configuration dictionary meant to be a template, and accidentally changing data while iterating over it. Safer patterns are to treat inputs as read-only, return new objects, use tuples or frozen dataclasses for immutable data, and copy deliberately at the boundary where a function needs its own version.",
+"f": [
+"Why does a list of lists made with multiplication misbehave?",
+"When is a deep copy a problem?"
+],
+"p": "Names bind to objects, so assignment shares them. Shallow copies share nested objects, deep copies duplicate everything at a cost. Avoid mutating inputs and shared defaults, prefer immutable data and copy deliberately at boundaries.",
+"cmds": [
+"import copy\nb = copy.deepcopy(config)",
+"grid = [[0]*3 for _ in range(3)]"
+],
+"tip": "Say assignment copies the reference, not the object."
+},
+{
+"tag": "core",
+"q": "Which collections module types do you use in operations code, such as Counter, defaultdict, deque and OrderedDict?",
+"a": "The collections module offers containers that remove a lot of boilerplate. Counter counts hashable items and provides most_common, which is ideal for top error codes, busiest clients or most frequent log messages from a stream. Defaultdict creates missing entries automatically with a factory, so grouping items by key needs no existence check, such as collecting instances by region. Deque is a double-ended queue with fast appends and pops at both ends, and a maxlen argument makes a fixed-size sliding window, useful for the last N log lines or a moving average. Namedtuple creates lightweight immutable records, though dataclasses are often clearer. ChainMap layers several dictionaries without copying, which models configuration precedence of defaults, file and environment. OrderedDict matters less since normal dictionaries preserve insertion order, though it still offers move_to_end for LRU-style structures. Choosing the right container makes code shorter and faster, because operations like pop from the front of a list are slow compared with a deque.",
+"f": [
+"Why use deque instead of a list for a queue?",
+"How does ChainMap model config precedence?"
+],
+"p": "Counter counts items, defaultdict groups without checks, deque gives fast ends and fixed-size windows with maxlen, ChainMap layers config sources, and namedtuple or dataclasses model records. The right container beats manual loops.",
+"cmds": [
+"from collections import Counter, defaultdict, deque\ntop = Counter(codes).most_common(5)\nby_region = defaultdict(list)\nlast = deque(maxlen=100)"
+],
+"tip": "Say Counter for top-N, deque for sliding windows."
+},
+{
+"tag": "core",
+"q": "How should you handle dates, times and time zones correctly in Python?",
+"a": "Time bugs are common in operations code, so I follow firm rules. Store and compute in UTC, convert to a local zone only for display. Use timezone-aware datetime objects: a naive datetime has no zone and is ambiguous, and mixing naive and aware values raises errors or silently gives wrong results. The zoneinfo module in the standard library provides IANA zones, and datetime.now with a UTC zone replaces the deprecated utcnow that returns a naive value. Parse ISO 8601 strings with fromisoformat, which handles offsets, and format with isoformat. For durations use timedelta, not manual arithmetic on seconds, and for monotonic measurement of elapsed time, such as timeouts and benchmarks, use time.monotonic because the wall clock can jump with adjustments. Daylight saving changes make local-time schedules tricky, with skipped and repeated hours, so scheduling should be in UTC or handled by tools that understand zones. APIs and logs should carry timestamps with explicit offsets, and tests should freeze the clock rather than depend on the real time.",
+"f": [
+"Why use monotonic for timeouts?",
+"What is wrong with a naive datetime?"
+],
+"p": "Work in UTC with timezone-aware datetimes, use zoneinfo for display, parse and emit ISO 8601, use timedelta for durations and time.monotonic for elapsed time, and beware daylight saving in local schedules. Freeze time in tests.",
+"cmds": [
+"from datetime import datetime, timezone\nnow = datetime.now(timezone.utc)\nprint(now.isoformat())",
+"start = time.monotonic(); do(); print(time.monotonic()-start)"
+],
+"tip": "Say UTC inside, local only at the edges."
+},
+{
+"tag": "pkg",
+"q": "What are entry points and console_scripts, and how do they differ from running python script.py?",
+"a": "Entry points are metadata declared in a package's configuration that other tools can discover. The console_scripts group tells the installer to generate an executable wrapper in the environment's bin directory, so a function in your package becomes a normal command such as mytool. The wrapper imports the module and calls the function, using the right interpreter and environment, which avoids path problems, shebang issues and the need to copy scripts around. Running python script.py depends on the current directory and the interpreter on the path, and the script cannot easily import its own package without path hacks. With entry points, the code is properly installed, versioned and testable, dependencies are declared, and the same command works in every environment, including pipx installs. Other groups allow plugins: a package can register an extension under a named group, and the host application loads it dynamically through importlib.metadata. In pyproject.toml, the scripts table defines console commands. This is how well-behaved tools, such as pytest plugins, are wired together.",
+"f": [
+"Where are entry points declared?",
+"How do plugins use entry point groups?"
+],
+"p": "Entry points declared in pyproject.toml create installed command wrappers with the correct interpreter and dependencies, and register plugins under named groups loaded via importlib.metadata. This replaces fragile python script.py usage.",
+"cmds": [
+"[project.scripts]\nmytool = \"mytool.cli:main\"",
+"pipx install .",
+"python -c \"from importlib.metadata import entry_points; print(entry_points(group='console_scripts'))\""
+],
+"tip": "Say installable commands beat loose scripts."
+},
+{
+"tag": "pkg",
+"q": "How do you use mypy or pyright in CI and adopt typing gradually in an existing automation codebase?",
+"a": "Static type checkers find a class of bugs before runtime, but a legacy codebase cannot be fully typed overnight, so adoption is incremental. I start by adding a checker to CI with a lenient configuration that ignores missing imports and untyped functions, so it passes on day one. Then I tighten step by step: type new code fully, enable stricter options per module through configuration overrides, and annotate the most important boundaries first, such as public functions, data structures and API clients. Dataclasses, TypedDict and Protocol give structure to dictionaries and duck-typed objects. Third-party libraries without annotations use stub packages. The any type is a temporary escape and I track and reduce it. The checker runs in pre-commit and CI as a required check, with a baseline so existing errors do not block while new ones do. Benefits include safer refactors, better editor completion and living documentation. I balance value against effort, avoiding contortions for dynamic code, and use runtime validation with pydantic for external input, since types are not enforced at runtime.",
+"f": [
+"Why is incremental adoption better?",
+"What does a type checker not guarantee?"
+],
+"p": "Add mypy or pyright to CI with a lenient config, type new code and key boundaries first, tighten per module, use TypedDict, Protocol and stubs, track Any, and require the check in pre-commit and CI. Types are not enforced at runtime, so validate external input.",
+"cmds": [
+"mypy src --ignore-missing-imports",
+"[tool.mypy]\nstrict = false\n[[tool.mypy.overrides]]\nmodule = \"mytool.core.*\"\ndisallow_untyped_defs = true"
+],
+"tip": "Say gradual typing, strict where it counts."
+},
+{
+"tag": "pkg",
+"q": "How do you handle Python packages with C extensions or system dependencies, such as psycopg2, cryptography or lxml?",
+"a": "Packages with native code need compiled artefacts. The easiest route is binary wheels: modern versions of cryptography, lxml, numpy and psycopg publish prebuilt wheels for major platforms, so pip installs them with no compiler. The problems arise on unusual platforms, such as Alpine Linux with musl, new architectures like ARM, or very new Python versions where wheels are not yet published, and then pip builds from source and needs headers and a compiler, with failures like missing libpq or openssl development files. Solutions include choosing a base image with wheel support, installing the required system packages and build tools in the image build stage and discarding them with a multi-stage build, using the binary variants of packages such as psycopg binary for convenience, and pinning versions. For production images, I prefer to build wheels once in CI, store them in an internal index and install from there, giving reproducible and fast installs. Documentation lists system requirements, and tests run on the same base image as production to catch missing libraries early.",
+"f": [
+"Why does Alpine cause build issues?",
+"How does a multi-stage build help?"
+],
+"p": "Prefer prebuilt binary wheels; when building from source install headers and compilers in a builder stage, use a multi-stage image, build wheels in CI into an internal index, pin versions and test on the production base image. Alpine and new platforms are common pain points.",
+"cmds": [
+"pip install --only-binary=:all: cryptography",
+"pip wheel -r requirements.txt -w wheelhouse/ && pip install --no-index --find-links wheelhouse -r requirements.txt"
+],
+"tip": "Say build wheels once, install everywhere."
+},
+{
+"tag": "pkg",
+"q": "How do you diagnose and resolve dependency conflicts in Python projects?",
+"a": "Conflicts happen when two packages require incompatible versions of a third. Pip reports the resolution failure or installs a combination with warnings. To diagnose, I use pip check to list broken requirements, pip show and pipdeptree to display who depends on what, and the resolver's verbose output to see which constraints clash. Fixes depend on the cause. I can relax an overly strict pin in my own requirements, upgrade the packages involved to versions that agree, replace a library that is unmaintained and holds back others, or isolate incompatible tools in separate environments, for example installing command-line tools with pipx so they do not share dependencies with the application. Constraints files keep transitive versions consistent across several requirement sets. Lock files from pip-tools, Poetry or uv record a tested, conflict-free set, and updates are done deliberately by a bot, with CI testing the result. Upper bounds on dependencies are avoided in libraries but used for applications through locks. Keeping the dependency tree small prevents many conflicts in the first place.",
+"f": [
+"Which tools show the dependency tree?",
+"Why isolate tools with pipx?"
+],
+"p": "Use pip check, pipdeptree and verbose resolver output to find the clash, then relax pins, upgrade, replace unmaintained packages or isolate tools in separate environments. Lock files and constraints files keep a tested set; keep the dependency tree small.",
+"cmds": [
+"pip check",
+"pipdeptree -r -p urllib3",
+"uv pip compile requirements.in -o requirements.txt"
+],
+"tip": "Say read the tree, then relax, upgrade or isolate."
+},
+{
+"tag": "pkg",
+"q": "How do you share common code across several internal Python tools: monorepo, shared library or copy?",
+"a": "Copying code leads to divergence and fixes that never reach every tool, so I prefer a shared library with a clear boundary. In a monorepo, a common package lives beside the tools and is installed in editable mode during development, so changes are visible immediately, with one set of tests and a single lint configuration. Workspaces in tools like uv or Poetry manage the relationships, and CI builds only what changed. In separate repositories, the shared library is published to an internal package index with semantic versions, and tools pin compatible ranges, giving independent release cycles at the cost of coordination and upgrade work. I keep the library small and stable, with logging, configuration, API clients and retry helpers, and avoid turning it into a dumping ground. Public interfaces are documented and tested, deprecations come with warnings and a transition period, and breaking changes need a major version. A changelog and automated dependency updates help consumers keep current. The choice depends on team size and release independence.",
+"f": [
+"What belongs in a shared library?",
+"How do you handle breaking changes?"
+],
+"p": "Prefer a small, well-tested shared library over copying: in a monorepo use editable installs and workspaces; across repos publish semantic versions to an internal index. Keep the interface stable, deprecate gracefully and automate dependency updates.",
+"cmds": [
+"pip install -e ./libs/opscommon",
+"uv sync --all-packages"
+],
+"tip": "Say small stable library, semantic versions."
+},
+{
+"tag": "files",
+"q": "When and how do you use SQLite from Python for local state in automation tools?",
+"a": "SQLite is a file-based database in the standard library, ideal for small tools that need structured local state without running a server. Examples are tracking which items a batch job has processed, caching API results with timestamps, storing inventory snapshots for querying and recording run history. It supports SQL, transactions and indexes, and handles concurrent readers with a single writer. Good practice is using parameterised queries to avoid injection, wrapping writes in transactions via a context manager, enabling write-ahead logging for better concurrency, setting a busy timeout so writers wait rather than fail, and keeping the database file on local disk, because network filesystems can corrupt it. Schema changes need a simple migration approach, such as a version table. A connection should not be shared across threads without care. Compared with JSON files, SQLite is safer for partial writes and crashes, and queries scale better. It is not suitable for many concurrent writers or multi-host access, where PostgreSQL or a managed store is the right choice.",
+"f": [
+"Why avoid SQLite on network filesystems?",
+"What does write-ahead logging improve?"
+],
+"p": "SQLite gives transactional, queryable local state for checkpoints, caches and run history. Use parameterised queries, transaction context managers, WAL mode and busy timeouts, keep it on local disk and move to a server database for many writers or hosts.",
+"cmds": [
+"import sqlite3\ncon = sqlite3.connect('state.db')\ncon.execute('PRAGMA journal_mode=WAL')\nwith con:\n    con.execute('INSERT OR REPLACE INTO done(id) VALUES (?)', (item,))"
+],
+"tip": "Say transactions and parameters, local disk only."
+},
+{
+"tag": "files",
+"q": "How do you write files atomically and avoid corruption when a script crashes mid-write?",
+"a": "Writing directly to a target file risks leaving it half written if the process is killed, the disk fills or the machine loses power, and readers may see partial content. The safe pattern is to write the new content to a temporary file in the same directory, flush and fsync it so the data reaches the disk, and then rename it over the target using os.replace, which is atomic on the same filesystem. Readers see either the complete old file or the complete new one. The temporary file must be on the same filesystem as the target, otherwise the rename becomes a copy. Permissions and ownership should be set on the temporary file before the rename. For critical data, fsync the containing directory as well. The tempfile module with the delete option off and a named temporary file in the target directory makes this easy, and libraries such as atomicwrites package the pattern. For logs and databases, append-only writes or transactional stores are more appropriate than rewriting files.",
+"f": [
+"Why must the temp file be in the same directory?",
+"What does os.replace guarantee?"
+],
+"p": "Write to a temp file in the same directory, flush and fsync, set permissions, then os.replace over the target for an atomic swap; readers see old or new, never partial. Use transactional stores for frequent updates.",
+"cmds": [
+"import os, tempfile\nfd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))\nwith os.fdopen(fd, 'w') as f:\n    f.write(data); f.flush(); os.fsync(f.fileno())\nos.replace(tmp, path)"
+],
+"tip": "Say temp file, fsync, atomic rename."
+},
+{
+"tag": "files",
+"q": "How do you generate configuration files from templates using Jinja2 in Python?",
+"a": "Jinja2 renders text templates with variables, loops and conditions, and is a good fit for generating configuration for services like Nginx, systemd units or Prometheus rules. I load templates from a directory with a file system loader and create an environment with strict undefined behaviour, so a missing variable raises an error instead of producing an empty string and a broken file. Autoescape is off for non-HTML files but on for HTML. Whitespace control options such as trim_blocks and lstrip_blocks keep the output tidy. Data comes from validated structures, ideally typed through pydantic or dataclasses, so templates stay simple and logic remains in Python. Rendered output is validated before use, for example by running the target program's config test command, and written atomically. Custom filters add reusable formatting. A dry-run mode prints a diff against the existing file. Templates are version-controlled with the code and tested by rendering sample data and comparing to expected output. User-supplied template content should not be rendered, because template injection is a risk, so sandboxed environments are used if needed.",
+"f": [
+"Why use strict undefined?",
+"How do you validate rendered configs?"
+],
+"p": "Load templates with a Jinja2 environment using StrictUndefined and whitespace trimming, feed validated data, keep logic in Python, validate output with the target's config test, write atomically, show diffs in dry-run and use a sandbox for untrusted templates.",
+"cmds": [
+"from jinja2 import Environment, FileSystemLoader, StrictUndefined\nenv = Environment(loader=FileSystemLoader('templates'), undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True)\nout = env.get_template('nginx.conf.j2').render(vhosts=vhosts)"
+],
+"tip": "Say strict undefined so mistakes fail loudly."
+},
+{
+"tag": "files",
+"q": "How do you watch files or directories for changes in Python, for example to reload configuration?",
+"a": "There are two approaches: polling and event notifications. Polling periodically checks modification times or content hashes, which is simple and portable but has latency and cost, and is fine for a handful of files checked every few seconds. Event-based watching uses operating system facilities such as inotify on Linux through libraries like watchdog or watchfiles, delivering notifications when files are created, modified, moved or deleted. Events can be noisy: editors write temporary files and rename, one save may trigger several events, and events can arrive before a write finishes, so I debounce them and re-read the file after a short quiet period. For configuration reload, I parse and validate the new content first, and only swap it in if valid, keeping the old configuration and logging an error otherwise. Signals such as SIGHUP are a conventional alternative, letting an operator trigger a reload deliberately. On Kubernetes, mounted config maps update through symlink swaps, so watching the directory is more reliable than watching a single file path. Watchers must be stopped cleanly on shutdown.",
+"f": [
+"Why debounce file events?",
+"Why validate before swapping config?"
+],
+"p": "Poll mtimes or hashes for simplicity, or use inotify through watchdog or watchfiles; debounce noisy events, validate new content before swapping, consider SIGHUP, and watch the directory for Kubernetes config map symlink swaps.",
+"cmds": [
+"from watchfiles import watch\nfor changes in watch('/etc/app'):\n    reload_config()"
+],
+"tip": "Say debounce, validate, then swap."
+},
+{
+"tag": "files",
+"q": "How do you read and write Parquet, Excel and other binary data formats from Python scripts?",
+"a": "For analytics-style data, binary formats are more compact and faster than CSV and preserve types. Parquet is a columnar format that compresses well and supports efficient column selection and predicate pushdown; pandas, Polars, PyArrow and DuckDB read and write it, and it suits cost exports, inventory snapshots and log summaries. For spreadsheets, openpyxl reads and writes xlsx files with formatting, formulas and multiple sheets, and pandas wraps it for simple dataframe export, while xlsxwriter is a fast write-only alternative with charts. These are useful when the audience is non-technical and wants a file they can open. Good practice includes specifying schemas and dtypes, using compression, partitioning large datasets by date, avoiding loading everything into memory by reading column subsets or batches, and never trusting macros or formulas from untrusted spreadsheets. Excel files from users can contain surprises such as merged cells, dates stored as numbers and hidden sheets, so validation is important. Sensitive data should be protected at rest, and exports should record generation time and source.",
+"f": [
+"Why is Parquet better than CSV for analytics?",
+"What problems appear in user-supplied spreadsheets?"
+],
+"p": "Use Parquet with pandas, Polars, PyArrow or DuckDB for compact typed columnar data, and openpyxl or xlsxwriter for spreadsheets with formatting. Specify dtypes, compress, partition, read subsets, validate user files and protect sensitive exports.",
+"cmds": [
+"import pandas as pd\ndf.to_parquet('inventory.parquet', compression='zstd')\npd.read_parquet('inventory.parquet', columns=['id', 'region'])",
+"df.to_excel('report.xlsx', index=False, sheet_name='Summary')"
+],
+"tip": "Say Parquet for machines, Excel for humans."
+},
+{
+"tag": "cli",
+"q": "How do you produce readable terminal output with rich, tables, progress bars and colours?",
+"a": "The rich library makes command-line output clear without much code. It prints coloured, styled text, renders tables with aligned columns, shows progress bars with elapsed and remaining time, displays syntax-highlighted code and formatted tracebacks, and can render Markdown. For operations tools, a table of resources with status colours is far easier to scan than raw lines, and a progress bar assures users that a long job is alive. Good practice is to respect the environment: detect whether output is a terminal and disable colours and animation when it is redirected to a file or pipe, honour the NO_COLOR convention, and provide a machine-readable mode, for example JSON output, so scripts can consume results without parsing decorated text. Human output goes to standard output when it is the result, while progress and diagnostics go to standard error. Logs use the logging module, optionally with a rich handler for development. In continuous integration, plain output avoids control characters polluting logs. Keeping presentation separate from logic makes testing easier.",
+"f": [
+"Why offer JSON output as well?",
+"What should happen when output is piped?"
+],
+"p": "Use rich for tables, colours and progress bars, but detect non-terminals and NO_COLOR, send progress to stderr, offer JSON output for scripts and keep presentation separate from logic.",
+"cmds": [
+"from rich.console import Console\nfrom rich.table import Table\nt = Table('Name', 'Status')\nt.add_row('web01', '[green]ok[/green]')\nConsole().print(t)"
+],
+"tip": "Say pretty for humans, JSON for machines."
+},
+{
+"tag": "cli",
+"q": "How do you handle interactive prompts and secret input safely in command-line tools?",
+"a": "Interactive input should be used sparingly and never in a way that breaks automation. For secrets, the getpass module reads input without echoing it, and click and typer offer a prompt with hide_input. Secrets should not be accepted as command-line arguments, because they appear in shell history and in the process list for all users; instead accept them from environment variables, files with restricted permissions, standard input or a secrets manager. Confirmation prompts protect destructive actions, but a tool must also support non-interactive use with an explicit yes flag, and should detect when standard input is not a terminal and fail with a clear message rather than hang waiting. Prompts should offer sensible defaults and validate answers, repeating on bad input. Sensitive values are never logged, and are cleared from memory where practical, although Python offers limited guarantees. For operations tools run by humans, a typed confirmation, such as entering the environment name before a production change, reduces mistakes more than a simple yes.",
+"f": [
+"Why not pass secrets as arguments?",
+"How do you support both interactive and CI use?"
+],
+"p": "Use getpass or hide_input prompts, never accept secrets as arguments, offer env vars, files, stdin or secrets managers, add --yes for non-interactive runs, detect missing terminals and require typed confirmation for production.",
+"cmds": [
+"import getpass, sys\nif not sys.stdin.isatty(): sys.exit('no terminal; use --token-file')\ntoken = getpass.getpass('API token: ')"
+],
+"tip": "Say secrets never go in argv."
+},
+{
+"tag": "cli",
+"q": "How do you add shell completion and good help text to a Python command-line tool?",
+"a": "Completion and clear help make a tool pleasant and discoverable. Frameworks such as click and typer generate completion scripts for bash, zsh and fish, and argcomplete adds completion to argparse programs; users install the generated script into their shell configuration, and dynamic completions can query live data, such as environment or cluster names, though they must be fast and fail quietly. Help text is written for operators: a one-line summary for each command, descriptions for each option with defaults and allowed values, examples in the epilog, and consistent naming of flags, with long and short forms. Subcommands group related actions, and the help output shows them clearly. Error messages say what went wrong and how to fix it, and exit codes are documented. Version output includes the tool version and, optionally, dependency information for bug reports. A man page or markdown reference can be generated from the command definitions so documentation never drifts from the code. These details reduce support questions and mistakes.",
+"f": [
+"How does argcomplete work with argparse?",
+"What belongs in the epilog?"
+],
+"p": "click and typer generate completion for bash, zsh and fish, and argcomplete covers argparse. Write clear one-line summaries, option descriptions with defaults, examples, helpful errors and documented exit codes, and generate reference docs from the definitions.",
+"cmds": [
+"eval \"$(_MYTOOL_COMPLETE=bash_source mytool)\"",
+"parser = argparse.ArgumentParser(epilog='Example: mytool deploy --env staging')"
+],
+"tip": "Say help and completion are part of the product."
+},
+{
+"tag": "cli",
+"q": "How do you structure subcommands and a plugin architecture in a larger CLI tool?",
+"a": "A growing tool needs structure so it stays maintainable. Subcommands group actions under one executable, like git does, with click groups or typer apps, argparse subparsers, each command in its own module and a thin main that registers them. Shared options such as verbosity, configuration file and output format are defined once and passed through a context object holding the loaded configuration and clients, which also makes testing easier. Business logic lives in separate functions or classes with no dependency on the CLI framework, so it can be called from tests, other tools and a web interface. For extensibility, a plugin mechanism lets teams add commands without changing the core: packages register commands under an entry point group, and the core discovers them at start-up through importlib.metadata. Lazy loading keeps start-up fast by importing a command's module only when it runs. Consistent conventions for naming, flags, exit codes and output formats across all commands give a uniform experience, enforced by tests and code review.",
+"f": [
+"Why keep business logic out of command functions?",
+"How do plugins register commands?"
+],
+"p": "Use click groups or typer apps with one module per command, a shared context for config and clients, framework-independent business logic, entry-point plugins discovered with importlib.metadata, lazy imports for speed and consistent conventions across commands.",
+"cmds": [
+"@click.group()\n@click.option('--env', default='staging')\n@click.pass_context\ndef cli(ctx, env): ctx.obj = Context(env)\n@cli.command()\n@click.pass_obj\ndef status(ctx): ..."
+],
+"tip": "Say thin commands, fat library."
+},
+{
+"tag": "cli",
+"q": "How do you manage child processes and signals so a Python tool cleans up after itself?",
+"a": "A tool that starts subprocesses must make sure they do not outlive it or leak resources. With subprocess, I keep a reference to each Popen object, use context managers where possible, and set timeouts on waits. When the tool receives SIGINT or SIGTERM, a handler sets a flag or raises an exception so the main flow reaches its cleanup code in finally blocks, which terminates children, first politely with terminate and then with kill after a grace period. Starting children in their own process group, with start_new_session, allows signalling the whole group so grandchildren die too. Without that, a shell wrapper may leave orphans running. Temporary files and locks are removed in finally or through context managers and atexit handlers, though a hard kill bypasses them, so stale lock detection is needed. Exit codes reflect the cause, for example 130 for interrupt, so callers can react. Avoid shell=True and pass argument lists. Testing sends signals to a running instance and verifies no processes remain.",
+"f": [
+"Why start children in a new process group?",
+"What can atexit not handle?"
+],
+"p": "Track Popen objects with timeouts, handle SIGINT and SIGTERM by setting a flag and cleaning up in finally, terminate then kill children, use process groups to reach grandchildren, remove temp files and locks and use meaningful exit codes. atexit cannot survive SIGKILL.",
+"cmds": [
+"p = subprocess.Popen(cmd, start_new_session=True)\ntry:\n    p.wait(timeout=600)\nfinally:\n    if p.poll() is None:\n        os.killpg(p.pid, signal.SIGTERM)"
+],
+"tip": "Say terminate, then kill, the whole process group."
+},
+{
+"tag": "api",
+"q": "How do you implement OAuth2 client credentials and token refresh in a Python API client?",
+"a": "Service-to-service integrations commonly use the OAuth2 client credentials flow: the client posts its id and secret to the token endpoint and receives a short-lived access token, which it sends as a bearer token on API calls. A robust client caches the token in memory together with its expiry, refreshes it shortly before it expires, instead of requesting one per call, and handles a 401 response by fetching a new token once and retrying the request. The refresh logic must be thread-safe, using a lock so concurrent workers do not all request tokens at once. Libraries such as requests-oauthlib and authlib implement the flow, and httpx supports custom auth classes that attach tokens automatically. Client secrets come from a secrets manager or environment, never source code, and are never logged. Where the platform offers workload identity, such as cloud metadata or federated tokens, that is preferable because no long-lived secret exists. Scopes are requested minimally. Tests use a fake token endpoint to cover expiry, refresh failure and revoked credentials.",
+"f": [
+"Why cache and pre-refresh the token?",
+"What do you do on a 401?"
+],
+"p": "Use client credentials: post id and secret for a short-lived token, cache it with expiry, refresh before it lapses under a lock, retry once on 401, keep secrets in a manager, prefer workload identity and request minimal scopes. Libraries like authlib or httpx auth classes help.",
+"cmds": [
+"class TokenAuth(httpx.Auth):\n    def auth_flow(self, request):\n        request.headers['Authorization'] = f'Bearer {self.token()}'\n        yield request"
+],
+"tip": "Say cache, pre-refresh and lock the token."
+},
+{
+"tag": "api",
+"q": "How do you use httpx and async clients to call many endpoints efficiently?",
+"a": "Httpx offers a requests-like interface with both synchronous and asynchronous clients, HTTP/2 support and strict timeouts by default. For many calls, I create one AsyncClient and reuse it, since it keeps a connection pool and avoids repeated TCP and TLS handshakes. Requests are launched concurrently with asyncio gather or a task group, but bounded with a semaphore so I do not overload the server or exhaust file descriptors, and the client limits settings control the pool size. Timeouts are configured for connect, read, write and pool acquisition separately. Retries use the transport retries option for connection failures, plus backoff logic for status codes. Results are collected with exceptions captured per request, so one failure does not cancel the rest unless I want it to. The client is closed with a context manager. Compared with threads, async handles thousands of waiting I/O tasks with low overhead, but blocking libraries inside async code stall everything, so those calls go to an executor. For small jobs, a synchronous client is simpler.",
+"f": [
+"Why reuse one client?",
+"Why bound concurrency with a semaphore?"
+],
+"p": "Reuse one httpx AsyncClient for connection pooling, run requests concurrently with gather or task groups bounded by a semaphore, set separate timeouts, retry transient failures, capture per-request errors and keep blocking code out of the event loop.",
+"cmds": [
+"sem = asyncio.Semaphore(20)\nasync with httpx.AsyncClient(timeout=10) as c:\n    async def get(u):\n        async with sem:\n            return await c.get(u)\n    res = await asyncio.gather(*(get(u) for u in urls), return_exceptions=True)"
+],
+"tip": "Say pool the client and bound the concurrency."
+},
+{
+"tag": "api",
+"q": "How do you write Python for AWS Lambda or other serverless functions in an operations context?",
+"a": "Serverless functions suit event-driven operations tasks such as reacting to an alarm, tagging new resources, processing a queue message or running a scheduled check. The handler receives an event and context, does a bounded amount of work and returns. Good practice: keep functions small and single-purpose; create SDK clients outside the handler so warm invocations reuse connections; load configuration from environment variables and secrets from a secrets manager with caching; make the work idempotent because events can be delivered more than once; handle partial failures for batch events by reporting failed items; and set sensible timeouts, memory and concurrency limits. Dependencies are packaged in the deployment archive, a layer or a container image, with attention to size and cold start time. Structured logging with request identifiers, metrics and tracing aid debugging. Permissions follow least privilege on the function's role. Dead-letter queues capture failures for inspection. Local testing uses unit tests with mocked clients and tools like the SAM CLI, and infrastructure is defined as code. Long-running or heavy jobs belong in containers or batch services.",
+"f": [
+"Why create clients outside the handler?",
+"Why must handlers be idempotent?"
+],
+"p": "Keep handlers small, create SDK clients outside the handler, read config from environment and secrets with caching, make processing idempotent, report partial batch failures, set timeouts and least-privilege roles, add structured logs and DLQs, and use containers for heavy work.",
+"cmds": [
+"import boto3, os\ns3 = boto3.client('s3')\ndef handler(event, context):\n    for r in event['Records']:\n        process(r)\n    return {'ok': True}"
+],
+"tip": "Say small, idempotent, least privilege."
+},
+{
+"tag": "api",
+"q": "How do you authenticate to Azure and Google Cloud from Python without storing keys?",
+"a": "Both clouds provide libraries that implement a chain of credential sources, so code works unchanged from a laptop to production. For Azure, DefaultAzureCredential from the azure-identity package tries environment settings, workload identity, managed identity, the Azure CLI login and more, in order, so on a virtual machine or container with a managed identity no secret is needed. For Google Cloud, application default credentials are discovered from the environment, attached service accounts on compute services, workload identity on Kubernetes, or the gcloud login during development, and the client libraries pick them up automatically. In CI, OIDC federation lets the pipeline exchange its own signed token for short-lived cloud credentials, with no stored secret. Permissions are granted to the identity with least privilege roles, scoped to the resource group or project. Service account key files are avoided, and if one is unavoidable it is stored in a secrets manager, rotated and monitored. Code should accept a credential object as a parameter for testability, and logs must never include tokens.",
+"f": [
+"What is DefaultAzureCredential?",
+"Why avoid service account key files?"
+],
+"p": "Use DefaultAzureCredential and Google application default credentials so code picks up managed identity, workload identity or developer logins, use OIDC federation in CI, grant least-privilege roles and avoid downloadable key files.",
+"cmds": [
+"from azure.identity import DefaultAzureCredential\nfrom azure.mgmt.compute import ComputeManagementClient\nclient = ComputeManagementClient(DefaultAzureCredential(), sub_id)",
+"import google.auth\ncreds, project = google.auth.default()"
+],
+"tip": "Say identities, not keys."
+},
+{
+"tag": "api",
+"q": "How do you build a clean generator-based paginator for any API, and test it?",
+"a": "Many APIs return results in pages with a cursor, a next link or page numbers. Rather than scattering loops through the code, I wrap pagination in a generator function that yields items one at a time, hiding the paging mechanics. It requests the first page, yields each item, follows the next token until none remains, and respects rate limits and retries inside the request helper. Callers simply iterate, and because it is lazy, memory use stays low and processing can start before all pages arrive; they can stop early with islice. Edge cases include empty pages in the middle, duplicate items across pages when data changes during iteration, a maximum page size, and tokens that expire. Where possible, I use stable ordering and a since-timestamp filter for incremental syncs. Tests feed the paginator a fake client returning a scripted sequence of pages, including errors, and check the yielded items and number of calls. Many SDKs already provide paginators, such as boto3, which I use in preference to writing my own.",
+"f": [
+"Why is a generator a good fit?",
+"What edge cases should tests cover?"
+],
+"p": "Wrap paging in a generator that yields items and follows next tokens, with retries and rate limits in the request helper. It keeps memory low and lets callers stop early. Test with scripted fake pages including empty pages, duplicates and errors; use SDK paginators when available.",
+"cmds": [
+"def items(client):\n    token = None\n    while True:\n        page = client.list(page_token=token)\n        yield from page['items']\n        token = page.get('next')\n        if not token: break"
+],
+"tip": "Say hide paging behind an iterator."
+},
+{
+"tag": "conc",
+"q": "How do asyncio TaskGroup, gather, timeouts and cancellation work together?",
+"a": "Structured concurrency in modern asyncio makes concurrent code easier to reason about. A TaskGroup starts several tasks inside an async context manager and waits for all of them at exit; if one fails, the others are cancelled and the errors are raised together as an exception group, so nothing is left running unnoticed. Gather also runs awaitables concurrently, and with return_exceptions it collects failures as results instead of raising, which suits independent best-effort operations, but a plain gather does not cancel siblings reliably on error. Timeouts are applied with asyncio.timeout as a context manager or wait_for, which cancels the inner work when the deadline passes and raises a timeout error. Cancellation is delivered as a CancelledError exception inside the task, at an await point; code must let it propagate, or clean up in finally blocks and re-raise, never swallow it. Shielding protects critical sections. Blocking calls inside tasks prevent cancellation from working, so they go to executors. Understanding these rules prevents leaks, hung programs and lost errors.",
+"f": [
+"What does a TaskGroup do on failure?",
+"Why must CancelledError propagate?"
+],
+"p": "TaskGroup runs tasks together, cancels siblings on failure and raises an exception group; gather with return_exceptions collects results; asyncio.timeout bounds work and cancels it; CancelledError must propagate after cleanup in finally. Keep blocking calls out of the loop.",
+"cmds": [
+"async with asyncio.timeout(30):\n    async with asyncio.TaskGroup() as tg:\n        for h in hosts:\n            tg.create_task(check(h))"
+],
+"tip": "Say structured concurrency: nothing outlives its block."
+},
+{
+"tag": "conc",
+"q": "How do you run many subprocesses in parallel from Python and collect their results?",
+"a": "For running commands on many items, I choose between threads, asyncio subprocesses and process pools depending on the workload. Because subprocesses do their work outside Python, a ThreadPoolExecutor calling subprocess.run is simple and effective: each thread waits for its child, and the GIL is not a problem. Futures return results and exceptions, and as_completed processes them as they finish. For a very large number of concurrent commands, asyncio.create_subprocess_exec avoids thread overhead and integrates with other async code, with a semaphore to limit concurrency. In both models I set a maximum number of workers appropriate to the machine and the target systems, pass arguments as lists, capture output with limits to avoid memory blow-ups, apply timeouts and kill commands that exceed them. Results are collected into a structure with the item, return code, output and duration, so failures are reported clearly at the end, and the exit code of the tool reflects whether any failed. Output from parallel commands should be tagged or buffered per item so lines are not interleaved.",
+"f": [
+"Why do threads work fine for subprocesses?",
+"How do you avoid interleaved output?"
+],
+"p": "Use ThreadPoolExecutor with subprocess.run for simplicity, or asyncio subprocesses with a semaphore at scale; cap workers, pass argument lists, enforce timeouts, buffer output per item, collect return codes and durations and set the tool's exit code from the results.",
+"cmds": [
+"with ThreadPoolExecutor(max_workers=8) as ex:\n    futs = {ex.submit(subprocess.run, ['ssh', h, 'uptime'], capture_output=True, text=True, timeout=30): h for h in hosts}\n    for f in as_completed(futs): print(futs[f], f.result().returncode)"
+],
+"tip": "Say threads wait on children without GIL trouble."
+},
+{
+"tag": "conc",
+"q": "What makes code thread-safe in Python, and how do locks, queues and thread-local data help?",
+"a": "Even with the GIL, thread-unsafe code can break because operations that look simple, such as incrementing a counter or check-then-act on a dictionary, are made of several bytecode steps and threads can interleave between them. Thread-safe designs avoid shared mutable state, or protect it. A Lock or RLock guards a critical section, used as a context manager so it is always released; keep sections short and acquire multiple locks in a consistent order to avoid deadlock. A Queue is the best way to pass work and results between threads, since it handles locking internally and supports bounded sizes for backpressure. Thread-local storage gives each thread its own copy of data, such as a database connection or an HTTP session, where sharing is unsafe. Immutable data and message passing remove most hazards. Events and conditions coordinate threads, and daemon threads are avoided for important work because they are killed abruptly at exit. Libraries are checked for thread safety, as many clients are not. Tests with stress loops and tools such as thread sanitiser equivalents help find races.",
+"f": [
+"Why is incrementing a counter unsafe?",
+"When use thread-local storage?"
+],
+"p": "Avoid shared mutable state; guard it with locks used as context managers in consistent order, pass work through Queue, use thread-local storage for per-thread clients, prefer immutable data and check library thread-safety. Even with the GIL, check-then-act is not atomic.",
+"cmds": [
+"lock = threading.Lock()\nwith lock:\n    counters[key] += 1",
+"local = threading.local()\ndef session():\n    if not hasattr(local, 's'): local.s = requests.Session()\n    return local.s"
+],
+"tip": "Say the GIL doesn't make your code atomic."
+},
+{
+"tag": "conc",
+"q": "What are free-threaded Python and sub-interpreters, and how might they change automation code?",
+"a": "The GIL has limited CPU parallelism in threads for decades. Recent Python versions introduce an optional free-threaded build that disables the GIL, letting threads run Python code truly in parallel on multiple cores, and per-interpreter GILs with a standard library interface for sub-interpreters, which run isolated interpreters in one process with less overhead than separate processes. For operations scripts that are mostly I/O-bound, nothing changes: threads and asyncio already work well. The new options matter for CPU-heavy tasks such as parsing huge logs, compression or data crunching, where today multiprocessing with its serialisation costs is needed. Caveats are important: the free-threaded build is still maturing, some C extensions are not yet compatible and may re-enable the GIL or fail, single-thread performance can be slightly lower, and code that relied on the GIL for accidental safety needs proper locking. I would test the workload and dependencies on the new build, measure the gain, and keep production on the standard build until my libraries support it. Multiprocessing remains the reliable choice today.",
+"f": [
+"Which workloads benefit most?",
+"What risks come with removing the GIL?"
+],
+"p": "Free-threaded builds and sub-interpreters enable parallel CPU work without multiprocessing overhead, but I/O-bound scripts see little change. Extensions may be incompatible and code that relied on the GIL needs real locking, so measure and keep multiprocessing as the dependable option for now.",
+"cmds": [
+"python3.13t -c \"import sys; print(sys._is_gil_enabled())\""
+],
+"tip": "Say I/O-bound code doesn't need it; CPU-bound might."
+},
+{
+"tag": "conc",
+"q": "When would you use a task queue such as Celery, RQ or Dramatiq for operations automation?",
+"a": "A task queue decouples submitting work from executing it. A producer enqueues a job, a broker such as Redis or RabbitMQ stores it, and worker processes pick it up, run it and store the result. It fits operations needs like long-running jobs triggered from a web interface or ChatOps command, scheduled and periodic jobs, retries with backoff, fan-out of work across many workers, rate limiting and processing events from alerts. Compared with simply starting a thread or subprocess, queues give durability, so jobs survive restarts, visibility into status, retries, concurrency control and horizontal scaling. Celery is feature-rich with scheduling, workflows and many integrations but heavier to run; RQ is simple and Redis-based; Dramatiq focuses on reliability with sensible defaults. Design points: tasks must be idempotent because delivery is at least once; arguments are small and serialisable; results are stored briefly; timeouts and dead-letter handling are set; and workers have limited privileges. For small needs, a systemd timer or cron may be enough, and cloud queues with functions can replace self-run workers.",
+"f": [
+"Why must tasks be idempotent?",
+"When is cron enough?"
+],
+"p": "Task queues provide durable, retried, scalable background execution for long jobs, schedules and fan-out. Choose Celery for features, RQ for simplicity, Dramatiq for reliability; make tasks idempotent with small arguments and timeouts, and use cron or timers when needs are small.",
+"cmds": [
+"from rq import Queue\nfrom redis import Redis\nq = Queue(connection=Redis())\nq.enqueue(run_backup, db='orders', job_timeout=3600)"
+],
+"tip": "Say at-least-once delivery means idempotent tasks."
+},
+{
+"tag": "test",
+"q": "How do you test asynchronous code with pytest-asyncio or anyio?",
+"a": "Async functions must run inside an event loop, so a plain test cannot await them. Plugins such as pytest-asyncio or anyio provide markers and fixtures: a test declared as async def with the appropriate marker runs inside a loop managed by the plugin, and async fixtures can set up clients or servers and tear them down. I test behaviours rather than implementation: that concurrent calls produce the right results, that timeouts cancel work, that errors propagate from task groups and that cleanup runs. External calls are replaced with async mocks, using AsyncMock from unittest.mock or fake clients, so tests are fast and deterministic. Time-dependent logic can use a controllable clock or short real timeouts, because long sleeps slow the suite; some plugins offer fake time. Common pitfalls are forgetting to await, leaking tasks past the end of a test, sharing an event loop between tests with state, and blocking calls that hide problems. Tests should assert no pending tasks remain. Running the suite with warnings enabled surfaces unawaited coroutines.",
+"f": [
+"What does AsyncMock provide?",
+"How do you avoid slow sleeps in tests?"
+],
+"p": "Use pytest-asyncio or anyio markers and async fixtures, replace I/O with AsyncMock or fakes, test concurrency, timeouts, error propagation and cleanup, avoid long sleeps, ensure no tasks leak and enable warnings to catch unawaited coroutines.",
+"cmds": [
+"@pytest.mark.asyncio\nasync def test_fetch(monkeypatch):\n    client = AsyncMock(); client.get.return_value = {'ok': True}\n    assert await fetch(client) == {'ok': True}"
+],
+"tip": "Say fake the I/O, assert on behaviour."
+},
+{
+"tag": "test",
+"q": "How do you record and replay HTTP interactions in tests with VCR.py or responses?",
+"a": "Tests that call real APIs are slow, flaky and may cost money or change state, but hand-written mocks can drift from reality. Two approaches help. The responses library, for requests, and respx, for httpx, register fake endpoints with specific status codes and bodies, which is ideal for error and edge cases like rate limiting, malformed payloads and timeouts. VCR.py records real interactions into cassette files the first time a test runs and replays them afterwards, giving realistic payloads without network access. Recorded data must be scrubbed: filter authorisation headers, tokens, account identifiers and personal information before committing cassettes. Matching rules decide how requests are compared, such as method, URI and body. Cassettes are refreshed periodically, perhaps in a scheduled job against a sandbox account, to detect API changes. The test suite runs in a mode that forbids new recordings in CI, so unexpected calls fail. Contract tests against a sandbox complement them, because replayed data cannot prove the real service still behaves the same.",
+"f": [
+"Why scrub cassettes?",
+"What do responses and respx offer that VCR does not?"
+],
+"p": "Use responses or respx to script exact edge-case replies, and VCR.py cassettes for realistic recorded payloads. Scrub secrets from recordings, set matching rules, forbid new recordings in CI, refresh cassettes periodically and back them with sandbox contract tests.",
+"cmds": [
+"@vcr.use_cassette('tests/cassettes/list.yaml', filter_headers=['authorization'])\ndef test_list(): ...",
+"responses.add(responses.GET, 'https://api.example.com/items', status=429)"
+],
+"tip": "Say record real shapes, script the failures."
+},
+{
+"tag": "test",
+"q": "What is snapshot or golden-file testing, and where is it useful for infrastructure code?",
+"a": "Snapshot testing stores the expected output of a function in a file, and later runs compare current output with it. If it differs, the test fails and a developer reviews the change, accepting it by updating the snapshot when it is intended. It is valuable where outputs are large and structured, such as rendered configuration templates, generated Kubernetes manifests, report text, CLI help output and API responses after transformation. Instead of writing dozens of assertions, one comparison covers the whole result, and the diff in review shows exactly how behaviour changed. Libraries such as syrupy, pytest-snapshot or approvaltests manage the files. The risks are blindly accepting changes, huge snapshots nobody reads, and brittleness from volatile fields like timestamps, random identifiers and ordering, which should be normalised or sorted before comparison. Snapshots complement, not replace, targeted assertions of key properties. I keep them small, committed to the repository, reviewed in pull requests, and generated from deterministic inputs, so a change in output is always the result of a deliberate change in code.",
+"f": [
+"What makes snapshots brittle?",
+"How should changes be reviewed?"
+],
+"p": "Snapshot tests compare output with a stored golden file, useful for rendered configs, manifests and reports. Normalise volatile fields, keep them small and deterministic, review diffs rather than blindly updating, and pair them with targeted assertions.",
+"cmds": [
+"def test_render(snapshot):\n    assert render(vhosts=SAMPLE) == snapshot",
+"pytest --snapshot-update"
+],
+"tip": "Say review the snapshot diff like code."
+},
+{
+"tag": "test",
+"q": "What is mutation testing and does it tell you more than code coverage?",
+"a": "Coverage only shows which lines ran during tests, not whether the tests would notice if the code were wrong. A test that calls a function without asserting anything still counts as coverage. Mutation testing measures test strength: a tool such as mutmut or cosmic-ray makes small deliberate changes to the code, called mutants, such as flipping a comparison, changing a constant or removing a statement, and re-runs the tests for each. If the tests still pass, the mutant survived, meaning the suite does not detect that kind of fault. The mutation score, the proportion of mutants killed, is a better indicator of effectiveness than line coverage. The costs are long run times, since the suite runs many times, and equivalent mutants that do not change behaviour. So I run it selectively on critical modules, on changed files in a scheduled job, and use the surviving mutants as a to-do list for missing assertions rather than chasing a perfect score. It helps most for logic-heavy code such as parsers, retry policies and calculation functions.",
+"f": [
+"What is a surviving mutant?",
+"Why is it expensive?"
+],
+"p": "Mutation testing changes the code in small ways and checks that tests fail; surviving mutants reveal weak assertions that line coverage misses. It is slow, so run it on critical or changed modules and use survivors as a to-do list.",
+"cmds": [
+"mutmut run --paths-to-mutate src/retry.py",
+"mutmut results"
+],
+"tip": "Say coverage shows what ran, mutation shows what is checked."
+},
+{
+"tag": "test",
+"q": "How do you benchmark and guard against performance regressions in Python code?",
+"a": "Performance claims need measurement. For micro-benchmarks, the timeit module repeats a small snippet and reports the best time, while pytest-benchmark integrates benchmarks into the test suite, runs each many times, reports statistics such as mean, minimum and standard deviation, and can save results and compare runs, failing a build when a function becomes slower than a threshold. For larger programs, cProfile and tools like py-spy find the hot spots first, because optimising the wrong part wastes effort. Benchmarks use realistic data sizes, run on stable hardware, warm up caches and avoid noise from other processes; shared CI runners are noisy, so tolerances are generous or dedicated runners are used. Tracking results over time in a dashboard reveals gradual degradation. Memory benchmarks use tracemalloc or memray. I optimise algorithms and data structures before micro-tuning, and only after a measurable need, keeping readability. A regression test with a loose bound on an important code path, such as parsing a standard sample file, catches accidental quadratic behaviour.",
+"f": [
+"Why profile before optimising?",
+"How do you handle noisy CI runners?"
+],
+"p": "Use timeit for snippets and pytest-benchmark for tracked comparisons and thresholds, profile with cProfile or py-spy before optimising, benchmark realistic data, allow tolerance on noisy runners and track trends over time.",
+"cmds": [
+"def test_parse(benchmark):\n    benchmark(parse_log, SAMPLE)",
+"pytest --benchmark-compare --benchmark-compare-fail=mean:20%"
+],
+"tip": "Say measure first, optimise the hot spot."
+},
+{
+"tag": "ops",
+"q": "How would you automate offboarding or user lifecycle tasks across several systems with Python?",
+"a": "Lifecycle automation touches many systems, such as the identity provider, cloud accounts, source control, chat and ticketing, so reliability and auditability matter more than speed. The trigger comes from an authoritative source, usually the HR system or the identity provider, delivered by webhook or polled. The workflow is a list of idempotent steps per system: disable the identity provider account, revoke sessions and tokens, remove access keys and group memberships, transfer ownership of resources and shared documents, reassign on-call schedules and open tickets, and archive mailboxes according to policy. Each step is retried safely, records its outcome and continues despite failures in unrelated systems, and failures raise a ticket for manual follow-up. Destructive actions such as deleting data are delayed, with a retention window and approval. A dry-run mode and a report of what would change allow review. API credentials for the automation are narrowly scoped, stored in a secrets manager, and every action is logged with who or what triggered it. Joiners and movers use the same framework, driven by role definitions rather than copied permissions. Regular reconciliation finds accounts that escaped the workflow.",
+"f": [
+"Why delay destructive steps?",
+"How do you detect accounts that were missed?"
+],
+"p": "Trigger from the HR or identity source and run idempotent per-system steps with logged outcomes, delay destructive actions, support dry-run, use scoped secrets-managed credentials and audit logs, handle joiners and movers by role, and reconcile regularly to catch missed accounts.",
+"cmds": [
+"python offboard.py --user jdoe --dry-run",
+"python offboard.py --user jdoe --apply --ticket HR-1432"
+],
+"tip": "Say idempotent steps, audit trail, reconcile later."
+},
+{
+"tag": "ops",
+"q": "How do you build a diagnostics bundle collector that gathers evidence during an incident?",
+"a": "During incidents, engineers waste time running the same commands on different hosts. A collector script automates evidence gathering consistently and safely. It runs on a host or against a list of hosts and collects a defined set of read-only data: system load, memory and disk usage, process lists, network connections and listening ports, recent kernel and service logs, container and orchestrator state, configuration files with secrets redacted, and application-specific health output. Each command runs with a timeout and its output is captured with the timestamp and exit code, so failures are visible and a hung command cannot block the rest. The results are packaged into a compressed archive named with the host and time, written with restrictive permissions, and uploaded to a controlled location, with a size limit to avoid filling the disk. Sensitive data is filtered by patterns, and the collection is logged. It must have minimal impact, avoiding heavy commands on struggling systems, and be safe to run repeatedly. Kubernetes versions gather pod descriptions, events and logs. A runbook links to it, and the bundle attaches to the incident ticket for later analysis.",
+"f": [
+"Why use per-command timeouts?",
+"How do you avoid collecting secrets?"
+],
+"p": "Run a fixed set of read-only commands with timeouts, record output, exit codes and timestamps, redact secrets, package and upload with restrictive permissions and size limits, minimise load on the host, and link the bundle to the incident ticket.",
+"cmds": [
+"tar czf /tmp/diag-$(hostname)-$(date -u +%Y%m%dT%H%M%SZ).tgz -C /tmp/diag .",
+"subprocess.run(['journalctl','-u','app','--since','-30min'], timeout=20, capture_output=True)"
+],
+"tip": "Say consistent, read-only, redacted, time-boxed."
+},
+{
+"tag": "ops",
+"q": "How do you produce cloud cost reports and find savings with Python and billing exports?",
+"a": "Cost visibility starts with the billing export: AWS Cost and Usage Reports delivered as Parquet to object storage, Azure cost exports, or the Google billing export in BigQuery. A Python job loads the data with pandas, DuckDB or the query client, normalises it, and groups by tags such as team, environment and application, plus service, region and usage type. Reports show trends over time, month-on-month changes, the top spenders and anomalies, such as a sudden daily jump. Untagged spend is flagged with owners to chase. Finding savings combines billing data with utilisation metrics: instances with low CPU for weeks, unattached volumes, old snapshots, idle load balancers, oversized databases, missing savings plans or reserved capacity coverage, and data transfer hot spots. Recommendations include estimated monthly savings and an owner. Output goes to dashboards, spreadsheets or chat summaries, with weekly scheduling. The job uses read-only roles, and cost allocation tags must be activated for data to appear. Showback to teams drives behaviour, and automation can tag resources or stop non-production resources outside working hours.",
+"f": [
+"Why do tags matter for cost reports?",
+"How do you detect cost anomalies?"
+],
+"p": "Load billing exports (CUR Parquet, Azure exports, BigQuery) with pandas or DuckDB, group by tags, service and region, trend and flag anomalies and untagged spend, combine with utilisation to find idle or oversized resources, and deliver weekly showback with owners.",
+"cmds": [
+"import duckdb\nduckdb.sql(\"select tag_team, sum(cost) c from 'cur/*.parquet' group by 1 order by c desc\").show()"
+],
+"tip": "Say tags make spend attributable; utilisation makes savings real."
+},
+{
+"tag": "ops",
+"q": "How do you use the ipaddress module and Python to plan and validate IP address ranges and CIDR allocations?",
+"a": "The standard ipaddress module represents addresses and networks as objects with correct arithmetic, replacing fragile string manipulation. IPv4Network and IPv6Network parse CIDR blocks, expose the netmask, number of addresses and host iterators, test membership with the in operator, and check whether networks overlap, are subnets of one another or are private. The subnets method splits a block into smaller ones of a given prefix length, and supernet or collapse_addresses merge ranges. For planning, a script can read existing allocations from a file or IPAM system, find overlaps between VPC, on-premises and partner ranges that would block peering, calculate free blocks, and propose the next available subnet of a requested size. Validation in CI can reject proposals that overlap or fall outside approved ranges. The module handles network and broadcast addresses and edge cases such as point-to-point links. Cloud reserved addresses per subnet are accounted for separately. Output is a clear table, and the single source of truth should be an IPAM tool or version-controlled data, with the script enforcing consistency before Terraform applies changes.",
+"f": [
+"How do you detect overlapping ranges?",
+"What does collapse_addresses do?"
+],
+"p": "Use ipaddress to parse CIDRs, test overlaps and membership, split with subnets, merge with collapse_addresses, find free blocks and propose allocations, then validate proposals in CI against the source of truth before infrastructure changes.",
+"cmds": [
+"import ipaddress as ip\na = ip.ip_network('10.0.0.0/16')\nprint(a.overlaps(ip.ip_network('10.0.4.0/22')))\nlist(a.subnets(new_prefix=20))[:3]"
+],
+"tip": "Say never parse CIDRs with string splitting."
+},
+{
+"tag": "ops",
+"q": "How would you build a simple capacity forecasting script from metrics history?",
+"a": "Capacity problems are cheaper to prevent than to fix at 3 a.m., so I forecast from history. The script pulls a series from the metrics backend, for example daily peak disk usage, memory or request rate for the last several months, through the Prometheus HTTP API with range queries. It cleans the data, handles gaps, and aggregates to a sensible resolution. For steadily growing resources, a linear regression with numpy or a library such as statsmodels projects when usage will cross a threshold, producing a days-until-full estimate. For seasonal workloads, I use models that capture weekly patterns, or compare year-on-year, and always show the uncertainty. Prometheus itself offers predict_linear for alerting. The output is a ranked report of resources predicted to hit limits within a horizon, with owners and growth rates, feeding tickets and planning. I validate forecasts against what actually happened, keep models simple and explainable, and avoid false precision, because step changes from launches or migrations break trends. Alerts for time-to-full complement the report.",
+"f": [
+"What does predict_linear do?",
+"Why keep forecasting models simple?"
+],
+"p": "Pull history via the Prometheus range API, clean and aggregate it, fit a linear or seasonal trend to estimate days until a threshold, rank resources by urgency with owners, validate against actuals and keep models simple; predict_linear can alert on time-to-full.",
+"cmds": [
+"predict_linear(node_filesystem_avail_bytes[7d], 14*24*3600) < 0",
+"import numpy as np\nslope, intercept = np.polyfit(days, usage, 1)"
+],
+"tip": "Say forecast, then verify against reality."
+},
+{
+"tag": "obs",
+"q": "How do you manage Grafana dashboards and alerts as code using Python or the API?",
+"a": "Dashboards edited by hand in the interface drift, vanish and differ between environments, so I treat them as code. The Grafana HTTP API lets a script create, update and export dashboards, folders, data sources and alert rules. Dashboards are described in JSON or generated with a library such as grafanalib or the Grafana Foundation SDK in Python, which produces consistent panels from small functions, so a standard service dashboard can be created for every application from a template with the service name as a parameter. The definitions are stored in Git, reviewed in pull requests and deployed by a pipeline with an API token of limited scope, or provisioned from files on disk or through a Kubernetes sidecar. Terraform's Grafana provider is another option. Variables, consistent naming and tags help navigation. Alert rules are defined alongside dashboards with clear thresholds and runbook links. Exported JSON should be cleaned of volatile fields like ids and versions to give small diffs. Changes can be validated by loading them in a staging instance, and drift detection compares live dashboards with Git.",
+"f": [
+"Why generate dashboards from code?",
+"How do you keep diffs small?"
+],
+"p": "Keep dashboards and alert rules in Git, generated with grafanalib or SDKs from templates parameterised by service, deployed by pipeline with scoped API tokens or provisioning, cleaned of volatile fields, validated in staging and checked for drift.",
+"cmds": [
+"requests.post(f'{GRAFANA}/api/dashboards/db', headers={'Authorization': f'Bearer {TOKEN}'}, json={'dashboard': dash, 'folderUid': folder, 'overwrite': True})"
+],
+"tip": "Say dashboards are code; generate the standard ones."
+},
+{
+"tag": "obs",
+"q": "How do you ship logs to Elasticsearch, OpenSearch or Loki from Python, and when should you not?",
+"a": "Applications should normally write logs to standard output or files and let an agent such as Fluent Bit, Vector or Promtail collect and ship them, because that decouples the application from the logging backend, handles buffering and retries, and keeps working when the backend is down. Direct shipping from Python is justified for scripts and jobs with no agent, serverless functions and structured audit events. Clients exist: the opensearch-py and elasticsearch libraries provide bulk helpers that send many documents in one request, and Loki accepts pushes over HTTP, with libraries or logging handlers available. Good practice is batching, using the bulk API, with timeouts, retries and backoff; running the shipping in a background thread or queue handler so application latency is unaffected; bounding memory with a queue limit and a drop policy so a slow backend cannot take down the application; and using structured JSON with consistent field names and index templates. Credentials are scoped and rotated. Logging failures must not crash the program, and a local fallback file keeps data when the backend is unreachable. Avoid sending sensitive data.",
+"f": [
+"Why prefer an agent for services?",
+"How do you avoid blocking the application?"
+],
+"p": "Prefer writing to stdout and letting agents like Fluent Bit or Vector ship logs. For scripts and functions, ship directly using bulk APIs with batching, timeouts, backoff, background queues with bounded memory and a local fallback, structured fields and scoped credentials.",
+"cmds": [
+"from opensearchpy import helpers\nhelpers.bulk(client, ({'_index': 'ops-logs', '_source': d} for d in docs), request_timeout=30)"
+],
+"tip": "Say agents for services, bulk APIs for scripts."
+},
+{
+"tag": "obs",
+"q": "How do you write synthetic probes or blackbox checks in Python for user journeys?",
+"a": "Internal metrics can look healthy while users cannot log in, so synthetic probes exercise the service from the outside like a user. A probe is a script that performs a realistic request sequence, such as loading a page, logging in with a test account, searching, adding an item and checking out, and verifies content, status codes and timing at each step. Libraries range from requests for API journeys to Playwright for real browser flows including JavaScript. Probes run on a schedule from multiple locations, including outside the cluster and different regions, to catch DNS, certificate, CDN and routing issues. Results become metrics, success and duration per step, scraped by Prometheus or pushed to a monitoring service, with alerts on consecutive failures and slow responses, and failure screenshots or response bodies stored for diagnosis. Test accounts and data must be isolated, safe and clearly labelled so that probes do not pollute analytics or trigger fraud rules, and secrets are managed properly. Probes should be stable to avoid false alarms, with retries only for network flukes, and their own health is monitored.",
+"f": [
+"Why run probes from outside the cluster?",
+"How do you avoid flaky probes?"
+],
+"p": "Script realistic user journeys with requests or Playwright, run on a schedule from several locations, export per-step success and duration as metrics, alert on consecutive failures, keep screenshots on failure, isolate test accounts and keep probes stable and monitored.",
+"cmds": [
+"r = requests.post(f'{BASE}/login', json=creds, timeout=5)\nassert r.status_code == 200 and 'token' in r.json()\nPROBE_OK.labels('login').set(1)"
+],
+"tip": "Say probe the journey users take, not just /health."
+},
+{
+"tag": "obs",
+"q": "How do you detect anomalies in metrics with simple statistics before reaching for machine learning?",
+"a": "Simple methods catch most operational anomalies and are easier to explain and trust. A rolling mean and standard deviation give a z-score, flagging points several deviations away from recent behaviour. Median and median absolute deviation resist outliers better. Comparing with the same time last week handles daily and weekly seasonality, and a percentage-change threshold detects sudden jumps. Exponential smoothing or a seasonal decomposition separates trend and cycles from the residual. For rates, comparing against a forecast band works well. Implementation uses pandas or numpy on data from the Prometheus API, and Prometheus can do some of this in queries with functions such as avg_over_time, stddev_over_time and offset. Alerting on anomalies needs care: require sustained deviation, set minimum absolute thresholds to avoid noise on tiny numbers, and tune with historical data to measure false positives and misses. Machine-learning approaches are considered when seasonality is complex or there are thousands of series, but they add maintenance and opacity. Whichever method, alerts must be actionable and link to a dashboard and runbook.",
+"f": [
+"Why compare to the same time last week?",
+"Why add minimum thresholds?"
+],
+"p": "Start with rolling z-scores, median absolute deviation, week-over-week comparison and seasonal decomposition using pandas or Prometheus functions. Require sustained deviation and minimum absolute thresholds, tune on history for false positives, and use ML only when simple methods fall short.",
+"cmds": [
+"z = (s - s.rolling(288).mean()) / s.rolling(288).std()\nalerts = s[z.abs() > 4]",
+"stddev_over_time(rate(http_requests_total[5m])[1h:]) "
+],
+"tip": "Say simple, explainable statistics first."
+},
+{
+"tag": "obs",
+"q": "How do you profile CPU and memory of a Python program with cProfile, scalene or memray, and interpret the results?",
+"a": "Profiling starts from a question: is the program slow because of CPU, I/O waiting or memory pressure? Cprofile, built in, records function call counts and cumulative times; sorting by cumulative or total time shows which functions dominate, and the output can be viewed with visualisation tools like snakeviz. Its overhead is moderate and it does not see inside C extensions. Sampling profilers such as py-spy attach to running processes with little overhead, ideal in production, and produce flame graphs where wide frames show where time goes. Scalene separates Python time from native time and I/O wait, and shows line-level CPU and memory use, even for GPU. For memory, tracemalloc compares snapshots to find allocation sites, and memray records every allocation with flame graphs and can find leaks and peak usage. Interpretation focuses on the biggest contributors: a hot loop, repeated parsing, an accidental quadratic algorithm, large intermediate lists or an unbounded cache. After changing code, I re-profile to confirm the gain. Profiles should use realistic inputs, because toy data hides the real hot spots.",
+"f": [
+"Why use a sampling profiler in production?",
+"What does memray show?"
+],
+"p": "Use cProfile for call-level timing, py-spy for low-overhead sampling and flame graphs in production, scalene for line-level CPU, native and memory split, and tracemalloc or memray for allocation hot spots. Profile with realistic data, fix the biggest contributor and re-measure.",
+"cmds": [
+"python -m cProfile -o out.prof job.py && snakeviz out.prof",
+"py-spy record -o flame.svg -- python job.py",
+"memray run job.py && memray flamegraph memray-job.bin"
+],
+"tip": "Say question first, tool second, re-measure after."
+},
+{
+"tag": "pat",
+"q": "How do you design testable operations code using dependency injection and thin wrappers around cloud SDKs?",
+"a": "Scripts that create clients inside functions and call them directly are hard to test without mocking globals. A better structure passes dependencies in: functions or classes receive the client, configuration, clock and logger as arguments, so tests supply fakes. I wrap the parts of an SDK I actually use in a small interface, for example a class with methods to list volumes and delete a volume, hiding pagination and error mapping. Business logic, such as deciding which volumes are old and unattached, works on plain data and is a pure function that is trivial to test with tables of cases. The real wrapper is tested in a few integration tests, and everything else uses an in-memory fake implementing the same interface, which is often more reliable than patching with mocks. This also makes changing providers or API versions easier. Protocols or abstract base classes document the contract. Composition happens at the edge, in main, where real clients are created. The result is smaller functions, faster tests and clearer separation between decisions and side effects.",
+"f": [
+"Why separate decisions from side effects?",
+"Why prefer fakes over heavy mocking?"
+],
+"p": "Inject clients, config, clock and logger; wrap the SDK parts you use in a small interface; keep decision logic as pure functions on plain data; use in-memory fakes in tests, with few integration tests; wire real dependencies in main.",
+"cmds": [
+"class VolumeAPI(Protocol):\n    def unattached(self) -> list[Volume]: ...\n    def delete(self, vid: str) -> None: ...\ndef plan(vols, now, max_age): return [v for v in vols if now - v.created > max_age]"
+],
+"tip": "Say pure decisions, thin side-effect edges."
+},
+{
+"tag": "pat",
+"q": "How do you model long-running workflows as state machines in Python so they can resume after failure?",
+"a": "A multi-step operation like provisioning a cluster or migrating data can fail anywhere, so it should be resumable. I model it as a state machine: a defined set of states, such as requested, network created, nodes ready and verified, with allowed transitions, and each step as a function that moves the workflow to the next state. The current state and relevant data are persisted after every step in a database or a state file, so on restart the program reads the last state and continues from there. Steps are idempotent, since a crash after performing an action but before saving the state means the step runs again. Failures record the error and either retry with backoff or move to a failed state that waits for human action, with compensating steps for rollback where needed. Timeouts and a maximum number of attempts prevent endless loops. The state history provides an audit trail and visibility, and a command can show the status of all workflows. Libraries like transitions help, and workflow engines such as Temporal, Airflow or Step Functions provide this durably for complex cases.",
+"f": [
+"Why must steps be idempotent?",
+"When do you adopt a workflow engine?"
+],
+"p": "Define explicit states and transitions, persist state after each step, make steps idempotent so a crash can replay them, handle failures with retries, failed states and compensation, add timeouts and history, and use engines like Temporal for complex or critical flows.",
+"cmds": [
+"STATES = ['requested', 'network', 'nodes', 'verified']\nwhile (s := load_state(job)) != 'verified':\n    STEPS[s](job); save_state(job, NEXT[s])"
+],
+"tip": "Say persist state, make steps replayable."
+},
+{
+"tag": "pat",
+"q": "How do you implement a plugin or registry pattern for checks, collectors or exporters in Python?",
+"a": "When a tool needs many similar components, such as health checks, inventory collectors or report generators, a registry pattern avoids long if-else chains and lets teams add components without editing core code. A base class or protocol defines the interface, for example a check with a name and a run method returning a result. A registry maps names to implementations, filled by a decorator that registers each class or function on import, or by discovering plugins through entry points, so installed packages can contribute. The core iterates over the registry, applying configuration to select which components run, with per-component options and error isolation, so one failing plugin is reported but does not stop the others. Each component has a timeout, and results use a common structure with status, message and metrics. Configuration validation ensures unknown names are rejected early. Tests cover each component in isolation plus the runner. Documentation explains how to write a new one in a few lines. This design keeps the tool extensible, makes behaviour uniform and encourages reuse.",
+"f": [
+"How does a decorator register components?",
+"Why isolate plugin errors?"
+],
+"p": "Define a common interface, register implementations with a decorator or entry-point discovery, select them from configuration, run each with a timeout and error isolation, and return results in a shared structure. Validate config, test components individually and document the extension steps.",
+"cmds": [
+"CHECKS = {}\ndef check(name):\n    def deco(fn): CHECKS[name] = fn; return fn\n    return deco\n@check('disk')\ndef disk(cfg): ..."
+],
+"tip": "Say register by decorator, isolate failures."
+},
+{
+"tag": "pat",
+"q": "How do you implement a token bucket or sliding-window rate limiter in a Python client or service?",
+"a": "Rate limiting protects both your own service and the APIs you call. In a token bucket, a bucket holds up to a maximum number of tokens that refill at a steady rate; each request consumes a token, and when the bucket is empty the request waits or is rejected. This allows bursts up to the bucket size while enforcing an average rate. A sliding window counts requests in the last interval and rejects when the count exceeds the limit, which is more precise about boundaries but stores more data. For a client, I implement the bucket with a monotonic clock, a lock for thread safety, and a method that either sleeps until a token is available or reports the wait time; async code uses an asyncio lock and sleep. Libraries such as limiter packages or aiolimiter provide this. Honouring the server's rate-limit headers and Retry-After is better than guessing, and I combine limiting with retries and backoff. For limits shared across many processes or hosts, state lives in Redis, using atomic scripts. Metrics on waits and rejections show when limits bind.",
+"f": [
+"How does a token bucket allow bursts?",
+"How do you share a limit across processes?"
+],
+"p": "A token bucket refills at a steady rate and allows bursts up to its capacity; sliding windows count recent requests. Implement with a monotonic clock and lock, honour server headers, combine with backoff, and use Redis with atomic scripts for shared limits.",
+"cmds": [
+"class Bucket:\n    def __init__(self, rate, cap): self.rate, self.cap, self.t, self.n = rate, cap, time.monotonic(), cap\n    def take(self):\n        now = time.monotonic(); self.n = min(self.cap, self.n + (now-self.t)*self.rate); self.t = now\n        if self.n >= 1: self.n -= 1; return 0\n        return (1-self.n)/self.rate"
+],
+"tip": "Say bursts allowed, average rate enforced."
+},
+{
+"tag": "pat",
+"q": "How do you add reloadable configuration and feature flags to a long-running Python service without redeploying?",
+"a": "Some behaviour needs to change while the service runs: log level, thresholds, allow lists or the enabling of a new code path. For configuration, the service loads settings into an immutable object and replaces the whole object atomically on reload, triggered by a SIGHUP, a file change or a periodic poll of a config store, so no request sees a half-updated state. New configuration is parsed and validated first, and if invalid the old one stays active and an error is logged and counted. Code reads the current configuration through an accessor, not by caching values at import time. Feature flags add a layer: a flag service or file defines flags, possibly with percentage rollouts or targeting by user or environment, and code checks a flag at the decision point. Flags have owners and expiry dates and are removed after rollout, because stale flags create untested combinations. Defaults are safe if the flag service is unreachable. Changes are audited, and critical settings avoid dynamic changes when a restart is safer. Tests cover both flag states and reload failure.",
+"f": [
+"Why swap the config object atomically?",
+"What is the risk of old flags?"
+],
+"p": "Load settings into an immutable object and swap atomically on SIGHUP, file change or poll after validating; keep the old config on error. Use flags with safe defaults, owners and expiry, audit changes, test both states and remove flags after rollout.",
+"cmds": [
+"signal.signal(signal.SIGHUP, lambda *a: reload())\ndef reload():\n    global CFG\n    new = load_and_validate(path)\n    if new: CFG = new"
+],
+"tip": "Say validate first, swap atomically, retire flags."
 }
 ]

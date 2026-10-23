@@ -297,6 +297,230 @@
 "tip": "Say dash trims, nindent places."
 },
 {
+"tag": "sec",
+"q": "How do you ship NetworkPolicies with a chart so workloads are isolated by default?",
+"a": "By default, pods in Kubernetes can talk to any other pod, so a chart that cares about security ships network policies with the workload. The template renders a policy that selects the chart's pods using the selector labels, denies all ingress and egress except what is declared, and then allows specific traffic: ingress from the ingress controller namespace or named client workloads on the application port, egress to DNS, to the database or cache the application uses, and to required external endpoints. Values expose enabled flags and lists of allowed sources and destinations, as namespace selectors, pod selectors or IP blocks, with safe defaults. Policies only work if the cluster's network plugin enforces them, which the documentation should state, since an unenforced policy gives false confidence. Monitoring and probes need explicit allowances, because kubelet health checks and metrics scrapers come from specific sources. Testing applies the chart in a cluster with a policy-enforcing plugin and uses connectivity tests to confirm allowed and denied paths. Platform teams often add default-deny policies at namespace level, and the chart's policies add precise allowances on top.",
+"f": [
+"Why must DNS egress be allowed?",
+"What if the CNI does not enforce policies?"
+],
+"p": "Render NetworkPolicies that select the chart's pods, deny by default and allow declared ingress and egress including DNS, database and monitoring paths, expose sources and destinations as values, note that the CNI must enforce policies and test allowed and denied paths.",
+"cmds": [
+"apiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nspec:\n  podSelector:\n    matchLabels: {{- include \"app.selectorLabels\" . | nindent 6 }}\n  policyTypes: [Ingress, Egress]\n  ingress:\n    - from:\n        - namespaceSelector: {matchLabels: {name: ingress-nginx}}\n      ports: [{port: 8080}]"
+],
+"tip": "Say default deny, then declare what is allowed."
+},
+{
+"tag": "sec",
+"q": "How do charts handle service accounts and cloud identities such as IRSA or Workload Identity?",
+"a": "Workloads should have their own identity with only the permissions they need, instead of using the default service account or node credentials. The chart creates a service account when enabled, with a name derived from the release, and allows users to supply annotations, which is how cloud identity is attached: on AWS, the IAM role ARN annotation links the account to a role through IRSA or pod identity; on GKE, the annotation names the Google service account for Workload Identity; on Azure, a client ID annotation and a pod label are used with workload identity. Charts expose an option to use an existing service account, so platform teams can manage identities centrally. Automounting the API token is disabled unless the application calls the Kubernetes API, and if it does, the chart creates a minimal Role and RoleBinding limited to the resources and verbs required, avoiding cluster roles. The cloud-side role and trust relationship are created separately, often by Terraform, and the chart only references them. Documentation shows the required permissions. Testing verifies that the pod receives credentials and nothing broader.",
+"f": [
+"Why disable token automounting?",
+"Who creates the cloud IAM role?"
+],
+"p": "Create a dedicated service account with user-supplied annotations for IRSA, Workload Identity or Azure workload identity, allow existing accounts, disable token automount unless needed, grant minimal namespaced Roles, and manage the cloud-side roles separately.",
+"cmds": [
+"serviceAccount:\n  create: true\n  automount: false\n  annotations:\n    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/app-prod"
+],
+"tip": "Say identity per workload, permissions least."
+},
+{
+"tag": "sec",
+"q": "How do you manage image pull secrets and private registries in charts?",
+"a": "Private registries require credentials, and charts must support them without embedding secrets. The chart exposes an imagePullSecrets list of names, referenced in the pod spec or attached to the service account, so users reference secrets created outside the chart. Those secrets are created by the platform, for example by a sealed secret, an external secrets operator syncing registry credentials, or a controller that propagates them to namespaces; some clusters configure node-level or service-account-level pull credentials with cloud identity, such as ECR or ACR integration, which removes the need for secrets altogether. If the chart creates the secret from supplied username and password values, the dockerconfigjson content is built with a helper and base64 encoding, but the password then lives in values and release records, which is why it is discouraged. Global values for registry and pull secrets apply to subcharts as well. Tokens used for pulls should be read-only, scoped and rotated. When pulls fail with unauthorised errors, I check the secret's namespace, its server name and whether the service account actually references it.",
+"f": [
+"Why prefer cloud identity for pulls?",
+"Why must the secret be in the same namespace?"
+],
+"p": "Expose imagePullSecrets as names of externally managed secrets, prefer cloud identity or node-level credentials, avoid creating registry secrets from plain values, use global settings for subcharts and use read-only, rotated tokens. Debug by checking namespace, server name and service account references.",
+"cmds": [
+"imagePullSecrets:\n  - name: regcred",
+"kubectl create secret docker-registry regcred --docker-server=registry.example.com --docker-username=ci --docker-password=\"$TOKEN\" -n app"
+],
+"tip": "Say reference pull secrets; don't template passwords."
+},
+{
+"tag": "sec",
+"q": "How do you integrate cert-manager and TLS into a chart and handle mutual TLS between services?",
+"a": "For TLS, a chart usually does not manage certificates itself but integrates with cert-manager. For ingress, an annotation names the issuer and the ingress TLS section names the secret that cert-manager creates and renews. For in-cluster TLS, the chart can render a Certificate resource referencing an issuer, with DNS names built from the service and namespace, durations, renewal windows and key settings, and then mounts the resulting secret into the pod, with a reloader or the application's own file watcher picking up renewals. Mutual TLS between services needs both sides to present certificates from a trusted authority: the chart's Certificate includes client and server usages, a trust bundle is distributed through a config map, and the application configuration requires and verifies client certificates. A service mesh can provide mTLS transparently, removing this from application charts. Values expose issuer name and kind, durations and extra DNS names. Testing validates the certificate is issued, names match and renewal works. Private keys never leave the cluster, and certificate expiry alerts act as a safety net.",
+"f": [
+"How do renewed certificates reach the application?",
+"When does a mesh replace chart-level mTLS?"
+],
+"p": "Use cert-manager annotations for ingress and Certificate resources for in-cluster TLS with issuer, DNS names and renewal settings, mount the secret and reload on renewal; for mTLS add client usage, trust bundles and verification, or let a service mesh handle it. Alert on expiry.",
+"cmds": [
+"apiVersion: cert-manager.io/v1\nkind: Certificate\nspec:\n  secretName: {{ include \"app.fullname\" . }}-tls\n  issuerRef: {name: {{ .Values.tls.issuer }}, kind: ClusterIssuer}\n  dnsNames:\n    - {{ include \"app.fullname\" . }}.{{ .Release.Namespace }}.svc"
+],
+"tip": "Say the chart requests certs; cert-manager issues and renews."
+},
+{
+"tag": "sec",
+"q": "How do you handle vulnerability management for the images and dependencies a chart deploys over time?",
+"a": "Security is continuous, since new vulnerabilities appear after release. Images referenced by charts are scanned at build time with tools like Trivy or Grype, with policy gates failing builds on high severity issues that have fixes, and are rescanned on a schedule in the registry because the database changes daily. An SBOM is generated and stored with each image, so when a new vulnerability is announced, I can query which deployed images and charts include the affected package. Minimal base images and regular rebuilds reduce exposure. Chart dependencies and third-party charts are tracked by bots such as Renovate, producing pull requests that show new versions with their release notes. Running clusters are scanned too, by tools that inspect deployed workloads and report vulnerable images, mapping them to owners. Triage assigns severity based on reachability and exploitability, with deadlines per severity and tracked exceptions that expire. Fixes flow through the normal pipeline with fast-track options for critical issues. Admission policies block images with unresolved critical findings or without recent scans. Metrics on age and open findings drive improvement.",
+"f": [
+"Why rescan images already deployed?",
+"What does an SBOM help with?"
+],
+"p": "Scan images at build and on a schedule, keep SBOMs to query affected deployments, rebuild minimal bases regularly, track chart and image updates with bots, scan running clusters, triage by reachability with deadlines and expiring exceptions, and gate with admission policy.",
+"cmds": [
+"trivy image --severity HIGH,CRITICAL --ignore-unfixed registry/app:1.4.2",
+"syft registry/app:1.4.2 -o spdx-json > sbom.json"
+],
+"tip": "Say vulnerabilities arrive after release; keep scanning."
+},
+{
+"tag": "trouble",
+"q": "Pods crash or are OOMKilled right after a Helm upgrade. How do you find what changed?",
+"a": "I start by establishing exactly what the upgrade changed. Helm history and the diff between the failing and last good revisions' manifests show differences in image tag, environment variables, config files, resource requests and limits, probes, security context and command arguments. Then I examine the pods: kubectl describe shows the last state and reason, such as OOMKilled, Error or a failed probe, with exit codes, and logs of the previous container instance show the stack trace or error message. An OOM kill points to a lowered memory limit, a higher memory demand in the new version, or a leak; I compare limits between revisions and look at memory graphs. A crash at start-up often means missing configuration, a changed secret key name, an incompatible config file format, a failing dependency or a permission error from a changed security context. Failing liveness probes with too short a delay kill slow starters. If the cause is unclear, rolling back restores service quickly, after which I reproduce in staging. The fix goes into the chart or values with a test, and alerts on restarts and OOM events are added.",
+"f": [
+"Where do you see why a container was killed?",
+"When do you roll back before investigating?"
+],
+"p": "Diff the failing and good revisions for image, env, config, resources, probes and security context, then describe pods for last state and exit codes and read previous logs. OOM suggests limits or leaks; start-up crashes suggest config or permissions. Roll back to restore service, then reproduce in staging.",
+"cmds": [
+"helm diff revision app 11 12 -n prod",
+"kubectl describe pod -n prod <pod> | sed -n '/Last State/,/Ready/p'",
+"kubectl logs -n prod <pod> --previous"
+],
+"tip": "Say diff the revisions, then read the previous container's logs."
+},
+{
+"tag": "trouble",
+"q": "Helm fails with 'Kubernetes cluster unreachable', 'Unauthorized' or 'forbidden'. How do you troubleshoot connection and permission errors?",
+"a": "I separate connectivity, authentication and authorisation. For unreachable, I check the kubeconfig and context in use, since a wrong or stale context is the most common cause, then verify with kubectl cluster-info that the API server address resolves and is reachable from the machine, considering VPN, firewall rules, private endpoint restrictions and expired certificates or proxy settings. For Unauthorized, the credentials are rejected: tokens expired, the exec plugin for cloud authentication failed, the CLI is not logged in, or the pipeline's federated identity has not been exchanged; I refresh the login and check the plugin's output. For forbidden, authentication works but RBAC denies the action, and the message names the user, verb and resource; kubectl auth can-i with the as flag confirms what is missing, and the fix is granting a narrow role, such as permissions on secrets for release storage or on a specific resource kind in the chart. Namespace mismatches also appear as forbidden. In CI, I print the identity in use with a safe command, not credentials. Debug flags show the API calls Helm makes.",
+"f": [
+"How do you test permissions without running Helm?",
+"What does 'forbidden' tell you?"
+],
+"p": "Check context and kubeconfig, then API reachability, VPN, firewalls and expired certs for unreachable; refresh tokens or exec plugins for Unauthorized; and use kubectl auth can-i plus the error's user, verb and resource to grant narrow RBAC for forbidden. Print identity safely in CI.",
+"cmds": [
+"kubectl config current-context && kubectl cluster-info",
+"kubectl auth can-i create secrets -n prod --as=system:serviceaccount:ci:deployer",
+"helm list -n prod --debug"
+],
+"tip": "Say reachability, then authn, then authz."
+},
+{
+"tag": "trouble",
+"q": "You changed values but the deployed behaviour did not change. What are the possible causes?",
+"a": "Several things can make a change appear to have no effect. The values may never have reached the render: the wrong file was passed or the order let another file override it, a typo in a key name silently does nothing because templates read a different key, or an old release's reuse-values retained earlier settings. The key may be set at the wrong level, such as a subchart value placed at the top level instead of under the subchart's name. The template might not use the value at all, or a conditional hides it. The rendered manifest may have changed but pods were not restarted, as with a config map change without a checksum annotation, or a mounted config the application reads only at start. A cached image under the same tag with an IfNotPresent pull policy keeps old code. In GitOps, the controller might not have synced, or sync is pointed at a different branch or path. I check helm get values with the all flag, helm get manifest for the rendered field, kubectl for the live object, and the pod's actual environment, working from the values to the running process.",
+"f": [
+"How do you confirm the value reached the manifest?",
+"Why might pods keep old config?"
+],
+"p": "Verify that the right files and order were used, key names and nesting match the template, subchart values sit under the subchart name, reuse-values is not retaining old settings, and that pods restarted. Compare helm get values --all, get manifest and the live object, and check image pull policy and GitOps sync.",
+"cmds": [
+"helm get values app -n prod --all | grep -i replica",
+"helm get manifest app -n prod | grep -n 'replicas'",
+"kubectl exec -n prod deploy/app -- env | grep APP_"
+],
+"tip": "Say trace the value from file to manifest to pod."
+},
+{
+"tag": "trouble",
+"q": "How do you troubleshoot chart download and repository errors such as 404, x509, 401 or 'failed to fetch'?",
+"a": "These errors point to different layers. A 404 or not found means the chart name, version or repository URL is wrong, the index is stale, or the version was removed; I run helm repo update, list versions with search repo and verify the repository URL by fetching the index file manually. For OCI, a manifest unknown message means the tag does not exist or the path is wrong. A 401 or 403 means missing or invalid credentials; I log in again, check that the token has pull rights, that the right credentials are used for the host and that redirects to another host, such as object storage, do not drop credentials, which pass-credentials handles. An x509 certificate error means the server certificate is not trusted by the client: an internal CA missing from the trust store, an expired certificate, a wrong hostname or a TLS-intercepting proxy; the fix is providing the CA file with the ca-file flag or installing it, not skipping verification. Timeouts and connection refused indicate network, DNS or proxy configuration. Caches can hold stale data, so clearing the repository cache helps. In CI, ensure the repo add runs before dependency commands.",
+"f": [
+"How do you check the index manually?",
+"Why not use insecure skip TLS verify?"
+],
+"p": "404 means wrong name, version or stale index; 401/403 means credentials or redirect issues; x509 means an untrusted CA, expired cert or intercepting proxy, fixed with a CA file, never skipping verification. Check DNS and proxies for timeouts and clear caches.",
+"cmds": [
+"helm repo update && helm search repo app --versions | head",
+"curl -fsSI https://charts.example.com/index.yaml",
+"helm pull app/chart --ca-file internal-ca.pem --version 1.4.0"
+],
+"tip": "Say fix trust, don't disable verification."
+},
+{
+"tag": "trouble",
+"q": "How do you investigate an Ingress or Service that stopped working after a Helm upgrade?",
+"a": "I trace the request path layer by layer and compare with the previous revision. First, diff the manifests of the two revisions for service, ingress and related resources, looking for changed selectors, ports, target ports, hostnames, paths, annotations, class name or TLS settings. Then check the Service: does it have endpoints? Empty endpoints mean its selector no longer matches the pods' labels or the pods are not ready, often after a label change or failing readiness probes. Check that port names and numbers line up between the container, service and ingress backend. For the ingress, confirm the controller picked it up by looking at its events and the controller's logs, the ingress class is correct, the host and path rules match the request, TLS secrets exist and certificates are valid, and annotations are valid for that controller version. Testing from inside the cluster with a temporary pod, using curl against the service, separates application problems from ingress problems. DNS records and load balancer health checks come next. If the cause is a chart change, I fix it and add a render test covering the selector and port wiring.",
+"f": [
+"What do empty endpoints mean?",
+"How do you separate ingress problems from app problems?"
+],
+"p": "Diff service and ingress between revisions, check Service endpoints for selector or readiness mismatches, verify port names and numbers, inspect the ingress class, host, path, TLS and controller logs, test from inside the cluster to isolate layers, then check DNS and load balancer health.",
+"cmds": [
+"kubectl get endpoints app -n prod",
+"kubectl describe ingress app -n prod",
+"kubectl run t --rm -it --image=curlimages/curl -- curl -sv http://app.prod.svc:80/healthz"
+],
+"tip": "Say follow the path: DNS, LB, ingress, service, pod."
+},
+{
+"tag": "adv",
+"q": "How do you write a Helm plugin, and when is it worthwhile?",
+"a": "A Helm plugin extends the client with a new subcommand. It is a directory containing a plugin.yaml manifest with the name, version, description, usage, and the command to run, plus any scripts or binaries. Helm sets environment variables for the plugin such as the paths to configuration, cache and data directories, the namespace and the Helm binary, so the plugin can call back into Helm. Plugins can be shell scripts, Python or compiled Go programs; Go gives a single static binary and access to the Helm libraries. Hooks in the manifest run on install, update and delete, which download the right binary for the platform. Distribution is through a Git repository, installed by URL and version, and newer Helm versions support signing and verification of plugins. Plugins are worthwhile when a team repeatedly needs an operation tied to Helm that the CLI lacks: a company-specific linting step, a command to publish to a custom backend, a wrapper that adds standard flags and context checks, or a diff variant. They also carry risk, running arbitrary code with the user's permissions, so they are pinned, reviewed and installed from trusted sources. Often a simple script in the pipeline is enough.",
+"f": [
+"What does plugin.yaml contain?",
+"What is the security risk of plugins?"
+],
+"p": "A plugin is a directory with plugin.yaml and a script or binary, receiving Helm environment variables and optional install hooks; Go gives portable binaries. Use plugins for repeated Helm-specific operations, pin and review them, and prefer a plain script when that is enough.",
+"cmds": [
+"name: \"myplugin\"\nversion: \"0.1.0\"\nusage: \"check chart standards\"\ncommand: \"$HELM_PLUGIN_DIR/bin/myplugin\"",
+"helm plugin install https://git.example.com/platform/helm-myplugin --version 0.1.0"
+],
+"tip": "Say plugins run with your permissions; vet them."
+},
+{
+"tag": "adv",
+"q": "What are the limits on release size, and how do you deal with very large charts or manifests?",
+"a": "Helm stores each release revision in a Kubernetes secret, and Kubernetes limits the size of an object to about one megabyte because of etcd constraints. A release record contains the chart, the values and the rendered manifest, compressed, so a chart with large embedded files, many CRDs or huge generated manifests can exceed the limit, and the install fails with an error about the secret being too large. Remedies include removing unnecessary files with the helmignore file, moving large static assets, dashboards or CRDs out of the chart and into separate delivery, such as a CRD chart or objects fetched at runtime, splitting an umbrella chart into several releases, and avoiding embedding binaries or large JSON. Compression helps only partly. Alternative storage drivers, such as using config maps or a SQL backend, relax some constraints but are less common and still bound by their own limits. Rendering performance can also degrade with very large templates, so simplifying loops and using fewer lookups helps. Monitoring etcd size and the number of release secrets, and capping history, keep the cluster healthy. Splitting is usually the cleanest answer.",
+"f": [
+"Why does the one-megabyte limit exist?",
+"What should not be bundled in a chart?"
+],
+"p": "Each revision is a secret limited to roughly one megabyte, so large embedded files, many CRDs or huge manifests can break installs. Use helmignore, move assets and CRDs out, split umbrella charts into several releases, cap history and monitor etcd.",
+"cmds": [
+"helm get manifest app -n prod | wc -c",
+"kubectl get secret sh.helm.release.v1.app.v5 -n prod -o json | wc -c"
+],
+"tip": "Say a release record must fit in one Kubernetes object."
+},
+{
+"tag": "adv",
+"q": "How do alias, import-values and condition on dependencies work together in advanced chart composition?",
+"a": "Dependency entries support several keys that make composition flexible. Alias lets the same chart be included more than once under different names, for example two Redis instances for cache and queue, each configured under its own key in values and each rendered with its own name. Condition names a boolean value path, and the dependency is included only when that value is true, enabling optional components like an embedded database. Tags group dependencies so a single tag toggles several. Import-values copies selected values from the subchart's exported values or its defaults into the parent's values, which is how a parent exposes the subchart's service name or port in a form its own templates can use, since parents cannot read arbitrary subchart values otherwise. Subcharts can export values with an exports key. Combining them, a parent chart can include a database subchart conditionally, import its connection values and configure the application. The complexity cost is real: precedence of values, naming collisions and upgrades of multiple versions need care, and heavy composition makes charts hard to understand, so I use these features where they reduce duplication clearly and document the resulting values.",
+"f": [
+"Why use an alias?",
+"What does import-values enable?"
+],
+"p": "Alias includes the same chart several times with separate values, condition and tags toggle dependencies by values, and import-values pulls subchart values up for the parent's templates. Powerful but complex, so document values and use sparingly.",
+"cmds": [
+"dependencies:\n  - name: redis\n    alias: cache\n    version: 19.x.x\n    repository: oci://registry-1.docker.io/bitnamicharts\n    condition: cache.enabled\n  - name: redis\n    alias: queue\n    version: 19.x.x\n    repository: oci://registry-1.docker.io/bitnamicharts\n    condition: queue.enabled"
+],
+"tip": "Say alias for multiples, condition for optionals."
+},
+{
+"tag": "adv",
+"q": "How do you verify and enforce provenance of OCI charts with Flux or Argo CD at deploy time?",
+"a": "Verification is only valuable if the deployment system enforces it. Flux supports verifying cosign signatures on OCI sources: an OCIRepository or HelmChart source can specify a verify block with the provider and, for keyless signing, the expected identity and issuer, or a public key secret. If the signature is missing or does not match, the source is not reconciled and the deployment does not proceed, with an event explaining why. Charts are referenced by digest or a semver range with signature checks, so a tag swap cannot slip through. Argo CD does not verify chart signatures natively in every setup, so organisations enforce policy at admission with tools like Kyverno or Sigstore policy controller that verify image signatures and attestations in the cluster, and they may add pipeline checks before merging version bumps. The signing identity is the pipeline's workload identity, tightly scoped so only the release workflow can produce valid signatures. Trust roots are managed and rotated deliberately. Failure modes are tested by trying to deploy an unsigned or tampered chart in a staging environment, and alerts fire on verification failures, which might indicate an attack or a misconfiguration.",
+"f": [
+"What does keyless verification check?",
+"Where does Argo CD enforcement usually happen?"
+],
+"p": "Flux can verify cosign signatures on OCI chart sources with expected identity and issuer and refuses to reconcile on failure; with Argo CD, enforce through admission policy and pipeline checks. Reference by digest, scope the signing identity to the release workflow, test with unsigned charts and alert on failures.",
+"cmds": [
+"apiVersion: source.toolkit.fluxcd.io/v1beta2\nkind: OCIRepository\nspec:\n  url: oci://ghcr.io/org/charts/app\n  verify:\n    provider: cosign\n    matchOIDCIdentity:\n      - issuer: https://token.actions.githubusercontent.com\n        subject: ^https://github.com/org/charts/.*"
+],
+"tip": "Say verification must block deployment, not just warn."
+},
+{
+"tag": "adv",
+"q": "How do you design a Helm-based platform for many teams, with golden-path charts, guardrails and self-service?",
+"a": "A platform approach balances consistency with autonomy. The platform team publishes a small set of golden-path charts, such as a web service, a worker and a cron job, built on a library chart, with secure defaults for security context, probes, resources, labels, network policies and observability, so a team deploys by writing a short values file instead of authoring templates. Guardrails are enforced twice: in CI with schema validation, policy checks and rendered diffs, and in the cluster with admission policies, quotas and namespace-level controls, so unsafe settings are rejected whichever route is used. Self-service comes from a repository template or portal that scaffolds a new service with its values, pipeline and GitOps application, and from documentation with examples. Extension points, such as extra containers, volumes and environment variables, let teams handle unusual needs without forking, and an escape hatch process allows approved exceptions. Versioning is managed centrally: chart releases are announced with upgrade notes, automated pull requests bump consumers, and deprecations have timelines. Metrics on adoption, deployment frequency and policy violations show whether the platform helps. Support channels and office hours complete the model.",
+"f": [
+"Why enforce guardrails in both CI and the cluster?",
+"How do teams handle needs the chart does not cover?"
+],
+"p": "Publish a few library-based golden-path charts with secure defaults, let teams supply short values, enforce guardrails in CI and admission, scaffold services for self-service, provide extension points and approved exceptions, bump consumers by automated pull requests and track adoption.",
+"cmds": [
+"helm upgrade --install orders oci://registry.example.com/platform/web-service --version 3.4.0 -f services/orders/values.yaml -n orders"
+],
+"tip": "Say a paved road with guardrails and escape hatches."
+},
+{
 "tag": "values",
 "q": "How are Helm values merged, and what is the order of precedence?",
 "a": "Helm builds the final values from several sources with a defined order, where later sources override earlier ones. The base is the chart's own values.yaml. For subcharts, the parent chart's values under the subchart's name override the subchart defaults. Then files supplied with the values flag are applied in the order given, so a later file overrides an earlier one. Finally, individual overrides from the set, set-string and set-file flags win over everything. Maps are merged recursively key by key, so overriding one nested key leaves siblings intact, but lists are replaced entirely, not merged, which surprises people when overriding a single container argument or host entry. Setting a key to null removes the default. On upgrades, the reuse-values flag takes the previous release values as the base, while reset-values returns to chart defaults, and mixing them causes drift, so I prefer to pass a complete set of values files on every run, kept in version control. The values that were actually applied can be inspected afterwards with the get values command and the all flag.",
@@ -1488,5 +1712,524 @@
 "skopeo copy docker://public/app:1.4.0 docker://registry.internal/app:1.4.0"
 ],
 "tip": "Say mirror, pin, verify, rewrite image registries."
+},
+{
+"tag": "basics",
+"q": "What is the version skew policy between Helm and Kubernetes, and why does it matter?",
+"a": "Helm releases state which Kubernetes minor versions each Helm minor version supports, typically the cluster version it was built against and a few versions behind. Helm talks to the API server using client libraries compiled for a specific Kubernetes version, so using a very old client against a new cluster can fail on removed APIs or miss features, and a very new client against an old cluster may send fields the server rejects. The practical rule is to keep Helm within the supported range for the clusters you manage, pin the Helm version in CI so every environment uses the same client, and upgrade the client when clusters upgrade. Charts add their own constraint with the kubeVersion field in Chart.yaml, which makes Helm refuse an install on unsupported clusters. During Kubernetes upgrades, I check deprecated and removed APIs in installed releases before upgrading the control plane, since Helm cannot upgrade a release whose stored manifests use a removed API without the mapkubeapis plugin. Documenting the supported matrix prevents surprises across teams.",
+"f": [
+"Why pin the Helm version in CI?",
+"What does the kubeVersion field do?"
+],
+"p": "Each Helm minor supports a range of Kubernetes versions, so pin Helm in CI, upgrade it with clusters, set kubeVersion in charts and check releases for removed APIs before upgrading the control plane.",
+"cmds": [
+"helm version --short",
+"kubectl version",
+"kubeVersion: \">=1.27.0-0 <1.32.0-0\""
+],
+"tip": "Say pin the client; check removed APIs before cluster upgrades."
+},
+{
+"tag": "basics",
+"q": "How do you inspect an installed release with helm status, get, history and show?",
+"a": "Several commands reveal different parts of a release. Helm list shows releases, namespaces, revisions, status, chart and app version, and with the all-namespaces and all flags includes failed and uninstalled ones. Helm status prints the current status, the resources and the rendered notes text, which often contains connection instructions. Helm get has subcommands: values shows the user-supplied values, with the all flag adding computed ones; manifest shows the exact YAML that was applied; hooks shows hook resources; notes shows the notes; and all combines them. Helm history lists every revision with its status and description, which shows when failures happened, and helm diff revision compares two revisions. Helm show, by contrast, inspects a chart, not a release: it prints the chart metadata, readme and default values. When troubleshooting, I compare the manifest of the working revision with the failing one, and compare the effective values with the values files in Git to detect drift between what is deployed and what was intended.",
+"f": [
+"What is the difference between get values and show values?",
+"How do you find when a release started failing?"
+],
+"p": "Use helm list, status, get values/manifest/hooks/notes and history to inspect a release, and show to inspect a chart. Compare revisions with the diff plugin and check effective values against Git.",
+"cmds": [
+"helm get values app -n prod --all",
+"helm get manifest app -n prod --revision 7 > r7.yaml",
+"helm history app -n prod"
+],
+"tip": "Say get is for releases; show is for charts."
+},
+{
+"tag": "basics",
+"q": "How do namespaces work with Helm releases, and what does --create-namespace do?",
+"a": "A Helm release lives in a namespace, and its record is stored there as a secret. The namespace flag chooses where the release is installed and where namespaced resources are created, unless a template explicitly sets another namespace in metadata. The same release name can exist in different namespaces, which is how one chart is deployed per environment or tenant. The create-namespace flag creates the target namespace if it does not exist, which is convenient for development, but the namespace Helm creates is not part of the release and has no labels, quotas, network policies or pod security settings. In governed clusters, namespaces are created separately by a platform process with those controls, and the pipeline's role may not have permission to create them. A chart that hard-codes namespace in templates breaks this model, so templates should use the release namespace value. Cluster-scoped resources in a chart are not namespaced, and their names should include the release to avoid collisions. Uninstalling a release does not delete the namespace.",
+"f": [
+"Why avoid hard-coded namespaces in templates?",
+"Does uninstall remove the namespace?"
+],
+"p": "Releases and their records live in a namespace; use the release namespace value in templates, prefer platform-created namespaces with quotas and policies over --create-namespace in production, and name cluster-scoped resources with the release to avoid clashes.",
+"cmds": [
+"helm install app ./chart -n team-a --create-namespace",
+"metadata:\n  namespace: {{ .Release.Namespace }}"
+],
+"tip": "Say namespaces are governed by platform, not by helm flags."
+},
+{
+"tag": "basics",
+"q": "What is the difference between helm lint, helm template and helm install --dry-run?",
+"a": "They validate at different depths. Helm lint examines the chart structure and templates for errors and warnings, such as invalid Chart.yaml, missing required fields, template syntax problems and values schema violations, without needing a cluster, and the strict flag turns warnings into failures. Helm template renders the templates locally with the supplied values and prints the manifests, using default capabilities unless told otherwise, with no cluster connection; it shows exactly what would be applied, and its output can be piped to validators like kubeconform. Helm install or upgrade with dry-run renders and then contacts the API server for validation, which can detect issues such as unknown kinds, admission rejections and lookups of existing objects, but still does not create anything. With debug, it prints the computed values and manifest. A good pipeline uses all three: lint for chart quality, template plus schema validation and policy checks for rendered output, and server-side dry run before production deployment to catch cluster-specific problems, followed by the diff plugin for change review.",
+"f": [
+"Which of these needs cluster access?",
+"Why use the strict flag?"
+],
+"p": "Lint checks chart structure and templates offline, template renders manifests locally for validation, and dry-run adds server-side checks through the API without creating anything. Use all three plus diff in a pipeline.",
+"cmds": [
+"helm lint ./chart --strict -f values/prod.yaml",
+"helm template app ./chart -f values/prod.yaml | kubeconform -strict",
+"helm upgrade --install app ./chart --dry-run=server"
+],
+"tip": "Say lint the chart, template the output, dry-run the cluster."
+},
+{
+"tag": "basics",
+"q": "When would you choose a Kubernetes operator instead of a Helm chart to manage an application?",
+"a": "A Helm chart renders and applies manifests once per install or upgrade and then stops; it has no ongoing logic. An operator is a controller that runs continuously, watches custom resources and reconciles real state toward the desired state, encoding operational knowledge such as backups, failover, scaling, upgrades with ordering and health checks. For stateless applications and simple configuration, a chart is usually enough, being simpler to write, review and audit. For complex stateful systems like databases, message brokers and clusters, where lifecycle tasks go beyond creating objects, an operator is a better fit, because it can react to failures and perform multi-step procedures safely. Many projects combine both: a chart installs the operator and its CRDs, and users then create custom resources to declare instances. The trade-offs are that operators add components to run, secure and upgrade, introduce their own APIs to learn, and bugs in them can affect many workloads. I choose operators for mature, well-maintained ones, and avoid writing my own unless the lifecycle logic justifies the engineering cost.",
+"f": [
+"What does a chart not do after install?",
+"How do charts and operators combine?"
+],
+"p": "Charts apply manifests and stop; operators continuously reconcile and encode operational logic such as backups and failover. Use charts for stateless and simple apps, operators for complex stateful systems, and often a chart to install the operator.",
+"cmds": [
+"helm install cnpg cnpg/cloudnative-pg -n cnpg-system --create-namespace",
+"kubectl apply -f cluster.yaml"
+],
+"tip": "Say charts install; operators operate."
+},
+{
+"tag": "templates",
+"q": "How do you generate several resources from a list in values, for example multiple CronJobs or Ingress hosts?",
+"a": "Rather than copying a template for each resource, I define a list or map in values and use range in the template to render one resource per entry. A single file can contain multiple YAML documents separated by triple dashes, and the range loop emits a separator and a full resource for each item. Inside the loop the dot refers to the current item, so I use the dollar sign or a variable captured earlier to reach release metadata and helper templates. For maps, range gives the key and value, with the key naturally used for naming; I sort keys so output order is stable. Names should combine the release fullname and the item name and respect the length limit. Optional per-item fields get defaults, and a required call guards mandatory ones. Validation through the values schema helps users catch mistakes. This pattern suits workers, scheduled jobs, additional ports, extra volumes and multiple ingress rules. For very different resources, separate templates remain clearer, and over-generic loops can make templates hard to read.",
+"f": [
+"Why use the dollar sign inside the loop?",
+"How do you keep output order stable?"
+],
+"p": "Define a list or map in values and range over it in one template, emitting a document separator and a resource per item, using $ for root context, combined names, defaults and required fields. Use schema validation and keep loops readable.",
+"cmds": [
+"{{- range $name, $job := .Values.cronjobs }}\n---\napiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: {{ include \"app.fullname\" $ }}-{{ $name }}\nspec:\n  schedule: {{ $job.schedule | quote }}\n{{- end }}"
+],
+"tip": "Say one template, many resources, via range."
+},
+{
+"tag": "templates",
+"q": "How do you load and use files inside a chart with .Files, Files.Glob, AsConfig and AsSecrets?",
+"a": "The Files object gives templates access to non-template files packaged with the chart, except those excluded by the helmignore file and files in the templates directory. Files.Get returns the content of a single file as a string, which is ideal for embedding a script or configuration into a ConfigMap, and Files.GetBytes returns bytes. Files.Glob returns a set of files matching a pattern, and the AsConfig method turns them into key-value pairs suitable for the data section of a ConfigMap, with file names as keys; AsSecrets does the same with base64 encoding for secrets. Lines and Lines iterate content. Files can also be passed through tpl to evaluate template expressions within them, giving templated configuration files stored as real files, which editors handle better than long strings in YAML. Limits to remember: the whole chart is stored in the release record, so large files inflate it and can hit size limits; and binary or sensitive files should not be bundled. Paths are relative to the chart root.",
+"f": [
+"What does AsConfig produce?",
+"Why avoid large files in charts?"
+],
+"p": "Files.Get reads one packaged file, Files.Glob selects many and AsConfig or AsSecrets turn them into ConfigMap or Secret data; run through tpl if they contain expressions. Avoid large or sensitive files because the chart is stored in the release record.",
+"cmds": [
+"data:\n  {{- (.Files.Glob \"files/*.conf\").AsConfig | nindent 2 }}",
+"data:\n  init.sh: |-\n    {{- .Files.Get \"files/init.sh\" | nindent 4 }}"
+],
+"tip": "Say real files beat giant YAML strings."
+},
+{
+"tag": "templates",
+"q": "How do you use semverCompare, fail and NOTES.txt to make a chart helpful and safe?",
+"a": "Charts can protect users and guide them. The semverCompare function compares version strings against constraints, typically comparing Capabilities.KubeVersion.Version with a range, so a template can pick the correct apiVersion or refuse unsupported combinations, and the same can validate the application version. The fail function aborts rendering with a custom message, which is the right way to stop on invalid combinations that a schema cannot express, such as enabling autoscaling together with a fixed replica count or specifying both an existing secret and an inline password, producing a clear error instead of a confusing result. The required function is a shorter form for a missing value. The NOTES.txt file in templates is rendered after install and upgrade and shown to the user: it explains how to reach the application, get the generated password from a secret, port-forward for access, and warns about important next steps or deprecations. It can use the same templating and conditionals, for example showing different instructions for ingress or load balancer exposure. Good messages reduce support questions and misconfiguration.",
+"f": [
+"When use fail instead of a schema?",
+"What goes into NOTES.txt?"
+],
+"p": "Use semverCompare for version-aware templates, fail with clear messages for invalid combinations a schema cannot express, required for mandatory values, and NOTES.txt to show access instructions, secrets retrieval and warnings after install.",
+"cmds": [
+"{{- if and .Values.autoscaling.enabled .Values.replicaCount }}\n{{- fail \"set either autoscaling.enabled or replicaCount, not both\" }}\n{{- end }}",
+"{{- if semverCompare \">=1.25-0\" .Capabilities.KubeVersion.Version }}"
+],
+"tip": "Say fail early with a message that explains the fix."
+},
+{
+"tag": "templates",
+"q": "Which string, list and dictionary functions from Sprig do you use for safe name and label handling?",
+"a": "Names and labels have strict rules, so Sprig helpers are essential. Trunc cuts a string to a length, usually 63, and trimSuffix removes a trailing hyphen after truncation. Replace changes characters, for instance turning a plus sign in a chart version into an underscore for labels. Lower, upper, title and kebabcase normalise case. Printf builds strings with formatting, and join, split and splitList convert between lists and strings. Regex functions such as regexMatch and regexReplaceAll validate or clean input. For lists, first, last, append, concat, uniq, sortAlpha and has support manipulation, and for dictionaries, dict creates a map to pass multiple arguments into an included template, merge and mergeOverwrite combine maps, keys and values list contents, hasKey tests existence, pick and omit select entries, and deepCopy avoids mutating shared data. Sha256sum, b64enc and b64dec support checksums and encoded secrets. I wrap commonly used combinations in named templates so the same logic produces consistent names everywhere, and I keep expressions short enough to read.",
+"f": [
+"How do you pass several values to an included template?",
+"Why wrap name logic in helpers?"
+],
+"p": "Use trunc and trimSuffix for 63-character limits, replace for illegal characters, printf and join for building strings, dict to pass multiple arguments to includes, merge and hasKey for maps, and sha256sum or b64enc for checksums and secrets. Wrap common logic in helpers.",
+"cmds": [
+"{{ printf \"%s-%s\" .Release.Name .Chart.Name | trunc 63 | trimSuffix \"-\" }}",
+"{{ .Chart.Version | replace \"+\" \"_\" | trunc 63 | quote }}",
+"{{ include \"app.container\" (dict \"root\" . \"name\" \"web\") }}"
+],
+"tip": "Say wrap fiddly logic in one helper."
+},
+{
+"tag": "templates",
+"q": "How do you write a template that merges user-supplied annotations, labels or env vars with chart defaults without duplicates?",
+"a": "Users expect to add their own metadata and environment variables while the chart keeps required defaults. For maps such as labels and annotations, I build the final map with merge or mergeOverwrite, combining the chart's standard labels, those from a global value, and the user's extra labels, and then render it with toYaml. The order determines precedence, and I make sure user values cannot override selector labels, because selectors must stay stable. A helper template returns the merged map so every resource uses it consistently. For environment variables, which are lists in Kubernetes, merging is harder: I either expose a map in values and convert it to a list in the template, sorted by name, or accept an extra list that is appended to the defaults, and warn that duplicates produce undefined behaviour. The envFrom field handles bulk injection from config maps and secrets. Templates should handle empty values gracefully with default and with blocks. Documentation lists which keys are reserved. Tests check that defaults survive and overrides apply as expected.",
+"f": [
+"Why protect selector labels?",
+"How do you convert an env map into a list?"
+],
+"p": "Use merge or mergeOverwrite in a helper to combine standard labels, global values and user extras, render with toYaml, keep selector labels immutable, convert env maps to sorted lists or append extra lists, and test that defaults survive and overrides apply.",
+"cmds": [
+"{{- define \"app.labels\" -}}\n{{- $base := dict \"app.kubernetes.io/name\" .Chart.Name \"app.kubernetes.io/instance\" .Release.Name -}}\n{{- merge $base (.Values.extraLabels | default dict) | toYaml -}}\n{{- end }}",
+"{{- range $k, $v := .Values.env }}\n- name: {{ $k }}\n  value: {{ $v | quote }}\n{{- end }}"
+],
+"tip": "Say merge into one map; never touch selectors."
+},
+{
+"tag": "values",
+"q": "How do you document chart values so users know what each option does?",
+"a": "Values are the user interface, so documentation must be close to the code and kept current. In values.yaml, each key has a comment above it describing purpose, type, default and allowed values, written in a consistent format that tools can parse. The helm-docs tool reads these comments, including special annotations for type and description, and generates a readme table automatically, run in a pre-commit hook or CI so the readme never drifts from the file. The values schema adds machine-readable types, enumerations and descriptions, and editors use it for auto-completion and validation. The readme also includes installation instructions, prerequisites, upgrade notes between versions, common configuration examples such as a production values file, and how to configure ingress, persistence and secrets. Artifact Hub displays the readme and can show the values schema. A changelog in the chart records new, renamed and removed values, which helps users upgrade. Examples that are tested in CI ensure that documented configurations actually render, avoiding stale instructions.",
+"f": [
+"How does helm-docs generate tables?",
+"Why test the examples?"
+],
+"p": "Comment each key in values.yaml in a parseable format, generate the readme table with helm-docs in pre-commit or CI, add a values schema, document upgrades and examples, keep a changelog of renamed or removed values and test that examples render.",
+"cmds": [
+"# -- Number of replicas\n# @default -- 1\nreplicaCount: 1",
+"helm-docs --chart-search-root charts"
+],
+"tip": "Say generate the table; don't hand-write it."
+},
+{
+"tag": "values",
+"q": "How should image tags and digests be handled in chart values?",
+"a": "Images are the most frequently changed value, so the design should be both convenient and safe. Common values are repository, tag and pull policy, with the tag defaulting to the chart's appVersion when empty. Pipelines override the tag at deploy time or, better, commit the new tag to the environment's values file so it is traceable. Mutable tags such as latest or a branch name are risky because different nodes can pull different content and rollbacks are unreliable, so I use immutable version tags or digests. A digest reference, with the sha256 value, pins exact content and protects against tag overwrites or registry compromise; the template renders repository at digest when a digest value is provided, otherwise repository colon tag. Pull policy should be IfNotPresent for versioned tags and Always only when tags are mutable. For multiple containers, init containers and jobs, the same pattern applies, ideally through a shared helper that builds the image string with an optional global registry prefix. This supports mirroring to internal registries. Admission policies enforce no latest tags and approved registries.",
+"f": [
+"Why prefer digests?",
+"How does a global registry prefix help?"
+],
+"p": "Expose repository, tag, digest and pullPolicy; default the tag to appVersion, avoid mutable tags, prefer digests, build image strings in a shared helper with an optional global registry prefix for mirrors, and enforce with admission policy.",
+"cmds": [
+"{{- define \"app.image\" -}}\n{{- $r := printf \"%s%s\" (default \"\" .Values.global.imageRegistry) .Values.image.repository -}}\n{{- if .Values.image.digest }}{{ $r }}@{{ .Values.image.digest }}{{ else }}{{ $r }}:{{ .Values.image.tag | default .Chart.AppVersion }}{{ end -}}\n{{- end }}"
+],
+"tip": "Say immutable tags or digests, one helper."
+},
+{
+"tag": "values",
+"q": "How do you size resources and autoscaling per environment using values without duplicating whole files?",
+"a": "Environments differ mainly in scale, so only those settings should differ between values files. The base file sets modest defaults that work anywhere, and each environment file overrides replica counts, resource requests and limits, autoscaling bounds and storage sizes. Presets can reduce errors: a value such as size set to small, medium or large maps in a helper to resource blocks, with an explicit resources value taking precedence for exceptions. Autoscaling values include enabled, minimum, maximum and target utilisation, and the template omits fixed replicas when it is enabled. Requests are based on measured usage from monitoring, with vertical pod autoscaler recommendations as input, and limits are set carefully because CPU limits can cause throttling while memory limits protect nodes. Pod disruption budgets and topology spread settings are scaled with the replica count. Production values are reviewed with capacity in mind, and quota in namespaces enforces ceilings. A rendered diff between staging and production shows that only intended scale-related values differ. Load tests validate the sizing before it reaches production.",
+"f": [
+"Why omit replicas with HPA?",
+"How are requests chosen?"
+],
+"p": "Keep a modest base values file and override only scale settings per environment, optionally with size presets, omit replicas when autoscaling is on, base requests on measured usage and VPA advice, scale PDBs and spread constraints, and diff rendered environments.",
+"cmds": [
+"# values/prod.yaml\nresources:\n  requests: {cpu: 500m, memory: 1Gi}\nautoscaling:\n  enabled: true\n  minReplicas: 4\n  maxReplicas: 20\n  targetCPUUtilizationPercentage: 65"
+],
+"tip": "Say thin overrides: only scale differs."
+},
+{
+"tag": "values",
+"q": "How do you deploy the same chart for many tenants or customers safely using values?",
+"a": "Multi-tenant deployments multiply configuration, so structure and automation matter. One approach is a release per tenant, each in its own namespace, with a small values file containing only tenant-specific settings such as hostname, sizing, feature toggles and external identifiers, layered over shared defaults. A generator reads a tenant list and produces the releases: a GitOps ApplicationSet or Flux Kustomization with templating, or a Helmfile with a loop. Isolation comes from namespaces, resource quotas, network policies and separate secrets, with credentials per tenant stored in an external secret manager. Upgrades roll out in waves, internal tenants first, then small ones, then large, with health checks and the ability to hold back a tenant on an older chart version if it needs more time. Data per tenant is separated physically or logically as the application requires. Observability labels metrics and logs with the tenant. Onboarding and offboarding are automated, including deletion of data. A schema validates tenant files, and a rendered diff for sample tenants is reviewed on changes. Avoid copy-pasting values for hundreds of tenants.",
+"f": [
+"Why roll out in waves?",
+"How are tenants isolated?"
+],
+"p": "Create a release and namespace per tenant with small tenant values over shared defaults, generate them with ApplicationSets, Flux or Helmfile, isolate with quotas, network policies and per-tenant secrets, upgrade in waves, label observability by tenant and validate files with a schema.",
+"cmds": [
+"generators:\n  - git:\n      repoURL: https://git.example.com/platform/tenants\n      files:\n        - path: \"tenants/*.yaml\""
+],
+"tip": "Say generate tenants; don't copy them."
+},
+{
+"tag": "values",
+"q": "How do you use JSON Schema conditionals and references in values.schema.json for stronger validation?",
+"a": "A basic schema checks types and required fields, but JSON Schema also supports conditions and reuse that capture real constraints. The if, then and else keywords make fields required only when another is set, for example requiring a host and TLS secret name when ingress is enabled, or requiring a storage size when persistence is on. The oneOf and anyOf keywords express alternatives, such as providing either an inline password or an existing secret name but not both. Definitions with $ref reuse structures like a resources block or an image block in several places, keeping the schema short and consistent. Patterns validate formats like DNS names, durations and quantities, and enumerations restrict choices. Setting additionalProperties false at key levels catches typos in key names, though it should be omitted where users may add arbitrary keys, such as annotations. Helm validates against draft-07 and reports errors with the path, so messages are useful. Tests render the chart with valid and invalid example values to confirm the schema rejects what it should. The schema is maintained with the chart, and tools can generate a starting version.",
+"f": [
+"How do you require fields only when a feature is enabled?",
+"Why use additionalProperties false?"
+],
+"p": "Use if/then/else to require fields when features are enabled, oneOf for exclusive alternatives, $ref definitions for reuse, patterns and enums for formats, and additionalProperties false to catch typos where appropriate. Test valid and invalid values against the schema.",
+"cmds": [
+"{\n \"if\": {\"properties\": {\"ingress\": {\"properties\": {\"enabled\": {\"const\": true}}}}},\n \"then\": {\"properties\": {\"ingress\": {\"required\": [\"host\"]}}}\n}"
+],
+"tip": "Say schemas can express dependencies, not just types."
+},
+{
+"tag": "charts",
+"q": "How do you add init containers, sidecars and extra volumes to a chart in a flexible way?",
+"a": "Applications often need extra containers: an init container to wait for a dependency or fetch configuration, a sidecar for log shipping, a proxy or certificate reloader, and extra volumes and mounts for secrets or shared files. A good chart exposes these as values so users can add them without forking: lists such as initContainers, extraContainers, extraVolumes and extraVolumeMounts, rendered with toYaml and the tpl function when values need templating, for example referencing the release name. The chart documents the format as standard Kubernetes container specs. The main container's own mounts and the shared emptyDir volumes for sidecar communication are defined in the template, and security context defaults apply to additional containers too, which is where charts often forget. Resource requests for sidecars matter because they count toward pod scheduling. With native sidecar support in recent Kubernetes versions, init containers with a restart policy of Always give sidecars proper start-up and shutdown ordering. Probes, termination ordering and log collection are tested together, since sidecars can block pod termination or readiness.",
+"f": [
+"Why does tpl help with extra containers?",
+"What do native sidecars improve?"
+],
+"p": "Expose initContainers, extraContainers, extraVolumes and extraVolumeMounts as values rendered with toYaml and tpl, apply security defaults and resource requests to extras, document the format and use native sidecars for better ordering on recent Kubernetes.",
+"cmds": [
+"{{- with .Values.extraContainers }}\n{{- tpl (toYaml .) $ | nindent 8 }}\n{{- end }}"
+],
+"tip": "Say expose extension points instead of forcing forks."
+},
+{
+"tag": "charts",
+"q": "How do you template Ingress and Gateway API resources in a chart across different controllers?",
+"a": "Traffic exposure varies widely between clusters. For Ingress, the chart exposes enabled, class name, annotations, hosts with paths and path types, and TLS entries with secret names, rendering the correct apiVersion for the cluster. Annotations are controller-specific, so they are passed through rather than hard-coded, and the ingress class uses the ingressClassName field instead of the deprecated annotation. Certificates are usually obtained through cert-manager by adding an issuer annotation. The service port can be referenced by name to avoid mismatches. For the newer Gateway API, the chart may render HTTPRoute resources referencing an existing Gateway through parent references, with hostnames, matches, filters and backend references, leaving the shared Gateway to the platform team. Offering both, behind separate enabled flags, eases migration. Defaults keep exposure off or internal, because accidental public exposure is a security risk. Tests render combinations, validate against API schemas and check that hosts and TLS settings line up. NOTES.txt tells users the URL. Multi-host and path-based routing patterns come from list values iterated with range.",
+"f": [
+"Why pass annotations through instead of hard-coding?",
+"What does HTTPRoute reference?"
+],
+"p": "Expose enabled, class, annotations, hosts, paths and TLS for Ingress, pass controller annotations through, support cert-manager, optionally render Gateway API HTTPRoute referencing a platform Gateway, default to no public exposure and test combinations.",
+"cmds": [
+"{{- if .Values.httpRoute.enabled }}\napiVersion: gateway.networking.k8s.io/v1\nkind: HTTPRoute\nspec:\n  parentRefs: {{- toYaml .Values.httpRoute.parentRefs | nindent 4 }}\n  hostnames: {{- toYaml .Values.httpRoute.hostnames | nindent 4 }}\n{{- end }}"
+],
+"tip": "Say pass controller specifics through; default to private."
+},
+{
+"tag": "charts",
+"q": "How do you template PodDisruptionBudgets, HorizontalPodAutoscalers and topology spread correctly in a chart?",
+"a": "These resources protect availability and scale, but they interact, so the chart must be careful. A PodDisruptionBudget limits voluntary disruptions during node drains and upgrades; the chart exposes minAvailable or maxUnavailable, never both, and renders it only when enabled and the replica count makes it meaningful, since a budget requiring one available pod with a single replica blocks node drains forever. The HorizontalPodAutoscaler references the deployment, with min and max replicas and metric targets, and the deployment template omits the replicas field when it is enabled. Resource requests must be set for CPU-based scaling to work. Topology spread constraints and pod anti-affinity spread replicas across nodes and zones; the chart provides defaults using the selector labels with a soft preference, so scheduling still succeeds in small clusters, and allows overrides. Selector labels in all of them must match the pods exactly. Values for these are validated, and unit tests render combinations such as autoscaling on with the budget enabled. Documentation explains the interactions and recommended production settings.",
+"f": [
+"Why can a PDB block node drains?",
+"How do the HPA and replicas field interact?"
+],
+"p": "Expose minAvailable or maxUnavailable (not both) for PDBs and avoid budgets that block drains with a single replica; omit replicas when the HPA is enabled; provide soft topology spread defaults using selector labels; require resource requests and test combinations.",
+"cmds": [
+"apiVersion: policy/v1\nkind: PodDisruptionBudget\nspec:\n  maxUnavailable: {{ .Values.pdb.maxUnavailable }}\n  selector:\n    matchLabels: {{- include \"app.selectorLabels\" . | nindent 6 }}"
+],
+"tip": "Say availability objects must match selectors and replicas."
+},
+{
+"tag": "charts",
+"q": "How do you handle Jobs and CronJobs in a chart, including migrations, ttl and history settings?",
+"a": "Jobs run to completion and are immutable once created, which causes upgrade problems when a chart templates a job with the same name. Options are to use a hook with a delete policy so the job is recreated for each release, to add a unique suffix such as the revision or a checksum to the name so each upgrade creates a new job, or to set ttlSecondsAfterFinished so completed jobs clean themselves. Migration jobs usually run as pre-upgrade hooks with a backoff limit, an active deadline and resource limits, and they must be idempotent. CronJobs expose schedule, time zone, concurrency policy of Allow, Forbid or Replace, starting deadline, history limits for successful and failed jobs, suspend and the job template. Forbid is the safe default when overlap would be harmful. The chart should set a restart policy of OnFailure or Never, and the pod spec shares the security context and image helper with other workloads. Failures should alert through metrics or logs, not rely on someone looking at history. Time zones and daylight changes need care, and jobs must tolerate being run twice.",
+"f": [
+"Why are Jobs a problem on upgrade?",
+"What does concurrencyPolicy Forbid do?"
+],
+"p": "Jobs are immutable, so recreate them with hooks and delete policies, unique names or ttlSecondsAfterFinished. Give migrations backoff and deadlines; for CronJobs expose schedule, time zone, concurrencyPolicy Forbid by default, history limits and suspend, and make work idempotent.",
+"cmds": [
+"spec:\n  schedule: {{ .Values.cron.schedule | quote }}\n  concurrencyPolicy: Forbid\n  successfulJobsHistoryLimit: 3\n  jobTemplate:\n    spec:\n      ttlSecondsAfterFinished: 3600\n      backoffLimit: 2"
+],
+"tip": "Say jobs are immutable; recreate them deliberately."
+},
+{
+"tag": "charts",
+"q": "How do you support configuration of the application's own config file in a chart, and avoid breaking changes?",
+"a": "Many applications read a configuration file, and charts need to expose it without exposing a hundred separate values. There are three approaches. First, map important settings to values and render the file from a template, which gives validation and good defaults but requires keeping the chart in step with the application's options. Second, accept a free-form configuration block in values, rendered with toYaml or as a string, so users supply the file contents and the chart only mounts it; this is flexible but offers no validation. Third, a hybrid: structured values for the settings the chart needs to understand, such as ports and storage paths, plus an extraConfig merge or append for everything else. The rendered file is stored in a ConfigMap or Secret if it contains credentials, mounted as a volume, and a checksum annotation triggers a rolling restart when it changes. When the application version changes its format, the chart version documents the migration and, where possible, supports both formats with a switch for a transition period. Validation by running the application's own config test command in a hook or CI catches errors early.",
+"f": [
+"Why use a checksum annotation?",
+"What is the downside of a free-form config block?"
+],
+"p": "Choose structured values rendered by template, a free-form block mounted as-is, or a hybrid with an extraConfig merge; store in a ConfigMap or Secret, add a checksum annotation, document migrations between formats and validate with the application's config test.",
+"cmds": [
+"data:\n  app.yaml: |-\n    {{- toYaml .Values.config | nindent 4 }}",
+"annotations:\n  checksum/config: {{ include (print $.Template.BasePath \"/configmap.yaml\") . | sha256sum }}"
+],
+"tip": "Say structure what you must, pass through the rest."
+},
+{
+"tag": "release",
+"q": "How do you achieve zero-downtime upgrades with a Helm-deployed application?",
+"a": "Zero downtime depends on Kubernetes settings that the chart must expose, not on Helm itself. The deployment uses a rolling update strategy with maxSurge and maxUnavailable tuned, often zero unavailable, so new pods become ready before old ones go. Readiness probes must reflect real ability to serve, and a startup probe protects slow starts. Termination needs care: a preStop hook with a short sleep and a termination grace period long enough let the load balancer deregister the pod and in-flight requests finish, and the application handles SIGTERM gracefully. A PodDisruptionBudget keeps enough replicas during node drains, and at least two replicas with anti-affinity or topology spread avoid single points of failure. Database changes follow expand and contract so old and new versions work together during the rollout. Helm flags wait and atomic ensure the upgrade is judged by readiness and rolled back on failure. Config changes trigger rollouts through checksums. Finally, testing upgrades under load in staging, watching error rates during the roll, confirms the setup works before production.",
+"f": [
+"Why a preStop sleep?",
+"What roles do maxSurge and maxUnavailable play?"
+],
+"p": "Expose rolling update settings with maxUnavailable zero, accurate readiness and startup probes, preStop delay and sufficient grace period with SIGTERM handling, PDBs, multiple spread replicas, backward-compatible migrations, and use --atomic --wait. Test under load.",
+"cmds": [
+"strategy:\n  rollingUpdate: {maxSurge: 25%, maxUnavailable: 0}\nlifecycle:\n  preStop:\n    exec: {command: [\"sleep\", \"10\"]}\nterminationGracePeriodSeconds: 45"
+],
+"tip": "Say Helm applies; Kubernetes settings deliver zero downtime."
+},
+{
+"tag": "release",
+"q": "What do --force, --recreate-pods and --reset-then-reuse-values do on upgrade, and when are they appropriate?",
+"a": "These flags change how upgrades apply. The force flag makes Helm delete and recreate resources if a normal patch fails, which can resolve conflicts such as changed immutable fields, but it causes downtime for those resources and can lose data for stateful ones, so I use it only in non-production or with a clear plan. The older recreate-pods flag restarted pods after upgrade; it has been removed in favour of checksum annotations or rollout restarts, because forced restarts bypass rollout strategy. For values, reuse-values takes the previous release's computed values and merges new overrides, which ignores new chart defaults, while reset-values discards previous values and uses chart defaults plus the supplied ones. The reset-then-reuse-values option resets to the new chart's defaults and then reapplies the previously supplied user values, which is useful when you must upgrade a chart whose original values files are unavailable; it keeps the user's overrides while picking up new defaults. In controlled pipelines, I avoid these flags and supply full values files, so each upgrade is reproducible.",
+"f": [
+"What is the risk of --force?",
+"When is --reset-then-reuse-values useful?"
+],
+"p": "Force deletes and recreates resources when patching fails, risking downtime and data loss. Recreate-pods is gone in favour of checksums. Reuse-values keeps old values and ignores new defaults, reset-values drops them, and reset-then-reuse reapplies prior overrides on new defaults. Prefer full values files.",
+"cmds": [
+"helm upgrade app ./chart --reset-then-reuse-values",
+"helm upgrade app ./chart -f values/base.yaml -f values/prod.yaml"
+],
+"tip": "Say reproducible upgrades come from complete values files."
+},
+{
+"tag": "release",
+"q": "What naming and structure conventions do you use for release names, namespaces and labels across a platform?",
+"a": "Consistency makes operations predictable. Release names usually reflect the application and sometimes the environment or tenant, short enough to leave room within the 63-character limits once chart names and suffixes are added. A common convention is one namespace per application and environment, or per team with the release name identifying the app, with the pattern documented and enforced by the pipeline. The recommended Kubernetes labels, name, instance, version, component, part-of and managed-by, are applied through a shared helper so dashboards, policies and cost tools can group resources reliably. Additional organisational labels carry team, cost centre, environment and owner, and admission policy requires them. Helm adds its own release labels and annotations to track ownership. Names must be stable, because renaming a release means a new installation; they should not include version numbers. For multiple instances of the same chart in one namespace, release names differ and resource names derive from them. Documentation and templates for new services bake in the conventions, and naming checks run in CI.",
+"f": [
+"Why avoid version numbers in release names?",
+"Which labels should every resource have?"
+],
+"p": "Use short stable release names, a documented namespace scheme, the recommended app.kubernetes.io labels through a shared helper, required organisational labels for team, owner and cost, and CI or admission checks to enforce them.",
+"cmds": [
+"labels:\n  app.kubernetes.io/name: {{ .Chart.Name }}\n  app.kubernetes.io/instance: {{ .Release.Name }}\n  app.kubernetes.io/managed-by: {{ .Release.Service }}\n  team: {{ .Values.team }}"
+],
+"tip": "Say conventions let tooling group things reliably."
+},
+{
+"tag": "release",
+"q": "How do you recover when a namespace or release is stuck in Terminating or deletion hangs after helm uninstall?",
+"a": "A stuck deletion usually means a finalizer cannot complete. After uninstall, the namespace may stay in the Terminating state because some resources inside have finalizers waiting on a controller that no longer exists, for example custom resources whose operator was already removed, persistent volume claims protected by the volume protection finalizer while a pod still mounts them, or load balancer services waiting for the cloud controller. I inspect what remains with kubectl api-resources and get commands across all kinds in the namespace, read the namespace status conditions, which list the blocking resources, and check controller logs. The proper fix is to restore the missing controller or complete the underlying operation, for instance deleting the pod using the volume. As a last resort, remove the finalizer from the stuck object with a patch, accepting that external resources such as cloud load balancers or disks might be orphaned and need manual cleanup. Preventing the issue means ordering uninstalls so operators are removed after their custom resources, and avoiding CRDs and instances in the same release lifecycle without care.",
+"f": [
+"How do you list what blocks a namespace?",
+"What is the risk of removing a finalizer?"
+],
+"p": "Check the namespace conditions and list all remaining resources to find finalizers waiting on missing controllers, volumes or cloud load balancers. Fix the cause first; as a last resort patch the finalizer away and clean up orphaned external resources. Uninstall operators after their custom resources.",
+"cmds": [
+"kubectl get ns stuck -o jsonpath='{.status.conditions}'",
+"kubectl api-resources --verbs=list --namespaced -o name | xargs -n1 kubectl get -n stuck --ignore-not-found",
+"kubectl patch foo/bar -n stuck -p '{\"metadata\":{\"finalizers\":[]}}' --type=merge"
+],
+"tip": "Say find the blocker; remove finalizers only as a last resort."
+},
+{
+"tag": "release",
+"q": "How do you plan and execute a Helm release freeze, hotfix or emergency rollback process?",
+"a": "Good release management defines the rules before an incident. A freeze period, such as before major events, restricts deployments to approved changes, enforced through pipeline settings that require an exception approval and by protecting production environments. A hotfix path allows an urgent change to bypass the normal soak time but not safety checks: a small branch from the production version, automated tests and lint, a diff review, deployment with atomic and wait flags, and verification of metrics, with retrospective review afterwards. Emergency rollback is rehearsed and documented: how to identify the last good revision with helm history, how to run helm rollback or revert the Git commit in GitOps environments, how to pause automated syncs so the controller does not fight the rollback, and how to confirm recovery. Communication matters: announce in the incident channel, record the chart and image versions deployed, and notify stakeholders. Data changes need a separate plan since rollback does not undo them. After the event, a blameless review identifies improvements such as better tests or canary stages. Runbooks are kept short and practised in game days.",
+"f": [
+"Why pause automated syncs during a rollback?",
+"What do you not skip in a hotfix?"
+],
+"p": "Define freezes with enforced exceptions, a hotfix path that keeps tests, diffs, atomic deploys and metric checks, and a rehearsed rollback using helm rollback or Git revert while pausing GitOps syncs. Communicate, record versions, plan for data changes and review afterwards.",
+"cmds": [
+"helm history app -n prod --max 5",
+"helm rollback app 41 -n prod --wait",
+"argocd app set app --sync-policy none"
+],
+"tip": "Say rehearse rollback before you need it."
+},
+{
+"tag": "repo",
+"q": "What are the benefits and pitfalls of pinning chart dependencies and application images by digest?",
+"a": "A digest identifies content exactly, whereas a version tag is a label that can be moved. Pinning by digest guarantees that the same bytes are deployed in every environment and every rebuild, protects against a tag being overwritten, a registry compromise or an accidental republish, and makes rollbacks truly return to the previous content. For OCI charts, referencing a chart by digest does the same for the package. The pitfalls are readability, since digests are opaque, so teams keep the human-readable tag next to the digest in comments or metadata; update effort, as every new build needs a new digest, which is handled by automation such as Renovate or an image updater committing the new value; and mirror behaviour, because copying images between registries preserves digests for the same manifest but multi-architecture indexes and re-signing can change them if not copied carefully. Digest pinning also means security patches are not picked up automatically, so scheduled rebuilds and scanning are needed. Policies in admission can require digests for production, giving a strong supply chain guarantee when combined with signature verification.",
+"f": [
+"Why does pinning not apply patches automatically?",
+"How do bots keep digests current?"
+],
+"p": "Digests pin exact content, guard against tag overwrite and compromise and make rollbacks exact, but they are opaque and need automation to update, careful mirroring and scheduled rebuilds for security patches. Combine with signature verification and admission policy.",
+"cmds": [
+"image: registry.example.com/app@sha256:3f1a...",
+"crane digest registry.example.com/app:1.4.2"
+],
+"tip": "Say pin by digest, automate the updates."
+},
+{
+"tag": "repo",
+"q": "How do you mirror public charts and images into a private registry, using skopeo, crane or oras?",
+"a": "Mirroring protects availability and supply-chain control. For charts stored as OCI artifacts, helm pull then helm push works, but tools like oras and crane copy artifacts between registries directly, preserving manifests and digests without unpacking. Skopeo and crane copy container images, including all architectures, between registries or from a registry to a local archive for air-gapped transfers. A mirroring job lists the approved charts and versions, copies each chart and every image it references, extracted from the rendered manifests so nothing is missed, then scans and signs them or records the original digest. The target registry organises content under predictable paths, and image values in charts are overridden to point at the mirror through global registry settings. Authentication uses scoped service accounts. Jobs run on a schedule or on request through pull requests that add a chart version to an allow list, which also serves as the review gate. Mirrors expire old versions according to retention rules. Rewriting references and verifying digests after copying completes the process, and failures alert the platform team.",
+"f": [
+"Why extract images from rendered manifests?",
+"What preserves digests when copying?"
+],
+"p": "Copy OCI charts with oras or crane and images with skopeo or crane, preserving digests; derive the image list from rendered manifests, scan and sign, override registry values, drive it from an approved list and schedule it with retention and alerts.",
+"cmds": [
+"crane copy ghcr.io/org/charts/app:1.4.0 registry.internal/charts/app:1.4.0",
+"skopeo copy --all docker://nginx:1.27 docker://registry.internal/mirror/nginx:1.27",
+"helm template app ./chart | grep 'image:' | awk '{print $2}' | tr -d '\"' | sort -u"
+],
+"tip": "Say mirror what the chart actually references."
+},
+{
+"tag": "repo",
+"q": "How do you publish chart metadata for Artifact Hub, including annotations, icons and verified publisher status?",
+"a": "Artifact Hub reads metadata from the repository and the chart, so good metadata improves discoverability and trust. In Chart.yaml, fields like description, keywords, home, sources, maintainers, icon and the deprecated flag are displayed. Additional annotations with the artifacthub.io prefix describe changes, links, images, licence, recommendations, security updates and prerelease status; the changes annotation lists items for each version, which appear as a changelog. A file named artifacthub-repo.yml at the repository root, or as an OCI tag, declares the repository ID and owners, and publishing it proves ownership, which earns the verified publisher badge. Signing charts with provenance or cosign adds a signed indicator, and the security report shows vulnerability scan results of referenced images. The readme is rendered on the page, so it should have clear installation and configuration sections. Keeping versions immutable and the changelog accurate builds trust. Automating the metadata updates in the release pipeline ensures consistency, and the repository is registered in the Artifact Hub control panel by its owner.",
+"f": [
+"How does verified publisher status work?",
+"Where does the changelog come from?"
+],
+"p": "Fill Chart.yaml metadata, add artifacthub.io annotations such as changes, images and licence, publish artifacthub-repo.yml to prove ownership for the verified badge, sign charts, keep a good readme and automate metadata in the release pipeline.",
+"cmds": [
+"annotations:\n  artifacthub.io/changes: |\n    - kind: added\n      description: HTTPRoute support\n  artifacthub.io/license: Apache-2.0"
+],
+"tip": "Say metadata is part of the release."
+},
+{
+"tag": "repo",
+"q": "How do you migrate an organisation from an HTTP chart repository to OCI without breaking consumers?",
+"a": "Migration should be gradual and reversible. First, stand up an OCI-capable registry and decide on paths and access control. Then publish every chart version from the existing repository into the registry, using a script that pulls each archive and pushes it with the same version, verifying digests and signatures where they exist. Update the release pipeline to publish new versions to both locations during a transition period, so consumers can move at their own pace. Next, update consumers: Chart.yaml dependencies, Helmfile definitions, GitOps sources and documentation change from repository names to oci URLs. Dependencies referenced by repository alias need the new URL and a refreshed lock file. GitOps controllers need registry credentials configured. Search and discovery change because OCI has no index, so an Artifact Hub registration or an internal catalogue helps. After consumers have moved, monitor access logs of the old repository to find stragglers, announce a deprecation date, then make it read-only and finally retire it. Keep the old archives for audit and rollback.",
+"f": [
+"Why publish to both during migration?",
+"What replaces the index for discovery?"
+],
+"p": "Create the OCI registry, republish all existing versions with verified digests, dual-publish during transition, update dependencies, GitOps sources and docs, provide discovery through Artifact Hub or a catalogue, watch old-repo access logs, announce deprecation and then make it read-only.",
+"cmds": [
+"for f in archive/*.tgz; do helm push $f oci://registry.example.com/charts; done",
+"helm dependency update ./chart"
+],
+"tip": "Say dual-publish, move consumers, then retire."
+},
+{
+"tag": "repo",
+"q": "How do you handle development and pre-release chart versions with semantic versioning?",
+"a": "Semver allows pre-release identifiers, such as 1.5.0-rc.1 or 1.5.0-pr123.4, which sort before the final release, so teams can publish test builds without consuming a real version number. Helm excludes pre-release versions from range matching unless explicitly allowed with the devel flag or a constraint that includes a pre-release, so normal consumers never pick them up by accident. A pipeline builds a chart for each pull request with a version derived from the base version and the build number or commit, publishes it to a dev area of the registry with a short retention policy, and deploys it to a preview environment. Release candidates go through staging, and a final version is cut by tagging, which publishes the stable chart with no suffix. Build metadata after a plus sign should be avoided in chart versions because OCI tags do not allow plus signs, and Helm converts them. Immutable versions are still the rule, even for pre-releases. Cleanup jobs delete old dev versions, and dependency constraints in production charts never reference pre-releases.",
+"f": [
+"Why are pre-releases skipped by default?",
+"What is the issue with plus signs in OCI tags?"
+],
+"p": "Use semver pre-release identifiers for PR and release-candidate builds, publish them to a short-retention dev area, rely on Helm excluding them from normal ranges unless --devel, avoid plus-sign metadata for OCI tags, keep versions immutable and clean up old ones.",
+"cmds": [
+"helm package ./chart --version 1.5.0-rc.1",
+"helm install app oci://registry/charts/app --version 1.5.0-rc.1",
+"helm search repo app --devel --versions"
+],
+"tip": "Say pre-release versions never leak into stable ranges."
+},
+{
+"tag": "cicd",
+"q": "What does a GitHub Actions workflow for building, testing and publishing a Helm chart look like?",
+"a": "A workflow triggers on pull requests and on pushes or tags. On pull requests, it checks out the code, installs a pinned Helm and plugins, runs chart-testing to detect changed charts and lint them, builds a kind cluster, installs the changed charts with CI values, and runs helm test. It also runs unit tests, renders manifests for kubeconform and policy checks, and posts a diff. On merge or tag, a release job authenticates to the registry using the workflow's OIDC identity or a short-lived token instead of a long-lived secret, packages the chart, verifies the version was bumped, pushes the OCI artifact, signs it with cosign using keyless identity, and attaches an SBOM. Permissions on the job token are minimal, with write access to packages only for the release job. Third-party actions are pinned to commit hashes. Caching speeds up Helm and tool downloads. Concurrency groups prevent duplicate releases. The workflow definition lives with the chart, and results link to the pull request, so reviewers see evidence of testing.",
+"f": [
+"Why use OIDC instead of stored secrets?",
+"Why pin actions to commit hashes?"
+],
+"p": "PR jobs run chart-testing lint and install in kind, unit tests, kubeconform and policy checks and a diff; release jobs authenticate with OIDC, check the version bump, push the OCI chart, sign with cosign and attach an SBOM. Use minimal token permissions and pinned actions.",
+"cmds": [
+"permissions:\n  contents: read\n  packages: write\n  id-token: write\nsteps:\n  - uses: helm/chart-testing-action@v2\n  - run: ct lint-and-install --target-branch main",
+"  - run: helm push chart-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts"
+],
+"tip": "Say OIDC, minimal permissions, pinned actions."
+},
+{
+"tag": "cicd",
+"q": "Should you deploy with the Terraform helm_release resource or the Helm CLI, and what are the trade-offs?",
+"a": "The Terraform helm provider manages releases as resources in state, which fits teams that already provision clusters with Terraform and want a single workflow, with dependency ordering between the cluster, namespaces, secrets and releases. Benefits include a plan that shows value changes, drift detection of release attributes, and integration with outputs such as endpoints or IAM role ARNs fed into values. Drawbacks are important: the plan does not show the rendered Kubernetes manifest diff the way helm diff does, so the effect of a chart upgrade is opaque; values with secrets may be stored in state, which must be protected; long Helm operations and failures can leave state and cluster out of sync; and the provider needs cluster credentials at plan time, creating a dependency on the cluster existing. Application deployments with frequent changes are better served by a CI/CD pipeline with the CLI or GitOps, while platform add-ons installed once and rarely changed, such as ingress controllers, are a good fit for Terraform. A common compromise is Terraform installing the GitOps controller and bootstrap components, with GitOps managing everything else.",
+"f": [
+"What does Terraform's plan not show?",
+"What belongs in Terraform versus GitOps?"
+],
+"p": "helm_release gives one workflow with dependency ordering and drift detection, but plans hide the rendered manifest diff, state may hold secrets and failures can desync state. Use it for rarely changed platform add-ons and GitOps or the CLI for frequently deployed applications.",
+"cmds": [
+"resource \"helm_release\" \"ingress\" {\n  name       = \"ingress-nginx\"\n  repository = \"https://kubernetes.github.io/ingress-nginx\"\n  chart      = \"ingress-nginx\"\n  version    = \"4.11.3\"\n  namespace  = \"ingress\"\n  atomic     = true\n}"
+],
+"tip": "Say Terraform for add-ons, GitOps for apps."
+},
+{
+"tag": "cicd",
+"q": "How do Argo CD sync waves and hooks relate to Helm hooks and weights?",
+"a": "Both systems order resource creation, but with different mechanisms. Helm hooks run at lifecycle points, with weights ordering hooks of the same type, and the CLI waits for each. Argo CD, which renders charts with helm template and applies them itself, does not run Helm lifecycle logic: it translates certain Helm hook annotations into its own sync hooks, so pre-install and pre-upgrade become PreSync, post-install and post-upgrade become PostSync, and delete hooks and tests have limited support. Argo CD's own annotations define sync waves, integers that order resources within a sync; lower waves apply first and Argo waits for them to become healthy before starting the next wave. Charts used under Argo CD can include sync-wave annotations on resources, for example namespaces and CRDs at negative waves, operators next, then custom resources. Because pre-upgrade and install hooks both map to the same hook phase, behaviour can differ from the CLI, and a job meant to run only on upgrade runs on every sync unless handled. Delete policies map to hook-delete policies. I test a chart under the actual deployment tool, not only with the CLI.",
+"f": [
+"How are Helm hooks translated in Argo CD?",
+"What do sync waves control?"
+],
+"p": "Argo CD renders with helm template and maps Helm hooks to PreSync and PostSync hooks, while its own sync-wave annotations order resources by wave with health gates. Behaviour differs from the CLI, such as install versus upgrade hooks, so test charts under the real tool.",
+"cmds": [
+"metadata:\n  annotations:\n    argocd.argoproj.io/sync-wave: \"-1\"\n    argocd.argoproj.io/hook: PreSync"
+],
+"tip": "Say Argo applies manifests; it doesn't run Helm lifecycle."
+},
+{
+"tag": "cicd",
+"q": "How do you create preview environments per pull request with Helm?",
+"a": "Preview environments let reviewers try a change in isolation. A pipeline triggered by a pull request builds the application image tagged with the commit, packages or references the chart, and installs a release named after the pull request into a dedicated namespace, such as preview-pr-123, using shared base values plus overrides for the image tag, a unique hostname on a wildcard domain with automatic TLS, smaller resource requests, and ephemeral or shared backing services. The pipeline posts the URL on the pull request. Costs and risk are controlled: resource quotas on the namespace, a time-to-live annotation or scheduled cleanup that deletes stale previews, limits on concurrent environments, and no access to production data or secrets. Dependencies use lightweight versions, seeded test data and mocks. When the pull request closes or merges, a job runs helm uninstall and deletes the namespace, including persistent volumes. GitOps tools offer pull request generators in ApplicationSets that create and remove applications automatically. Security matters for forks: untrusted code must not receive credentials, so previews for forks need approval. Logs and health checks help debugging failures of the preview itself.",
+"f": [
+"How do you avoid leaking previews?",
+"Why restrict previews from forks?"
+],
+"p": "On each PR, build the image, install a release in a per-PR namespace with a unique hostname and small resources, post the URL, enforce quotas and TTL cleanup, use seeded test data and no production secrets, uninstall on close, and use ApplicationSet PR generators with approval for forks.",
+"cmds": [
+"helm upgrade --install pr-123 ./chart -n preview-pr-123 --create-namespace --set image.tag=$SHA --set ingress.host=pr-123.preview.example.com --atomic",
+"helm uninstall pr-123 -n preview-pr-123 && kubectl delete ns preview-pr-123"
+],
+"tip": "Say every preview has an owner and an expiry."
+},
+{
+"tag": "cicd",
+"q": "How do you combine Helm with progressive delivery tools such as Argo Rollouts or Flagger?",
+"a": "Helm packages the application, while progressive delivery tools control how traffic shifts to a new version. With Argo Rollouts, the chart renders a Rollout resource in place of a Deployment, defining the canary or blue-green strategy: steps with weights and pauses, analysis templates that query metrics such as error rate and latency, and traffic routing integration with an ingress controller or service mesh. Helm upgrade changes the pod template, Rollouts then moves traffic gradually, runs the analysis, and promotes or aborts automatically. Flagger works with an existing Deployment: the chart defines a Canary custom resource that references it, and Flagger creates the primary and canary copies and shifts traffic according to metrics. In both, the chart exposes values for strategy, step weights, analysis thresholds and metric queries, and the helm wait flag becomes less meaningful because the rollout continues after the command returns, so the pipeline should wait on the rollout status or the Canary phase. Rollback is automatic on failed analysis; in GitOps, Git should eventually reflect the reverted version to avoid drift. Dashboards show rollout progress and results.",
+"f": [
+"What replaces Deployment in Argo Rollouts?",
+"Why is helm --wait insufficient?"
+],
+"p": "The chart renders a Rollout for Argo Rollouts, or a Canary resource for Flagger, exposing strategy, weights, analysis and metrics as values. Helm only starts the change; the pipeline must wait for rollout status, and failed analysis aborts automatically while Git should be reconciled to the reverted version.",
+"cmds": [
+"strategy:\n  canary:\n    steps:\n      - setWeight: 10\n      - pause: {duration: 5m}\n      - setWeight: 50\n      - pause: {duration: 10m}",
+"kubectl argo rollouts status app -n prod --timeout 30m"
+],
+"tip": "Say Helm ships the version; the controller shifts the traffic."
 }
 ]
