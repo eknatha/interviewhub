@@ -56,10 +56,13 @@ a { color: #111 !important; text-decoration: none !important; }
 .print-cover .pc-note { margin-top: 16mm; font-size: 9pt; color: #555; line-height: 1.5; }
 
 /* Diagonal watermark on every printed / PDF page */
-body::after { content: "certs.eknathalabs.com"; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); white-space: nowrap; font: 700 46pt Arial, Helvetica, sans-serif; letter-spacing: .04em; color: rgba(15, 110, 86, .13); pointer-events: none; z-index: 2147483647; }
+body::after { content: "interviewhub.eknathalabs.com"; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); white-space: nowrap; font: 700 46pt Arial, Helvetica, sans-serif; letter-spacing: .04em; color: rgba(15, 110, 86, .13); pointer-events: none; z-index: 2147483647; }
 .dg-block { display: block !important; break-inside: avoid; margin-top: 3mm; padding: 1.5mm 2mm; border: 1px solid #999; border-left: 3px solid #7F77DD; background: #fff !important; }
 .dg-block .dg-title { font-weight: 700; font-size: 8.8pt; }
 .dg-block .dg-scroll { overflow: visible; }
 .dg-block .dg-svg { max-width: 100%; height: auto; }
 .dg-svg rect.b, .dg-svg rect.h, .dg-svg rect.c { fill: #fff !important; stroke: #444 !important; }
 .dg-svg text { fill: #000 !important; }
+
+/* Partially visible watermark peeking from the bottom edge of every printed / PDF page */
+html::after { content: "InterviewHub · interviewhub.eknathalabs.com"; position: fixed; left: 0; right: 0; bottom: 0; height: 9mm; overflow: hidden; line-height: 18mm; text-align: center; white-space: nowrap; font: 800 30pt/18mm Arial, Helvetica, sans-serif; letter-spacing: .05em; color: rgba(15, 110, 86, .16); pointer-events: none; z-index: 2147483646; }

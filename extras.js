@@ -47,4 +47,13 @@
   window.addEventListener('afterprint', function () { if (wasDark) document.body.classList.add('dark'); });
 
   if (document.readyState !== 'loading') build(); else document.addEventListener('DOMContentLoaded', build);
+
+  // Print/PDF watermark: small, faint, partly clipped at the bottom edge of every printed page.
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '.ih-wm{display:none}@media print{.ih-wm{display:block;position:fixed;left:0;right:0;bottom:9mm;height:2.6mm;overflow:hidden;text-align:center;white-space:nowrap;font:700 8pt/5.2mm Arial,Helvetica,sans-serif;letter-spacing:.12em;color:rgba(15,110,86,.28);pointer-events:none;z-index:2147483645;-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+    document.head.appendChild(st);
+    function add() { if (document.querySelector('.ih-wm') || !document.body) return; var d = document.createElement('div'); d.className = 'ih-wm'; d.setAttribute('aria-hidden', 'true'); d.textContent = 'certs.eknathalabs.com'; document.body.appendChild(d); }
+    if (document.readyState !== 'loading') add(); else document.addEventListener('DOMContentLoaded', add);
+  })();
 })();
