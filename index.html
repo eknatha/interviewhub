@@ -181,6 +181,7 @@ footer a:hover { text-decoration: underline; }
     </nav>
   </div>
 </header>
+<nav class="mnav" aria-label="Tools"><a href="search.html">🔍 Search</a><a href="diagrams.html">🗺 Diagrams</a><a href="resume_mapper.html">📄 Resume mapper</a><a href="decision_trees.html">🌳 Decision trees</a></nav>
 
 <div class="hero">
   <div class="pill"><span class="pill-dot"></span>Platform & DevOps Engineer Interview Prep</div>
@@ -201,7 +202,7 @@ footer a:hover { text-decoration: underline; }
   </div>
   <a id="gsearch" href="search.html" style="display:none;font-size:13px;font-weight:600;color:var(--accent-dk);text-decoration:none;margin:6px 2px 0">Search all questions for this &rarr;</a>
   <div class="filter-row">
-    <div class="chip on" onclick="setTag('all',this)">All (22)</div>
+    <div class="chip on" id="chip-all" onclick="setTag('all',this)">All (25)</div>
     <div class="chip" onclick="setTag('infra',this)">Infrastructure</div>
     <div class="chip" onclick="setTag('containers',this)">Containers</div>
     <div class="chip" onclick="setTag('cloud',this)">Cloud</div>
@@ -659,6 +660,7 @@ function toggleDark() {
 
 var activeTag = 'all';
 
+(function(){var n=document.querySelectorAll('.card').length,c=document.getElementById('chip-all');if(c&&n)c.textContent='All ('+n+')';})();
 function filterCards() {
   var q = document.getElementById('search').value.toLowerCase().trim();
   var gs = document.getElementById('gsearch'); gs.style.display = q ? 'inline-block' : 'none'; gs.href = 'search.html?q=' + encodeURIComponent(q);
